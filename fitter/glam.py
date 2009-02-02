@@ -45,7 +45,7 @@ def fit(z,coords,knots,order,smooth):
 
 	Basis = [splinebasis(knots[i],order,coords[i]) for i in range(0,ndim)]
 
-	w = z+1
+	w = z
 	#w = numpy.ones(z.shape)
 	#w = 1.0/z
 	#w[z == 0.0] = 0.0005
@@ -114,8 +114,8 @@ def fit(z,coords,knots,order,smooth):
 
 def smootheddata(coeffs, knots, order, coords):
 	results = coeffs
-	Basis = [splinebasis(knots[i],order,coords[i]) for i in range(0,knots.size)]
-	for i in range(0,a.ndim):
+	Basis = [splinebasis(knots[i],order,coords[i]) for i in range(0,len(knots))]
+	for i in range(0,results.ndim):
 		results = rho(Basis[i].transpose(),results,i)
 
 	return results
