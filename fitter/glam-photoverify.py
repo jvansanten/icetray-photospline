@@ -60,5 +60,5 @@ for y in munge[2]:
 	gp.splot(raw,fit)
 	print 'Displaying slice at z = %f' % y
 	printdiffstats(sample[:,3],sample[:,4])
-	input('Press Enter to continue')
+	raw_input('Press Enter to continue')
 
