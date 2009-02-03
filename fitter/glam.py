@@ -29,7 +29,7 @@ def rho(A,B,p):
 	return C
 
 
-def fit(z,coords,knots,order,smooth):
+def fit(z,w,coords,knots,order,smooth):
 	ndim=z.ndim
 
 	nsplines = [len(knots[i])-order-1 for i in range(0,ndim)]
@@ -44,11 +44,6 @@ def fit(z,coords,knots,order,smooth):
 	print "Calculating spline basis..."
 
 	Basis = [splinebasis(knots[i],order,coords[i]) for i in range(0,ndim)]
-
-	w = z
-	#w = numpy.ones(z.shape)
-	#w = 1.0/z
-	#w[z == 0.0] = 0.0005
 
 	print "Calculating penalty matrix..."
 

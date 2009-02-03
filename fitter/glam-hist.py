@@ -4,7 +4,8 @@ import sys
 
 # Hard-coded params
 
-bins = 15
+bins = 50
+nknots = 20
 smooth = 0.1
 
 # Real code
@@ -12,9 +13,11 @@ smooth = 0.1
 data = numpy.loadtxt(sys.argv[1])
 ndim = data.ndim
 ranges = numpy.column_stack((data.min(0),data.max(0)))
+knots = []
 print "Axis lengths:"
 for r in ranges:
 	print "\t",r[0],"-",r[1]
+	knots.append(numpy.linspace(r[0],r[1],nknots))
 
 print "Histogramming..."
 
@@ -28,7 +31,8 @@ for i in range(0,len(axes)):
 print "Loaded histogram with dimensions ",z.shape
 
 print "Beginning spline fit..."
-coeff = glam.fit(z,axes,axes,2,smooth)
+# Set weights equal to the variance equal to the 1 + the observed values
+coeff = glam.fit(z,z + 1.,axes,knots,2,smooth)
 
 print "Saving coefficients to %s..." % (sys.argv[1]+".pspl")
 numpy.save(sys.argv[1]+".pspl",coeff)
