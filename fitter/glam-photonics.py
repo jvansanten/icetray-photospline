@@ -4,8 +4,7 @@ import sys
 
 # Hard-coded params
 
-bins = 25
-nknots = 20
+nknots = 25
 smooth = 0.1
 
 # Real code
@@ -19,7 +18,9 @@ knots = []
 print "Axis lengths:"
 for r in ranges:
 	print "\t",r[0],"-",r[1]
-	knots.append(numpy.linspace(r[0],r[1],nknots))
+	space = (r[1] - r[0])/nknots
+
+	knots.append(numpy.linspace(r[0]-2*space,r[1]+2*space,nknots))
 
 munge = [numpy.unique(data[:,i]) for i in range(0,3)]
 z = z.reshape(munge[0].size,munge[1].size,munge[2].size)
