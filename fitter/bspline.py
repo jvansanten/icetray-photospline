@@ -31,12 +31,18 @@ def bspline(knots, x, i, n):
 	b = (knots[i+n+1] - x)*bspline(knots, x, i+1, n-1)/(knots[i+n+1] - knots[i+1])
 	return a+b
 
-def splinebasis(knots,order,x1):
+def splinebasis(knots,order,x1,period = 0):
 	splinevals = []
-	nsplines = len(knots)-order-1
+	if period == 0:
+		nsplines = len(knots)-order-1
+	else:
+		nsplines = len(knots)
 	i = 0
 	while i < nsplines:
-		splinevals.append([bspline(knots,x,i,order) for x in x1])
+		if period == 0:
+			splinevals.append([bspline(knots,x,i,order) for x in x1])
+		else:
+			splinevals.append([pbspline(knots,x,i,order,period) for x in x1])
 		i = i+1
 
 	return numpy.matrix(numpy.column_stack(splinevals))
