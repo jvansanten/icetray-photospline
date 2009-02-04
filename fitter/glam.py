@@ -28,11 +28,15 @@ def rho(A,B,p):
 
 	return C
 
-
-def fit(z,w,coords,knots,order,smooth):
+def fit(z,w,coords,knots,order,smooth,periods):
 	ndim=z.ndim
 
-	nsplines = [len(knots[i])-order-1 for i in range(0,ndim)]
+	nsplines = []
+	for i in range(0,len(knots)):
+		if (periods[i] == 0):
+			nsplines.append(len(knots[i])-order-1)
+		else:
+			nsplines.append(len(knots[i]))		
 
 	def box(A,B):
 		ea = numpy.ones((1,A.shape[1]),float)
@@ -43,7 +47,7 @@ def fit(z,w,coords,knots,order,smooth):
 
 	print "Calculating spline basis..."
 
-	Basis = [splinebasis(knots[i],order,coords[i]) for i in range(0,ndim)]
+	Basis = [splinebasis(knots[i],order,coords[i],periods[i]) for i in range(0,ndim)]
 
 	print "Calculating penalty matrix..."
 
@@ -107,9 +111,9 @@ def fit(z,w,coords,knots,order,smooth):
 
 	return a
 
-def smootheddata(coeffs, knots, order, coords):
+def smootheddata(coeffs, knots, order, coords, periods):
 	results = coeffs
-	Basis = [splinebasis(knots[i],order,coords[i]) for i in range(0,len(knots))]
+	Basis = [splinebasis(knots[i],order,coords[i], periods[i]) for i in range(0,len(knots))]
 	for i in range(0,results.ndim):
 		results = rho(Basis[i].transpose(),results,i)
 

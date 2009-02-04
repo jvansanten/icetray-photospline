@@ -15,12 +15,19 @@ data = rawdata[:,[0,1,2]]
 ndim = 3
 ranges = numpy.column_stack((data.min(0),data.max(0)))
 knots = []
+periods = []
 print "Axis lengths:"
 for r in ranges:
 	print "\t",r[0],"-",r[1]
 	space = (r[1] - r[0])/nknots
 
-	knots.append(numpy.linspace(r[0] - 2*space,r[1] + 2*space,nknots))
+	if (r[1] < 180.0):
+		print "\t\tPeriodic"
+		knots.append(numpy.linspace(180./nknots,180,nknots))
+		periods.append(180)
+	else:
+		knots.append(numpy.linspace(r[0]-3.5*space,r[1]+2*space,nknots))
+		periods.append(0)
 
 munge = [numpy.unique(data[:,i]) for i in range(0,3)]
 z = z.reshape(munge[0].size,munge[1].size,munge[2].size)
@@ -37,7 +44,7 @@ coeff = coeff.reshape((nknots-3,nknots-3,nknots-3))
 
 print "Coefficient matrix shape is",coeff.shape
 
-smoothed = glam.smootheddata(coeff,knots,2,munge)
+smoothed = glam.smootheddata(coeff,knots,2,munge,periods)
 
 def printdiffstats(a,b):
 	print "Fit Statistics:"
