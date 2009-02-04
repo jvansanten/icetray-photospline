@@ -20,13 +20,8 @@ print "Axis lengths:"
 for r in ranges:
 	print "\t",r[0],"-",r[1]
 	space = (r[1] - r[0])/nknots
-	if (r[1] < 180.0):
-		print "\t\tPeriodic"
-		knots.append(numpy.linspace(180./nknots,180,nknots))
-		periods.append(180)
-	else:
-		knots.append(numpy.linspace(r[0]-3.5*space,r[1]+2*space,nknots))
-		periods.append(0)
+	knots.append(numpy.linspace(r[0]-3.5*space,r[1]+2*space,nknots))
+	periods.append(0)
 
 munge = [numpy.unique(data[:,i]) for i in range(0,3)]
 z = z.reshape(munge[0].size,munge[1].size,munge[2].size)
