@@ -52,9 +52,10 @@ def fit(z,w,coords,knots,order,smooth,periods):
 	print "Calculating penalty matrix..."
 
 	def calcP(nsplines, dim):
-		D = numpy.matrix(numpy.diag(numpy.ones(nsplines[dim],float),0) + \
-		    numpy.diag(-2*numpy.ones(nsplines[dim]-1,float),-1) + \
-		    numpy.diag(numpy.ones(nsplines[dim]-2,float),-2))
+		D = numpy.eye(nsplines[dim],dtype=float,k=0) + \
+		    -2*numpy.eye(nsplines[dim],dtype=float,k=-1) + \
+		    numpy.eye(nsplines[dim],dtype=float,k=-2)
+		D = numpy.matrix(D)
 		DtD = D.transpose() * D
 
 		def prodterm(i):
