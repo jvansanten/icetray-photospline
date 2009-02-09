@@ -38,13 +38,6 @@ def fit(z,w,coords,knots,order,smooth,periods):
 		else:
 			nsplines.append(len(knots[i]))		
 
-	def box(A,B):
-		ea = numpy.ones((1,A.shape[1]),float)
-		eb = numpy.ones((1,B.shape[1]),float)
-		
-		return numpy.matrix(numpy.asarray(numpy.kron(A, eb)) * \
-		    numpy.asarray(numpy.kron(ea, B)))
-
 	print "Calculating spline basis..."
 
 	Basis = [splinebasis(knots[i],order,coords[i],periods[i]) for i in range(0,ndim)]
