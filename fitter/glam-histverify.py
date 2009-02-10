@@ -36,9 +36,6 @@ print "Loaded histogram with dimensions ",z.shape
 
 print "Reading spline fit..."
 coeff = numpy.load(sys.argv[2])
-#coeff = numpy.loadtxt(sys.argv[2])
-#print "Changing to:",nknots-3
-#coeff = coeff.reshape((nknots-3,nknots-3,nknots-3))
 
 print "Coefficient matrix shape is",coeff.shape
 
@@ -52,7 +49,6 @@ def printdiffstats(a,b):
 	print "\tMax Fractional Deviation from Data:",numpy.max(numpy.abs((a - b)/b))
 	print "\tMean Fractional Deviation from Data:",numpy.mean(numpy.abs((a - b)/b))
 
-#coord = rawdata[:,[0,1,2]]
 coords = []
 def append_all_perms(a,i):
 	global coords
