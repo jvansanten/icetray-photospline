@@ -1,4 +1,5 @@
 import glam
+import splinetable
 import numpy
 import sys
 import Gnuplot
@@ -35,10 +36,16 @@ print "Reading spline fit..."
 coeff = numpy.loadtxt(sys.argv[2])
 print "Changing to:",nknots-3
 coeff = coeff.reshape((nknots-3,nknots-3,nknots-3))
+table = splinetable.SplineTable()
+table.knots = knots
+table.coefficients = coeff
+table.periods = periods
+table.order = 2
+
 
 print "Coefficient matrix shape is",coeff.shape
 
-smoothed = glam.smootheddata(coeff,knots,2,munge,periods)
+smoothed = glam.grideval(table,munge)
 
 def printdiffstats(a,b):
 	print "Fit Statistics:"

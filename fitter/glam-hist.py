@@ -35,7 +35,7 @@ print "Loaded histogram with dimensions ",z.shape
 
 print "Beginning spline fit..."
 # Set weights equal to the variance equal to the 1 + the observed values
-coeff = glam.fit(numpy.log(z+1.),z + 1.,axes,knots,2,smooth,periods)
+coeff = glam.fit(numpy.log(z+1.),z + 1.,axes,knots,2,smooth,periods).coefficients
 
 print "Saving coefficients to %s..." % (sys.argv[1]+".pspl")
 numpy.save(sys.argv[1]+".pspl",coeff)

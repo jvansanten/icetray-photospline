@@ -1,4 +1,5 @@
 import glam
+import splinetable
 import numpy
 import Gnuplot
 import sys
@@ -36,10 +37,15 @@ print "Loaded histogram with dimensions ",z.shape
 
 print "Reading spline fit..."
 coeff = numpy.load(sys.argv[2])
+table = splinetable.SplineTable()
+table.knots = knots
+table.coefficients = coeff
+table.periods = periods
+table.order = 2
 
 print "Coefficient matrix shape is",coeff.shape
 
-smoothed = glam.smootheddata(coeff,knots,2,axes,periods)
+smoothed = glam.grideval(table,axes)
 smoothed = numpy.exp(smoothed)-1
 
 def printdiffstats(a,b):
@@ -71,7 +77,6 @@ bigdat = numpy.column_stack((coord,zvec))
 bigdat = numpy.column_stack((bigdat,smoothed.reshape(smoothed.size)))
 
 gp = Gnuplot.Gnuplot()
-gp.interact()
 
 for y in axes[2]:
 	sample = bigdat[bigdat[:,2] == y]

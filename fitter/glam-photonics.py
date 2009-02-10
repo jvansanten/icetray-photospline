@@ -32,13 +32,14 @@ w = numpy.ones(z.shape)
 print "Loaded histogram with dimensions ",z.shape
 
 print "Beginning spline fit..."
-coeff = glam.fit(z,w,munge,knots,2,smooth,periods)
+table = glam.fit(z,w,munge,knots,2,smooth,periods)
+coeff = table.coefficients
 
 print "Saving coefficients to %s..." % (sys.argv[1]+".pspl")
 numpy.savetxt(sys.argv[1]+".pspl",numpy.reshape(coeff,coeff.size))
 print "Coefficient matrix shape is",coeff.shape
 
-smoothed = glam.smootheddata(coeff,knots,2,munge,periods)
+smoothed = glam.grideval(table,munge)
 
 print "Fit Statistics:"
 print "\tMaximum Deviation from Data:",numpy.max(numpy.abs(smoothed - z))

@@ -1,4 +1,5 @@
 import numpy
+import splinetable
 from bspline import *
 
 def box(A,B):
@@ -30,6 +31,11 @@ def rho(A,B,p):
 
 def fit(z,w,coords,knots,order,smooth,periods):
 	ndim=z.ndim
+
+	table = splinetable.SplineTable()
+	table.knots = knots
+	table.order = order
+	table.periods = periods
 
 	nsplines = []
 	for i in range(0,len(knots)):
@@ -103,11 +109,14 @@ def fit(z,w,coords,knots,order,smooth,periods):
 		result = numpy.linalg.lstsq(F + P, r)
 		a = numpy.reshape(result[0],nsplines)
 
-	return a
+	table.coefficients = a
+	return table
 
-def smootheddata(coeffs, knots, order, coords, periods):
-	results = coeffs
-	Basis = [splinebasis(knots[i],order,coords[i], periods[i]) for i in range(0,len(knots))]
+def grideval(table, coords):
+	results = table.coefficients
+	Basis = [splinebasis(table.knots[i], table.order,coords[i],
+	    table.periods[i]) for i in range(0,len(table.knots))]
+
 	for i in range(0,results.ndim):
 		results = rho(Basis[i].transpose(),results,i)
 
