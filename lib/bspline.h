@@ -17,10 +17,21 @@ double bspline(const double *knots, double x, int i, int n);
  * that is non-zero at the position x.
  */
 
-double splineeval(double *knots, double *weights, int nknots, double x, int order,
-    int center);
+double splineeval(double *knots, double *weights, int nknots, double x,
+    int order, int center);
+
+/*
+ * Spline table based hypersurface evaluation. ndsplineeval() takes a spline
+ * coefficient table, a vector at which to evaluate the surface, and a vector
+ * indicating the evaluation centers, as for splineeval().
+ *
+ * tablesearchcenters() provides a method to acquire a centers vector
+ * for ndsplineeval() using a binary search. Depending on how the table
+ * was produced, a more efficient method may be available.
+ */
 
 int tablesearchcenters(struct splinetable *table, double *x, int *centers);
+
 double ndsplineeval(struct splinetable *table, const double *x, 
     const int *centers);
 
