@@ -96,14 +96,15 @@ tablesearchcenters(struct splinetable *table, double *x, int *centers)
    
 static double
 localbasis_sub(const double *weights, const int *centers, int ndim,
-    int order, int n, const long *naxes, double pos[ndim],
+    int order, int n, const long *naxes, int pos[ndim],
     double localbasis[ndim][order + 1])
 {
-	double acc = 0;
+	double acc = 0.0;
 	int k;
 
 	if (n+1 == ndim) {
 		int i, j;
+		int stride;
 
 		/*
 		 * If we are at the last recursion level, the weights are
@@ -113,17 +114,21 @@ localbasis_sub(const double *weights, const int *centers, int ndim,
 		 */
 
 		j = 0;
-		for (i = 0; i < ndim-1; i++)
-			j += pos[i]*naxes[i];
+		stride = 1;
+		for (i = n; i >= 0; i--) {
+			if (i < n) j += pos[i]*stride;
+			stride *= naxes[i];
+		}
 
-		for (k = -order; k <= 0; k++)
+		for (k = -order; k <= 0; k++) {
 			acc += weights[j + k + centers[n]]*
 			    localbasis[n][k+order];
+		}
 	} else {
 		for (k = -order; k <= 0; k++) {
 			/*
-			 * If we are not at the last dimension, record where we are,
-			 * multiply in the row basis value, and recurse.
+			 * If we are not at the last dimension, record where we
+			 * are, multiply in the row basis value, and recurse.
 			 */
 
 			pos[n] = centers[n] + k;
@@ -154,13 +159,14 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers)
 {
 	int n, offset;
 	double localbasis[table->ndim][table->order + 1];
-	double pos[table->ndim];
+	int pos[table->ndim];
 
 	for (n = 0; n < table->ndim; n++) {
-		for (offset = -table->order; offset <= 0; offset++)
+		for (offset = -table->order; offset <= 0; offset++) {
 			localbasis[n][offset+table->order] =
 			     bspline(table->knots[n],x[n],
 			     centers[n] + offset, table->order);
+		}
 	}
 
 	return (localbasis_sub(table->coefficients, centers, table->ndim,
