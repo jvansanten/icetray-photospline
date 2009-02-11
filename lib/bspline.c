@@ -73,9 +73,30 @@ splineeval(double *knots, double *weights, int nknots, double x, int order,
 	return work;
 }
 
+int
+tablesearchcenters(struct splinetable *table, double *x, int *centers)
+{
+	int i;
+
+	for (i = 0; i < table->ndim; i++) {
+		/* XXX: should be a binary search */
+		for (centers[i] = 0; centers[i]+1 < table->nknots[i];
+		    centers[i]++) {
+			if (x[i] > table->knots[i][centers[i]] &&
+			    x[i] < table->knots[i][centers[i]+1])
+				break;
+		}
+
+		if (centers[i]+1 >= table->nknots[i])
+			return (-1);
+	}
+
+	return (0);
+}
+   
 static double
 localbasis_sub(const double *weights, const int *centers, int ndim,
-    int order, int n, const int *nknots, double pos[ndim],
+    int order, int n, const long *naxes, double pos[ndim],
     double localbasis[ndim][order + 1])
 {
 	double acc = 0;
@@ -93,10 +114,11 @@ localbasis_sub(const double *weights, const int *centers, int ndim,
 
 		j = 0;
 		for (i = 0; i < ndim-1; i++)
-			j += pos[i]*(nknots[i]-order-1);
+			j += pos[i]*naxes[i];
 
 		for (k = -order; k <= 0; k++)
-			acc += weights[j + k + centers[n]]*localbasis[n][k+order];
+			acc += weights[j + k + centers[n]]*
+			    localbasis[n][k+order];
 	} else {
 		for (k = -order; k <= 0; k++) {
 			/*
@@ -105,8 +127,8 @@ localbasis_sub(const double *weights, const int *centers, int ndim,
 			 */
 
 			pos[n] = centers[n] + k;
-			acc += localbasis_sub(weights, centers, ndim, order, n+1,
-			    nknots, pos, localbasis)*localbasis[n][k+order];
+			acc += localbasis_sub(weights, centers, ndim, order,
+			    n+1, naxes, pos, localbasis)*localbasis[n][k+order];
 		}
 	}
 
@@ -128,19 +150,19 @@ localbasis_sub(const double *weights, const int *centers, int ndim,
  */
 
 double
-ndsplineeval(double **knots, const double *weights, int ndim, 
-    const int *nknots, const double *x, int order, const int *centers)
+ndsplineeval(struct splinetable *table, const double *x, const int *centers)
 {
 	int n, offset;
-	double localbasis[ndim][order + 1];
-	double pos[ndim];
+	double localbasis[table->ndim][table->order + 1];
+	double pos[table->ndim];
 
-	for (n = 0; n < ndim; n++) {
-		for (offset = -order; offset <= 0; offset++)
-			localbasis[n][offset+order] = bspline(knots[n],x[n],
-			    centers[n] + offset, order);
+	for (n = 0; n < table->ndim; n++) {
+		for (offset = -table->order; offset <= 0; offset++)
+			localbasis[n][offset+table->order] =
+			     bspline(table->knots[n],x[n],
+			     centers[n] + offset, table->order);
 	}
 
-	return (localbasis_sub(weights, centers, ndim, order, 0, nknots,
-	    pos, localbasis));
+	return (localbasis_sub(table->coefficients, centers, table->ndim,
+	    table->order, 0, table->naxes, pos, localbasis));
 }

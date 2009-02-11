@@ -1,6 +1,8 @@
 #ifndef _BSPLINE_H
 #define _BSPLINE_H
 
+#include "splinetable.h"
+
 /*
  * Compute the value of the ith nth-order basis spline of a set
  * defined by knots at the point x.
@@ -18,8 +20,9 @@ double bspline(const double *knots, double x, int i, int n);
 double splineeval(double *knots, double *weights, int nknots, double x, int order,
     int center);
 
-double ndsplineeval(double **knots, const double *weights, int ndim, 
-    const int *nknots, const double *x, int order, const int *centers);
+int tablesearchcenters(struct splinetable *table, double *x, int *centers);
+double ndsplineeval(struct splinetable *table, const double *x, 
+    const int *centers);
 
 
 #endif /* _BSPLINE_H */
