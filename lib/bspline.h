@@ -6,7 +6,7 @@
  * defined by knots at the point x.
  */
 
-double bspline(double *knots, double x, int i, int n);
+double bspline(const double *knots, double x, int i, int n);
 
 /*
  * Evaluates the results of a full spline basis given a set of knots,
@@ -15,6 +15,11 @@ double bspline(double *knots, double x, int i, int n);
  * that is non-zero at the position x.
  */
 
-double splineeval(double *knots, int nknots, double x, int n, int center);
+double splineeval(double *knots, double *weights, int nknots, double x, int order,
+    int center);
+
+double ndsplineeval(double **knots, const double *weights, int ndim, 
+    const int *nknots, const double *x, int order, const int *centers);
+
 
 #endif /* _BSPLINE_H */

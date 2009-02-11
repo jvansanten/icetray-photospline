@@ -1,4 +1,7 @@
 #include <math.h>
+#include <stdio.h>
+
+#include "bspline.h"
 
 /*
  * Compute the value of the ith nth-order basis spline of a set
@@ -9,7 +12,7 @@
  */
 
 double
-bspline(double *knots, double x, int i, int n)
+bspline(const double *knots, double x, int i, int n)
 {
 	double result;
 
@@ -41,7 +44,8 @@ bspline(double *knots, double x, int i, int n)
  */
 
 double
-splineeval(double *knots, int nknots, double x, int order, int center)
+splineeval(double *knots, double *weights, int nknots, double x, int order,
+    int center)
 {
 	double work = 0.0;
 	int i;
@@ -61,11 +65,82 @@ splineeval(double *knots, int nknots, double x, int order, int center)
 	if (i < 0)
 		i = 0;
 
-	while (i < nknots-order-1 && i < center + order) {
-		work += bspline(knots, x, i, order);
+	while (i < nknots-order-1 && i <= center) {
+		work += weights[i]*bspline(knots, x, i, order);
 		i++;
 	}
 
 	return work;
 }
 
+static double
+localbasis_sub(const double *weights, const int *centers, int ndim,
+    int order, int n, const int *nknots, double pos[ndim],
+    double localbasis[ndim][order + 1])
+{
+	double acc = 0;
+	int k;
+
+	if (n+1 == ndim) {
+		int i, j;
+
+		/*
+		 * If we are at the last recursion level, the weights are
+		 * linear in memory, so grab the row-level basis functions
+		 * and multiply by the weights. Hopefully the compiler
+		 * vector optimizations pick up on this code.
+		 */
+
+		j = 0;
+		for (i = 0; i < ndim-1; i++)
+			j += pos[i]*(nknots[i]-order-1);
+
+		for (k = -order; k <= 0; k++)
+			acc += weights[j + k + centers[n]]*localbasis[n][k+order];
+	} else {
+		for (k = -order; k <= 0; k++) {
+			/*
+			 * If we are not at the last dimension, record where we are,
+			 * multiply in the row basis value, and recurse.
+			 */
+
+			pos[n] = centers[n] + k;
+			acc += localbasis_sub(weights, centers, ndim, order, n+1,
+			    nknots, pos, localbasis)*localbasis[n][k+order];
+		}
+	}
+
+	return acc;
+}
+
+/*
+ * The N-Dimensional tensor product basis version of splineeval.
+ * Evaluates the results of a full spline basis given a set of knots,
+ * a position, an order, and a central spline for the position (or -1).
+ * The central spline should be the index of the 0th order basis spline
+ * that is non-zero at the position x.
+ *
+ * knots is an array of knot vectors, with the number of knots set via the
+ *  nknots array, of dimension ndim
+ * x is the vector at which we will evaluate the space
+ * weights is the C-ordered pseduo-multidimensional weighting array, with
+ *  weights for each tensor product vertex
+ */
+
+double
+ndsplineeval(double **knots, const double *weights, int ndim, 
+    const int *nknots, const double *x, int order, const int *centers)
+{
+	int n, offset;
+	double localbasis[ndim][order + 1];
+	double pos[ndim];
+
+	for (n = 0; n < ndim; n++) {
+		for (offset = -order; offset <= 0; offset++)
+			localbasis[n][offset+order] = bspline(knots[n],x[n],
+			    centers[n] + offset, order);
+	}
+
+	return (localbasis_sub(weights, centers, ndim, order, 0, nknots,
+	    pos, localbasis));
+}
