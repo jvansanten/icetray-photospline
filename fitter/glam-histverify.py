@@ -13,7 +13,7 @@ ndim = data.ndim
 ranges = numpy.column_stack((data.min(0),data.max(0)))
 
 print "Histogramming..."
-z,axes = numpy.histogramdd(data,bins=bins,normed=False)
+z,axes = numpy.histogramdd(data,bins=bins,normed=True)
 for i in range(0,len(axes)):
 	x = axes[i]
 	x = x + (x[1] - x[0])/2.
@@ -28,7 +28,9 @@ table = splinefitstable.read(sys.argv[2])
 print "Coefficient matrix shape is",table.coefficients.shape
 
 smoothed = glam.grideval(table,axes)
-smoothed = numpy.exp(smoothed)-1
+
+# Invert the link function we chose before
+smoothed = numpy.exp(smoothed + numpy.log(1e-9))
 
 def printdiffstats(a,b):
 	print "Fit Statistics:"
@@ -59,12 +61,14 @@ bigdat = numpy.column_stack((coord,zvec))
 bigdat = numpy.column_stack((bigdat,smoothed.reshape(smoothed.size)))
 
 gp = Gnuplot.Gnuplot()
+gp.interact()
 
 for y in axes[2]:
 	sample = bigdat[bigdat[:,2] == y]
 	raw = Gnuplot.Data(sample[:,0],sample[:,1],sample[:,3],title="Raw")
 	fit = Gnuplot.Data(sample[:,0],sample[:,1],sample[:,4],title="Fit")
 	gp.splot(raw,fit)
+	#gp.splot(fit)
 	printdiffstats(sample[:,3],sample[:,4])
 	print 'NdirC is',y
 	raw_input('Press Enter to continue')
