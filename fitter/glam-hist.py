@@ -1,6 +1,5 @@
-import glam
 import numpy
-import splinefitstable
+from glam import glam, splinefitstable
 import sys
 
 # Hard-coded params

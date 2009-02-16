@@ -1,5 +1,5 @@
 import numpy
-from bspline import *
+from glam.bspline import *
 import Gnuplot
 
 numpts = 500

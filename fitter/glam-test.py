@@ -1,7 +1,7 @@
 import numpy
-import glam
+from glam import glam
 import Gnuplot
-from bspline import *
+from glam.bspline import *
 
 numpts = 500
 knots=[numpy.linspace(-2,35,12)]

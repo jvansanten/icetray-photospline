@@ -1,5 +1,4 @@
-import glam
-import splinetable
+from glam import glam, splinetable
 import numpy
 import sys
 import Gnuplot

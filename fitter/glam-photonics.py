@@ -1,4 +1,4 @@
-import glam
+from glam import glam
 import numpy
 import sys
 

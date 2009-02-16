@@ -1,6 +1,6 @@
 import numpy
 import Gnuplot
-import bspline
+from glam import bspline
 
 # Test of periodic bspline basis generator
 
