@@ -4,7 +4,7 @@ import Gnuplot
 from bspline import *
 
 numpts = 500
-knots=[range(-2,35)]
+knots=[numpy.linspace(-2,35,12)]
 order=2
 smooth=3.14159
 
