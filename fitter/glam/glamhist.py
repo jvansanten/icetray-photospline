@@ -31,7 +31,7 @@ def fithist(data, bins, nknots, smooth, link):
 
 	print "Beginning spline fit..."
 
-	# Set weights equal to the variance equal to the 1 + the observed counts 
+	# Set weights proportional to the (Poisson) variance: 1 + counts 
 	print z.shape, counts.shape
 
 	return glam.fit(link(z),counts + 1.,axes,knots,2,smooth,periods)
