@@ -14,7 +14,7 @@ struct splinetable {
 	long *naxes;
 };
 
-int readsplinefitstable(char *path, struct splinetable *table);
+int readsplinefitstable(const char *path, struct splinetable *table);
 
 #endif /* _SPLINE_TABLE_H */
 

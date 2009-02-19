@@ -7,7 +7,7 @@
 static int parsefitstable(fitsfile *fits, struct splinetable *table);
 
 int
-readsplinefitstable(char *path, struct splinetable *table)
+readsplinefitstable(const char *path, struct splinetable *table)
 {
 	fitsfile *fits;
 	int error = 0;
