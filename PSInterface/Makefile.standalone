@@ -1,0 +1,97 @@
+##################################################################
+# Makefile
+# Builds the Photon Simulation Interface library
+#
+# Note, set PHOTONICSINC PHOTONICSLIB and PTDLIB PTDINC
+# to library and include paths for Photonics and ptd
+# before running make!
+#
+# Thomas Burgess
+# (c) The IceCube Collaboration
+#
+# $Revision: 1.4 $
+# $Author$
+# $Date$
+# $Id$
+##################################################################
+
+#Setup ptd
+EXTINC+=-I${PTDINC}
+EXTLIB+=-L${PTDLIB} -lptd
+
+#Setup photonics
+EXTINC+=-I${PHOTONICSINC}
+EXTLIB+=-L${PHOTONICSLIB} -llevel2amasim -lphotonics -lphotoamasim -lphotonicsCPPio 
+
+#Set up environment
+SHELL     =/bin/bash
+CXXFLAGS  +=-Wall -O3 -Ipublic -I. -DENABLE_PSI_LOGGING -DPSI_LOGGING_LEVEL_INFO -DPSI_STANDALONE -DPSI_DISABLE_ICE3
+CXX       = g++ ${EXTINC}
+CC        = gcc ${EXTINC}
+LDFLAGS   = -L./ ${EXTLIB}
+SRC = ${shell ls private/PSInterface/*.cxx} 
+OBJS = ${SRC:.cxx=.o} 
+INC =  ${shell ls public/PSInterface/*.h | grep -v PSI_Logging.h} 
+
+#Setup root (set psidisableroot to anything to disable root)
+psidisableroot = yes
+ifdef psidisableroot
+CXXFLAGS+=-DPSI_DISABLE_ROOT
+else
+ROOTCINT=${shell root-config --prefix}/bin/rootcint
+ROOTCFLAGS=${shell root-config --cflags}
+ROOTLIBS=${shell root-config --libs}
+OBJS+=Dictionary.o 
+CXXFLAGS+=${ROOTCFLAGS}
+LDFLAGS+=${ROOTLIBS} 
+endif
+
+all: libPSInterface.so
+
+libPSInterface.so: ${OBJS}
+
+# build library
+%.so:
+	${CXX} -shared $^ ${LDFLAGS} -Wl,-soname,$@ -o $@
+
+# Compile a C++ file
+%.o:%.cxx
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Compile a C file
+%.o:%.c
+	${CC} -c $< -o $@
+
+# Make a root dictionary
+Dictionary.cxx Dictionary.h: ${INC}
+	$(ROOTCINT) -f $@ -c -Ipublic \
+        $(CXXFLAGS) ${EXTINC} $* $^ LinkDef.h
+
+.PHONY: clean Doxygen tgz
+
+clean:	
+	rm -rf \
+        ${OBJS} \
+	Dictionary.cxx Dictionary.h Dictionary.o \
+	libPSInterface.so \
+	resources/docs/Doxygen
+
+Doxygen:
+	doxygen doxygen.steering
+
+tgz:
+	tar cfzv PSInterface.tgz \
+	doxygen.steering \
+	private/PSInterface/*.cxx public/PSInterface/*.h \
+	resources/scripts/*.C \
+	resources/docs/*.dox \
+	Makefile.standalone LinkDef.h 
+
+binary: libPSInterface.so
+	tar cfzv binary.tgz \
+	libPSInterface.so \
+	-C${PHOTONICSLIB} \
+	liblevel2amasim.so  libphotoamasim.so  libphotonics.so \
+        libphotonicsCPPio.so\
+	-C${PTDLIB} libptd.so
+

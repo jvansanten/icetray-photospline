@@ -1,0 +1,22 @@
+#
+# v2 format CMakeLists.txt
+#
+i3_project(PSInterface)
+
+i3_add_library(PSInterface 
+  private/PSInterface/*.cxx private/PSInterface/*/*.cxx
+  USE_TOOLS photonics ptd gsl root boost
+  USE_PROJECTS icetray phys-services dataclasses
+  ROOTCINT public/PSInterface/PSInterface.h 
+  public/PSInterface/PSI_Coordinate.h 
+  public/PSInterface/PSI_Dummy.h 
+  public/PSInterface/PSI_FATInjector.h 
+  public/PSInterface/PSI_PTD.h 
+  public/PSInterface/PSI_Coordinate_PTD.h 
+  public/PSInterface/PSI_Photonics.h 
+  public/PSInterface/PSI_PhotonicsPhotorec.h 
+  public/PSInterface/PSI_Coordinate_Photonics.h)
+
+i3_test_executable(test private/test/*.cxx
+  USE_TOOLS boost root
+  USE_PROJECTS PSInterface)
