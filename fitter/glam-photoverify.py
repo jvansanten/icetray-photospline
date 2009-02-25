@@ -1,46 +1,27 @@
-from glam import glam, splinetable
+from glam import glam, splinetable, splinefitstable
 import numpy
 import sys
 import Gnuplot
 
-# Hard-coded params
-
-nknots = 25
-
 # Real code
 
 rawdata = numpy.loadtxt(sys.argv[1])
+rawdata = rawdata[rawdata[:,1] == 45]
 z = rawdata[:,6]
-data = rawdata[:,[0,1,2]]
-ndim = 3
+data = rawdata[:,[0,2,5]]
 ranges = numpy.column_stack((data.min(0),data.max(0)))
-knots = []
-periods = []
 print "Axis lengths:"
 for r in ranges:
 	print "\t",r[0],"-",r[1]
-	space = (r[1] - r[0])/nknots
-	knots.append(numpy.linspace(r[0]-3.5*space,r[1]+2*space,nknots))
-	periods.append(0)
 
 munge = [numpy.unique(data[:,i]) for i in range(0,3)]
 z = z.reshape(munge[0].size,munge[1].size,munge[2].size)
 
 z = numpy.log(z)
-w = numpy.ones(z.shape)
-
 print "Loaded histogram with dimensions ",z.shape
 
 print "Reading spline fit..."
-coeff = numpy.loadtxt(sys.argv[2])
-print "Changing to:",nknots-3
-coeff = coeff.reshape((nknots-3,nknots-3,nknots-3))
-table = splinetable.SplineTable()
-table.knots = knots
-table.coefficients = coeff
-table.periods = periods
-table.order = 2
-
+table = splinefitstable.read(sys.argv[2])
 
 print "Coefficient matrix shape is",coeff.shape
 
@@ -53,7 +34,7 @@ def printdiffstats(a,b):
 	print "\tMax Fractional Deviation from Data:",numpy.max(numpy.abs((a - b)/b))
 	print "\tMean Fractional Deviation from Data:",numpy.mean(numpy.abs((a - b)/b))
 
-coord = rawdata[:,[0,1,2]]
+coord = rawdata[:,[0,2,5]]
 zvec = z.reshape(z.size)
 bigdat = numpy.column_stack((coord,zvec))
 bigdat = numpy.column_stack((bigdat,smoothed.reshape(smoothed.size)))

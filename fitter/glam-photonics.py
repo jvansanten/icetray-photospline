@@ -1,4 +1,4 @@
-from glam import glam
+from glam import glam, splinefitstable
 import numpy
 import sys
 
@@ -33,11 +33,9 @@ print "Loaded histogram with dimensions ",z.shape
 
 print "Beginning spline fit..."
 table = glam.fit(z,w,munge,knots,2,smooth,periods)
-coeff = table.coefficients
 
-print "Saving coefficients to %s..." % (sys.argv[1]+".pspl")
-numpy.savetxt(sys.argv[1]+".pspl",numpy.reshape(coeff,coeff.size))
-print "Coefficient matrix shape is",coeff.shape
+print "Saving table to %s..." % (sys.argv[1]+".pspl")
+splinefitstable.write(table,sys.argv[1]+".pspl.fits")
 
 smoothed = glam.grideval(table,munge)
 
