@@ -190,7 +190,7 @@ private:
      */
     const PSI_Photospline& operator=( const PSI_Photospline& psinterface );
 
-    struct splinetable splinetable;
+    struct splinetable *splinetable;
 };
 
 #endif

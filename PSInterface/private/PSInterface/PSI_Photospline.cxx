@@ -41,14 +41,15 @@ ClassImp(PSI_Photospline);
 
 //Default constructor
 PSI_Photospline::PSI_Photospline() :
-    PSInterface()
+    PSInterface(),
+    splinetable(NULL)
 {
-    splinetable.coefficients = NULL;
 }
 
 //Destructor
 PSI_Photospline::~PSI_Photospline()
 {
+    delete splinetable;
 #warning Leaks memory. Should free() splinetable on exit
 }
 
@@ -56,7 +57,10 @@ PSI_Photospline::~PSI_Photospline()
 bool PSI_Photospline::LoadTables( 
     string fileName)
 {
-    return (readsplinefitstable(fileName.c_str(), &splinetable) == 0);
+    if (splinetable == NULL)
+	splinetable = new struct splinetable;
+
+    return (readsplinefitstable(fileName.c_str(), splinetable) == 0);
 }
 
 //Clear photonics tables 
@@ -157,32 +161,17 @@ bool PSI_Photospline::MeanAmplitude(
 	double x[3];
 	int centers[3];
 
-	x[0] = coord->photonics_zsrc_;
-	x[1] = coord->photonics_theta_;
-	x[2] = coord->photonics_l_;
-	
-	if (tablesearchcenters(&splinetable, x, centers) != 0)
+	x[0] = coord->photonics_rho_;
+	x[1] = coord->photonics_phi_*180/M_PI;
+	x[2] = coord->photonics_zsrc_;
+
+	if (tablesearchcenters(splinetable, x, centers) != 0)
 		amplitude = 0.0;
 	else
-		amplitude = exp(ndsplineeval(&splinetable, x, centers));
+		amplitude = exp(ndsplineeval(splinetable, x, centers));
     }
 	
 
-#if 0
-	amplitude = get_photon_density(
-	    coord->photonics_zsrc_,
-	    coord->photonics_theta_,
-	    type,
-	    coord->photonics_l_,
-	    coord->photonics_rho_,
-	    coord->photonics_phi_*180/M_PI,
-	    interpolationMode_,
-	    &coord->tableId_,
-	    &coord->lBin_,
-	    &coord->rhoBin_,
-	    &coord->phiBin_);
-#endif
-    
     if ( coord->trackType_ < 3  && 
 	 coord->trackEnergy_ >= 0 ) {
 	//Scale amplitude with energy
@@ -198,10 +187,22 @@ bool PSI_Photospline::MeanAmplitude(
 	    energy = 1;
 	}
 
-	double lightFactor = 1.0;
-//	    photonics_cppio_obj_.light(coord->trackType_, energy );
+	double lightFactor = 32440.0; /* Photons per meter */
 
-	log_debug("Scaling amplitude %f amplitude with light factor %f",
+	/* Compute track length */
+	switch (coord->trackType_) {
+		case 1: /* EM Shower */
+			lightFactor *= 0.894*4.889*energy;
+			break;
+		case 2: /* Hadronic Shower */
+			lightFactor *= 0.860*4.076*energy;
+			break;
+		default: /* Muon */
+			lightFactor *= 1.172 + 0.032*log(energy);
+			break;
+	}
+
+	log_debug("Scaling amplitude %e amplitude with light factor %lf",
 		  amplitude, lightFactor);
 	amplitude = amplitude*lightFactor;
     } else {
@@ -212,7 +213,7 @@ bool PSI_Photospline::MeanAmplitude(
 	    coord->trackType_, coord->trackEnergy_);
     }
     
-    log_debug("Got MeanAmplitude=%f from Photonics",amplitude);
+    log_debug("Got MeanAmplitude=%f from Splininated Photonics",amplitude);
     
     return true;
 }

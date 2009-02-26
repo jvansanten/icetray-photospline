@@ -629,7 +629,7 @@ bool PSI_Photonics::MeanAmplitude(
 	double lightFactor = 
 	    photonics_cppio_obj_.light(coord->trackType_, energy );
 
-	log_debug("Scaling amplitude %f amplitude with light factor %f",
+	log_debug("Scaling amplitude %e amplitude with light factor %lf",
 		  amplitude, lightFactor);
 	amplitude = amplitude*lightFactor;
     } else {
