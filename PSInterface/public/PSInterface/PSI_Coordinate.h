@@ -66,6 +66,7 @@ public:
 
     ///Allow PSI_Photonics to access coordinate private members
     friend class PSI_Photonics;
+    friend class PSI_Photospline;
 
     ///Allow PSI_Coordinate_PTD to access coordinate private members
     friend class PSI_Coordinate_PTD;

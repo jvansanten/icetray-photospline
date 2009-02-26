@@ -76,6 +76,7 @@ public:
 
     ///Allow PSI_Photonics to access coordinate private members
     friend class PSI_Photonics;
+    friend class PSI_Photospline;
     
     /**
      *@brief Default Constructor

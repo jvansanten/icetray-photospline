@@ -23,9 +23,14 @@ EXTLIB+=-L${PTDLIB} -lptd
 EXTINC+=-I${PHOTONICSINC}
 EXTLIB+=-L${PHOTONICSLIB} -llevel2amasim -lphotonics -lphotoamasim -lphotonicsCPPio 
 
+#Setup photospline
+PSPL_DIR=/home/nwhitehorn/photospline/lib
+EXTINC=-I${PSPL_DIR}
+EXTLIB=${PSPL_DIR}/bspline.o ${PSPL_DIR}/fitstable.o
+
 #Set up environment
 SHELL     =/bin/bash
-CXXFLAGS  +=-Wall -O3 -Ipublic -I. -DENABLE_PSI_LOGGING -DPSI_LOGGING_LEVEL_INFO -DPSI_STANDALONE -DPSI_DISABLE_ICE3
+CXXFLAGS  += -fPIC -Wall -O3 -Ipublic -I. -DENABLE_PSI_LOGGING -DPSI_LOGGING_LEVEL_INFO -DPSI_STANDALONE -DPSI_DISABLE_ICE3
 CXX       = g++ ${EXTINC}
 CC        = gcc ${EXTINC}
 LDFLAGS   = -L./ ${EXTLIB}
