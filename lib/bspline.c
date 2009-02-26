@@ -150,11 +150,7 @@ localbasis_sub(const double *weights, const int *centers, int ndim,
  * The central spline should be the index of the 0th order basis spline
  * that is non-zero at the position x.
  *
- * knots is an array of knot vectors, with the number of knots set via the
- *  nknots array, of dimension ndim
  * x is the vector at which we will evaluate the space
- * weights is the C-ordered pseduo-multidimensional weighting array, with
- *  weights for each tensor product vertex
  */
 
 double
