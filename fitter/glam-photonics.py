@@ -5,13 +5,14 @@ import sys
 # Hard-coded params
 
 nknots = 25
-smooth = 0.1
+smooth = 0.2
 
 # Real code
 
 rawdata = numpy.loadtxt(sys.argv[1])
+rawdata = rawdata[rawdata[:,1] == 45]
 z = rawdata[:,6]
-data = rawdata[:,[0,1,2]]
+data = rawdata[:,[0,2,5]]
 ndim = 3
 ranges = numpy.column_stack((data.min(0),data.max(0)))
 knots = []
@@ -28,6 +29,8 @@ z = z.reshape(munge[0].size,munge[1].size,munge[2].size)
 
 z = numpy.log(z)
 w = numpy.ones(z.shape)
+w[numpy.isinf(z)] = 0
+z[numpy.isinf(z)] = 0
 
 print "Loaded histogram with dimensions ",z.shape
 
