@@ -16,6 +16,6 @@ def link(z):
 # Real code
 
 data = numpy.loadtxt(sys.argv[1])
-table = glamhist.fithist(data, bins, nknots, smooth, link)
+table = glamhist.fithist(data, numpy.ones(data.shape[0]),bins, nknots, smooth, link)
 print "Saving coefficients to %s..." % (sys.argv[1]+".pspl.fits")
 splinefitstable.write(table,sys.argv[1]+".pspl.fits")

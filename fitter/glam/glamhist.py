@@ -2,7 +2,7 @@ import numpy
 import glam
 import sys
 
-def fithist(data, bins, nknots, smooth, link):
+def fithist(data, weights, bins, nknots, smooth, link):
 	ndim = data.ndim
 	ranges = numpy.column_stack((data.min(0),data.max(0)))
 	knots = []
@@ -17,7 +17,7 @@ def fithist(data, bins, nknots, smooth, link):
 
 	print "Histogramming..."
 
-	z,axes = numpy.histogramdd(data,bins=bins,normed=True)
+	z,axes = numpy.histogramdd(data,bins=bins,normed=True,weights=weights)
 	for i in range(0,len(axes)):
 		x = axes[i]
 		x = x + (x[1] - x[0])/2.
@@ -29,8 +29,19 @@ def fithist(data, bins, nknots, smooth, link):
 
 	print "Loaded histogram with dimensions ",z.shape
 
+	# Compute weights and transform data according to the link function
+	# Set weights proportional to the (Poisson) variance: 1 + counts 
+
+	z = link(z)
+	w = counts + 1.
+
+	# Hose data points where the link function blew up, setting their weights to 0 
+	w[numpy.isinf(z)] = 0
+	w[numpy.isnan(z)] = 0
+	z[numpy.isinf(z)] = 0
+	z[numpy.isnan(z)] = 0
+
 	print "Beginning spline fit..."
 
-	# Set weights proportional to the (Poisson) variance: 1 + counts 
-	return glam.fit(link(z),counts + 1.,axes,knots,2,smooth,periods)
+	return glam.fit(z,w,axes,knots,2,smooth,periods)
 
