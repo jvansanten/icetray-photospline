@@ -22,7 +22,7 @@ print "Axis lengths:"
 for r in ranges:
 	print "\t",r[0],"-",r[1]
 	space = (r[1] - r[0])/nknots
-	knots.append(numpy.linspace(r[0]-3.9*space,r[1]+2.5*space,nknots))
+	knots.append(numpy.linspace(r[0]-3.9*space,r[1]+3.5*space,nknots))
 	periods.append(0)
 
 munge = [numpy.unique(data[:,i]) for i in range(0,3)]
@@ -46,7 +46,7 @@ print "Beginning spline fit..."
 table = glam.fit(z,w,munge,knots,2,smooth,periods)
 
 print "Saving table to %s..." % outputfile
-splinefitstable.write(outputfile)
+splinefitstable.write(table,outputfile)
 
 smoothed = glam.grideval(table,munge)
 
