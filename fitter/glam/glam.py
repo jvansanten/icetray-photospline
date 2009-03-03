@@ -76,7 +76,7 @@ def fit(z,w,coords,knots,order,smooth,periods):
 
 	P = calcP(nsplines,0)
 	for i in range(1,ndim):
-		P = P + calcP(nsplines,1)
+		P = P + calcP(nsplines,i)
 	P = smooth*P
 
 	sidelen = numpy.product(nsplines)
