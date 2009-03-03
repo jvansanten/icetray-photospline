@@ -22,7 +22,7 @@ def pbspline(knots, x, i, n, period):
 
 def bspline(knots, x, i, n):
 	if n == 0:
-		if (x > knots[i] and x < knots[i+1]):
+		if (x >= knots[i] and x < knots[i+1]):
 			return 1
 		else:
 			return 0
