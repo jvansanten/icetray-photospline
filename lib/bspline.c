@@ -79,7 +79,7 @@ tablesearchcenters(struct splinetable *table, double *x, int *centers)
 	int i;
 
 	for (i = 0; i < table->ndim; i++) {
-		if (x[0] < table->knots[i][0])
+		if (x[i] < table->knots[i][0])
 			return (-1);
 
 		/* XXX: should be a binary search */
