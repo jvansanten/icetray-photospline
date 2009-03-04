@@ -22,7 +22,7 @@ bspline(const double *knots, double x, int i, int n)
 		 * are constant functions from one knot to the next.
 		 */
 
-		if (x > knots[i] && x < knots[i+1])
+		if (x >= knots[i] && x < knots[i+1])
 			return 1.0;
 		else
 			return 0.0;
