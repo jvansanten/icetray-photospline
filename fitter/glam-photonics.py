@@ -5,27 +5,38 @@ import os
 
 # Hard-coded params
 
-nknots = 30
-smooth = 0.1
+nknots = 15
+smooth = 0.01
 
 # Real code
 
 rawdata = numpy.loadtxt(sys.argv[1])
 #rawdata = rawdata[rawdata[:,1] == 45]
-z = rawdata[:,6]
-data = rawdata[:,[0,1,2]]
+data = rawdata[:,[0,1,2,6]]
 ndim = 3
 ranges = numpy.column_stack((data.min(0),data.max(0)))
-knots = []
-periods = []
-print "Axis lengths:"
-for r in ranges:
-	print "\t",r[0],"-",r[1]
-	space = (r[1] - r[0])/nknots
-	knots.append(numpy.linspace(r[0]-3.9*space,r[1]+3.5*space,nknots))
-	periods.append(0)
 
+# Compute knot locations 
+
+rknots = numpy.append(numpy.logspace(-3,3,nknots), [1100, 1200, 1300, 1400, 1500])
+thetaknots = numpy.append(-1.+numpy.logspace(-3,0,3),numpy.append(numpy.linspace(5,175,nknots),181. - numpy.logspace(0,-3,5)))
+#thetaknots = numpy.linspace(-70,300,16)
+zknots = numpy.append(numpy.logspace(-2,3,nknots/2), [1100, 1200, 1300, 1400, 1500])
+zknots = numpy.append(numpy.append([-1300,-1200,-1100],-1.*numpy.logspace(3,-2,nknots/2)),zknots)
+
+periods = [0,0,0]
+knots = [rknots, thetaknots, zknots]
+
+# Get coordinates
+
+z = data[:,3]
 munge = [numpy.unique(data[:,i]) for i in range(0,3)]
+
+# HACK: Move first and last angular bins to 0 and 180
+
+munge[1][0] = 0
+munge[1][munge[1].size - 1] = 180
+
 z = z.reshape(munge[0].size,munge[1].size,munge[2].size)
 
 z = numpy.log(z)
