@@ -62,6 +62,22 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 	table->naxes = malloc(sizeof(long)*table->ndim);
 	fits_get_img_size(fits, table->ndim, table->naxes, &error);
 
+	/*
+	 * FITS multidimensional arrays are stored as FORTRAN arrays,
+	 * not C arrays, so we need to swizzle the matrix into being
+	 * a C array. Or we should. Instead, PyFITS, which writes these
+	 * files, writes a C array, but with the axis counts transposed.
+	 * Fix it.
+	 */
+	{
+		long *naxestmp = malloc(sizeof(long)*table->ndim);
+		for (i = 0; i < table->ndim; i++)
+			naxestmp[i] = table->naxes[table->ndim - i - 1];
+
+		free(table->naxes);
+		table->naxes = naxestmp;
+	}
+
 	arraysize = table->naxes[0];
 	for (i = 1; i < table->ndim; i++)
 		arraysize *= table->naxes[i];
