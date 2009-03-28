@@ -23,6 +23,8 @@ def read(path):
 
 	data = file[0]
 	table.coefficients = data.data
+	table.periods = []
+	table.knots = []
 	for i in range(0,table.coefficients.ndim):
 		table.periods.append(data.header['PERIOD%d' % i])
 		table.knots.append(file['KNOTS%d' % i].data)
