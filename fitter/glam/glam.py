@@ -106,9 +106,11 @@ def fit(z,w,coords,knots,order,smooth,periods):
 		F = numpy.reshape(F,(sidelen,sidelen))
 		r = numpy.reshape(R,(sidelen,1))
 
+		F = F + P
+
 		print "Computing iteration %d least squares solution..." % n
 
-		result = numpy.linalg.lstsq(F + P, r)
+		result = numpy.linalg.lstsq(F, r)
 		a = numpy.reshape(result[0],nsplines)
 
 	table.coefficients = a
