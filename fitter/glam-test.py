@@ -4,12 +4,12 @@ import Gnuplot
 from glam.bspline import *
 
 numpts = 500
-knots=[numpy.linspace(-2,35,12)]
+knots=[numpy.linspace(-8,35,30)]
 order=2
 smooth=3.14159
 
 #x1 = numpy.sort(numpy.random.normal(15,4,size=numpts))
-x1 = numpy.sort(numpy.random.uniform(0,25,size=numpts))
+x1 = numpy.sort(numpy.random.uniform(-4,25,size=numpts))
 z = numpy.random.poisson(numpy.cos(x1)*numpy.cos(x1) + (x1 -3.0)*(x1-3.0) + 10)
 
 result = glam.fit(z,1.+z,[x1],knots,2,smooth,[0])
