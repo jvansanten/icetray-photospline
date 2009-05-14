@@ -12,19 +12,35 @@
  */
 
 void printndsparse(struct ndsparse *a) {
-	double x[27];
-	int i;
+	double *x;
+	int moduli[a->ndim];
+	int i, j, k, elements;
 
-	for (i = 0; i < 27; i++)
-		x[i] = 0;
-	for (i = 0; i < 27; i++)
-		x[a->i[2][i] + a->i[1][i]*3 + a->i[0][i]*9] = a->x[i];
-	for (i = 0; i < 27; i++) {
-		if (i % 3 == 0 && i != 0) printf("\n");
-		if (i % 9 == 0 && i != 0) printf("\n");
+	elements = 1;
+	for (i = 0; i < a->ndim; i++) 
+		elements *= a->ranges[i];
+	moduli[a->ndim-1] = 1;
+	for (i = a->ndim-2; i >= 0; i--)
+		moduli[i] = moduli[i+1]*a->ranges[i+1];
+
+	x = calloc(elements,sizeof(double));
+
+	for (i = 0; i < a->rows; i++) {
+		k = 0;
+		for (j = 0; j < a->ndim; j++)
+			k += a->i[j][i]*moduli[j];
+		
+		x[k] = a->x[i];
+	}
+
+	for (i = 0; i < elements; i++) {
+		if (i % moduli[0] == 0 && i != 0) printf("\n");
+		if (i % moduli[1] == 0 && i != 0) printf("\n");
 		printf("%lf\t",x[i]);
 	}
 	printf("\n");
+
+	free(x);
 }
 
 

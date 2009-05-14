@@ -124,12 +124,14 @@ slicemultiply(struct ndsparse *a, cholmod_sparse *b, int dim,
 	cholmod_free_sparse(&ssection,c);
 
 	/* Set up the nd-array again, bearing in mind that it need not have
-	 * the same number of non-zero elements as before. */
+	 * the same number of non-zero elements as before, and that the range
+	 * along dimension dim is also now the number of columns in b */
 
 	for (i = 0; i < a->ndim; i++)
 		a->i[i] = realloc(a->i[i],sizeof(int)*section->nnz);
 	a->x = realloc(a->x,sizeof(double)*section->nnz);
 	a->rows = section->nnz;
+	a->ranges[dim] = b->ncol;
 
 	/* We unflatten the array and rotate so that the front is at dim */
 
