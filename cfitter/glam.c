@@ -77,7 +77,8 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 
 		/* Add each chunk to the big matrix, scaling by smooth */
 		scale2[0] = smooth;
-		penalty = cholmod_add(penalty, penalty_chunk, scale1, scale2, 1, 0, c);
+		penalty = cholmod_add(penalty, penalty_chunk, scale1, scale2,
+		    1, 0, c);
 
 		cholmod_free_sparse(&penalty_tmp, c);
 		cholmod_free_sparse(&penalty_chunk, c);
