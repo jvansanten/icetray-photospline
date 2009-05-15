@@ -25,6 +25,7 @@ bsplinebasis(double *knots, size_t nknots, double *x, size_t npts, int order,
 	basis = cholmod_allocate_dense(npts, nsplines, npts, CHOLMOD_REAL, c);
 
 	/* CHOLMOD dense matrices are in column-major order */
+	k = 0;
 	for (col = 0; col < nsplines; col++) 
 		for (row = 0; row < npts; row++, k++) 
 			((double *)(basis->x))[k] = bspline(knots, x[row],
@@ -97,9 +98,6 @@ slicemultiply(struct ndsparse *a, cholmod_sparse *b, int dim,
 	/* Now obtain the sparse representation */
 	ssection = cholmod_triplet_to_sparse(section, 0, c);
 	
-	printf("Flattened:\n");
-	print_sparse(ssection,c);
-
 	cholmod_free_triplet(&section, c);
 
 	/* Compute bT . ssection, putting the result in ssection */
@@ -114,9 +112,6 @@ slicemultiply(struct ndsparse *a, cholmod_sparse *b, int dim,
 
 		ssection = bta;
 	}
-
-	printf("a.t . b\n");
-	print_sparse(ssection,c);
 
 	/* Now we need to undo the rotation and flattening from above */
 
@@ -178,7 +173,8 @@ kronecker_product(cholmod_sparse *a, cholmod_sparse *b, cholmod_common *c)
 	ta = cholmod_sparse_to_triplet(a,c);
 	tb = cholmod_sparse_to_triplet(b,c);
 	tf = cholmod_allocate_triplet(ta->nrow*tb->nrow, ta->ncol*tb->ncol,
-	    ta->nnz*tb->nnz, 0, CHOLMOD_REAL, c);
+	    ta->nnz*tb->nnz, (ta->stype == tb->stype) ? ta->stype : 0,
+	    CHOLMOD_REAL, c);
 	tf->nnz = ta->nnz*tb->nnz;
 
 	for (i = 0; i < ta->nnz; i++) {
