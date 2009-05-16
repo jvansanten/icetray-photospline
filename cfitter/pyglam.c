@@ -39,11 +39,11 @@ numpy2d_to_sparse(PyArrayObject *a, cholmod_common *c)
 	ad.xtype = CHOLMOD_REAL;
 	ad.dtype = CHOLMOD_DOUBLE;
 
-	sp = cholmod_dense_to_sparse(&ad, 1, c);
+	sp = cholmod_l_dense_to_sparse(&ad, 1, c);
 	
 	/* Correct for row-major/column-major ordering issues */
-	spt = cholmod_transpose(sp, 1, c);
-	cholmod_free_sparse(&sp, c);
+	spt = cholmod_l_transpose(sp, 1, c);
+	cholmod_l_free_sparse(&sp, c);
 
 	return spt;
 }
@@ -61,11 +61,11 @@ numpy_sparse_to_2d(cholmod_sparse *a, cholmod_common *c)
 	out = (PyArrayObject *)PyArray_SimpleNew(2, dimensions,
 	    PyArray_DOUBLE);
 
-	at = cholmod_transpose(a, 1, c); /* Fix row-major/column-major */
-	ad = cholmod_sparse_to_dense(at, c);
-	cholmod_free_sparse(&at, c);
+	at = cholmod_l_transpose(a, 1, c); /* Fix row-major/column-major */
+	ad = cholmod_l_sparse_to_dense(at, c);
+	cholmod_l_free_sparse(&at, c);
 	memcpy(out->data, ad->x, sizeof(double) * ad->nrow * ad->ncol);
-	cholmod_free_dense(&ad, c);
+	cholmod_l_free_dense(&ad, c);
 
 	return out;
 }
@@ -188,7 +188,7 @@ static PyObject *pybox(PyObject *self, PyObject *args)
 		return NULL;
 	}
 
-	cholmod_start(&c);
+	cholmod_l_start(&c);
 
 	am = numpy2d_to_sparse(a, &c);
 	bm = numpy2d_to_sparse(b, &c);
@@ -197,20 +197,20 @@ static PyObject *pybox(PyObject *self, PyObject *args)
 	Py_DECREF(b);
 
 	result = box(am, bm, &c);
-	cholmod_free_sparse(&am, &c);
-	cholmod_free_sparse(&bm, &c);
+	cholmod_l_free_sparse(&am, &c);
+	cholmod_l_free_sparse(&bm, &c);
 
 	if (result == NULL) {
 		PyErr_SetString(PyExc_ValueError,
 		    "arrays must have compatible dimensions");
-		cholmod_finish(&c);
+		cholmod_l_finish(&c);
 		return NULL;
 	}
 
 	result_array = numpy_sparse_to_2d(result, &c);
 
-	cholmod_free_sparse(&result, &c);
-	cholmod_finish(&c);
+	cholmod_l_free_sparse(&result, &c);
+	cholmod_l_finish(&c);
 
 	return PyArray_Return(result_array);
 }
@@ -283,13 +283,13 @@ static PyObject *pyrho(PyObject *self, PyObject *args)
 		return NULL;
 	}
 
-	cholmod_start(&c);
+	cholmod_l_start(&c);
 
 	am = numpy2d_to_sparse(a, &c);
 	err = slicemultiply(&nd, am, dim, &c);
 
-	cholmod_free_sparse(&am, &c);
-	cholmod_finish(&c);
+	cholmod_l_free_sparse(&am, &c);
+	cholmod_l_finish(&c);
 
 	if (err == 0) {
 		result_array = numpy_ndsparse_to_ndarray(&nd);
@@ -447,9 +447,9 @@ static PyObject *pyfit(PyObject *self, PyObject *args)
 	}
 
 	/* Do the fit */
-	cholmod_start(&c);
+	cholmod_l_start(&c);
 	glamfit(&data, weights, c_coords, &out, smooth, order, 1, &c);
-	cholmod_finish(&c);
+	cholmod_l_finish(&c);
 
 	/* Now process the splinetable into a numpy array */
 	elements = 1;

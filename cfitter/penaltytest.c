@@ -12,14 +12,14 @@ int main(void) {
 	cholmod_common c;
 	cholmod_sparse *P;
 
-	cholmod_start(&c);
+	cholmod_l_start(&c);
 
 	P = calc_penalty(nsplines, 2, 1,  &c);
 	print_sparse(P, &c);
-	cholmod_print_sparse(P, "P", &c);
+	cholmod_l_print_sparse(P, "P", &c);
 	printf("P stype is %d\n", P->stype);
 	
-	cholmod_finish(&c);
+	cholmod_l_finish(&c);
 	return 0;
 }
 

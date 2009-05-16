@@ -50,7 +50,7 @@ int main(void) {
 	cholmod_common c;
 	int i;
 
-	cholmod_start(&c);
+	cholmod_l_start(&c);
 
 	b.rows = 27;
 	b.ndim = 3;
@@ -71,7 +71,7 @@ int main(void) {
 	printf("Input array:\n");
 	printndsparse(&b);
 	
-	a = cholmod_read_sparse(stdin, &c);
+	a = cholmod_l_read_sparse(stdin, &c);
 
 	printf("Multiplying on dimension %d by:\n",2);
 	print_sparse(a, &c);
@@ -81,7 +81,7 @@ int main(void) {
 	printf("Result:\n");
 	printndsparse(&b);
 
-	cholmod_finish(&c);
+	cholmod_l_finish(&c);
 
 	return (0);
 }

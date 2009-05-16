@@ -69,7 +69,7 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 	if (verbose)
 		printf("Calculating penalty matrix...\n");
 
-	penalty = cholmod_spzeros(sidelen, sidelen, 1, CHOLMOD_REAL, c);
+	penalty = cholmod_l_spzeros(sidelen, sidelen, 1, CHOLMOD_REAL, c);
 	for (i = 0; i < out->ndim; i++) {
 		cholmod_sparse *penalty_tmp;
 
@@ -78,11 +78,11 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 
 		/* Add each chunk to the big matrix, scaling by smooth */
 		scale2[0] = smooth;
-		penalty = cholmod_add(penalty, penalty_chunk, scale1, scale2,
+		penalty = cholmod_l_add(penalty, penalty_chunk, scale1, scale2,
 		    1, 0, c);
 
-		cholmod_free_sparse(&penalty_tmp, c);
-		cholmod_free_sparse(&penalty_chunk, c);
+		cholmod_l_free_sparse(&penalty_tmp, c);
+		cholmod_l_free_sparse(&penalty_chunk, c);
 	}
 
 	
@@ -209,11 +209,11 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 		/* XXX: optimization possibilities ended */
 
 		scale2[0] = 1.0;
-		fitmat = cholmod_add(Fmat, penalty, scale1, scale2, 1, 0, c);
-		cholmod_free_sparse(&Fmat, c); /* we don't need Fmat anymore */
+		fitmat = cholmod_l_add(Fmat, penalty, scale1, scale2, 1, 0, c);
+		cholmod_l_free_sparse(&Fmat, c); /* we don't need Fmat anymore */
 
-		Rdens = cholmod_sparse_to_dense(Rmat, c);
-		cholmod_free_sparse(&Rmat, c); /* we don't need Fmat anymore */
+		Rdens = cholmod_l_sparse_to_dense(Rmat, c);
+		cholmod_l_free_sparse(&Rmat, c); /* we don't need Fmat anymore */
 
 		/*
 		 * Now, we can solve the linear system 
@@ -239,13 +239,13 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 		free(R.i[i]);
 	free(R.x); free(R.i); free(R.ranges);
 
-	cholmod_free_sparse(&Fmat, c);
-	cholmod_free_dense(&Rdens, c);
-	cholmod_free_sparse(&penalty, c);
+	cholmod_l_free_sparse(&Fmat, c);
+	cholmod_l_free_dense(&Rdens, c);
+	cholmod_l_free_sparse(&penalty, c);
 
 	for (i = 0; i < out->ndim; i++) {
-		cholmod_free_sparse(&bases[i], c);
-		cholmod_free_sparse(&boxedbases[i], c);
+		cholmod_l_free_sparse(&bases[i], c);
+		cholmod_l_free_sparse(&boxedbases[i], c);
 	}
 	free(bases); free(boxedbases);
 	free(moduli);
@@ -262,7 +262,7 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 		out->naxes[i] = out->nknots[i] - order - 1;
 
 	/* Free our last matrix */
-	cholmod_free_dense(&coefficients, c);
+	cholmod_l_free_dense(&coefficients, c);
 }
 
 static cholmod_sparse *
@@ -274,7 +274,7 @@ flatten_ndarray_to_sparse(struct ndsparse *array, size_t nrow, size_t ncol,
 	int moduli[array->ndim];
 	int i, j, k;
 
-	trip = cholmod_allocate_triplet(nrow, ncol, array->rows, 0,
+	trip = cholmod_l_allocate_triplet(nrow, ncol, array->rows, 0,
 	    CHOLMOD_REAL, c);
 
 	moduli[array->ndim-1] = 1;
@@ -286,14 +286,14 @@ flatten_ndarray_to_sparse(struct ndsparse *array, size_t nrow, size_t ncol,
 		for (j = 0; j < array->ndim; j++)
 			k += array->i[j][i]*moduli[j];
 
-		((int *)(trip->j))[i] = k % ncol;
-		((int *)(trip->i))[i] = k / ncol;
+		((long *)(trip->j))[i] = k % ncol;
+		((long *)(trip->i))[i] = k / ncol;
 		((double *)(trip->x))[i] = array->x[i];
 	}
 	trip->nnz = array->rows;
 
-	sparse = cholmod_triplet_to_sparse(trip, trip->nnz, c);
-	cholmod_free_triplet(&trip, c);
+	sparse = cholmod_l_triplet_to_sparse(trip, trip->nnz, c);
+	cholmod_l_free_triplet(&trip, c);
 
 	return (sparse);
 }
@@ -313,19 +313,19 @@ offdiagonal(int rows, int cols, int diag, cholmod_common *c)
 		row = 0;
 	}
 
-	trip = cholmod_allocate_triplet(rows, cols,
+	trip = cholmod_l_allocate_triplet(rows, cols,
 	    max(rows,cols) - abs(diag), 0, CHOLMOD_REAL, c);
 
 	while (row < rows && col < cols) {
-		((int *)(trip->i))[trip->nnz] = row;
-		((int *)(trip->j))[trip->nnz] = col;
+		((long *)(trip->i))[trip->nnz] = row;
+		((long *)(trip->j))[trip->nnz] = col;
 		((double *)(trip->x))[trip->nnz] = 1.0;
 
 		trip->nnz++; row++; col++;
 	}
 
-	sparse = cholmod_triplet_to_sparse(trip, trip->nnz, c);
-	cholmod_free_triplet(&trip, c);
+	sparse = cholmod_l_triplet_to_sparse(trip, trip->nnz, c);
+	cholmod_l_free_triplet(&trip, c);
 
 	return sparse;
 }
@@ -346,23 +346,23 @@ calc_penalty(int *nsplines, int ndim, int dim, cholmod_common *c)
 	 * 0  0  1 -2 1 ...
 	 */
 
-	tmp = cholmod_speye(nsplines[dim] - 2, nsplines[dim],
+	tmp = cholmod_l_speye(nsplines[dim] - 2, nsplines[dim],
 	    CHOLMOD_REAL, c);
 	tmp2 = offdiagonal(nsplines[dim] - 2, nsplines[dim],
 	    1, c);
 	scale2[0] = -2.0;
-	finitediff = cholmod_add(tmp, tmp2, scale1, scale2, 1,
+	finitediff = cholmod_l_add(tmp, tmp2, scale1, scale2, 1,
 	    0, c);
-	cholmod_free_sparse(&tmp2, c);
-	cholmod_free_sparse(&tmp, c);
+	cholmod_l_free_sparse(&tmp2, c);
+	cholmod_l_free_sparse(&tmp, c);
 
 	scale2[0] = 1.0;
 	tmp2 = offdiagonal(nsplines[dim] - 2, nsplines[dim],
 	    2, c);
-	tmp = cholmod_add(finitediff, tmp2, scale1, scale2, 1,
+	tmp = cholmod_l_add(finitediff, tmp2, scale1, scale2, 1,
 	    0, c);
-	cholmod_free_sparse(&tmp2, c);
-	cholmod_free_sparse(&finitediff, c);
+	cholmod_l_free_sparse(&tmp2, c);
+	cholmod_l_free_sparse(&finitediff, c);
 	finitediff = tmp;
 
 	/*
@@ -370,19 +370,18 @@ calc_penalty(int *nsplines, int ndim, int dim, cholmod_common *c)
 	 * multiplied by finitediff
 	 */
 
-	fd_trans = cholmod_transpose(finitediff, 1, c);
-	DtD = cholmod_ssmult(fd_trans, finitediff,
+	fd_trans = cholmod_l_transpose(finitediff, 1, c);
+	DtD = cholmod_l_ssmult(fd_trans, finitediff,
 	    1 /* DtD is symmetric */, 1, 0, c);
-	cholmod_free_sparse(&finitediff, c);
-	cholmod_free_sparse(&fd_trans, c);
-
+	cholmod_l_free_sparse(&finitediff, c);
+	cholmod_l_free_sparse(&fd_trans, c);
 
 	/* Next take kronecker products to form the full P */
 
 	tmp = NULL;
 	result = NULL;
 	for (i = 0; i < ndim; i++) {
-		tmp2 = (i == dim) ? DtD : cholmod_speye(
+		tmp2 = (i == dim) ? DtD : cholmod_l_speye(
 		    nsplines[i], nsplines[i],
 		    CHOLMOD_REAL, c);
 		tmp2->stype = 1; /* The identity matrix is always symmetric. */
@@ -393,8 +392,8 @@ calc_penalty(int *nsplines, int ndim, int dim, cholmod_common *c)
 		}
 
 		tmp = kronecker_product(result, tmp2, c);
-		cholmod_free_sparse(&result, c);
-		cholmod_free_sparse(&tmp2, c);
+		cholmod_l_free_sparse(&result, c);
+		cholmod_l_free_sparse(&tmp2, c);
 
 		result = tmp;
 	}

@@ -22,7 +22,7 @@ bsplinebasis(double *knots, size_t nknots, double *x, size_t npts, int order,
 	 */
 
 	nsplines = nknots-order-1;
-	basis = cholmod_allocate_dense(npts, nsplines, npts, CHOLMOD_REAL, c);
+	basis = cholmod_l_allocate_dense(npts, nsplines, npts, CHOLMOD_REAL, c);
 
 	/* CHOLMOD dense matrices are in column-major order */
 	k = 0;
@@ -31,8 +31,8 @@ bsplinebasis(double *knots, size_t nknots, double *x, size_t npts, int order,
 			((double *)(basis->x))[k] = bspline(knots, x[row],
 			    col, order);
 
-	sbasis = cholmod_dense_to_sparse(basis, 1, c);
-	cholmod_free_dense(&basis, c);
+	sbasis = cholmod_l_dense_to_sparse(basis, 1, c);
+	cholmod_l_free_dense(&basis, c);
 
 	return (sbasis);
 }
@@ -70,7 +70,7 @@ slicemultiply(struct ndsparse *a, cholmod_sparse *b, int dim,
 	for (i = 0; i < a->ndim; i++)
 		if (i != dim) cols *= a->ranges[dim];
 
-	section = cholmod_allocate_triplet(a->ranges[dim], cols, a->rows, 0,
+	section = cholmod_l_allocate_triplet(a->ranges[dim], cols, a->rows, 0,
 	    CHOLMOD_REAL,c);
 	section->nnz = a->rows;
 
@@ -80,7 +80,7 @@ slicemultiply(struct ndsparse *a, cholmod_sparse *b, int dim,
 		/* The flattened row number is straightforward: it is
 		 * the dim'th coordinate. */
 	
-		((int *)(section->i))[i] = a->i[dim][i];
+		((long *)(section->i))[i] = a->i[dim][i];
 
 		/* The fastest running index is the dimension we are looking at.
 		 * The next fastest is that the one that came after that, in a
@@ -89,9 +89,9 @@ slicemultiply(struct ndsparse *a, cholmod_sparse *b, int dim,
 		 */
 
 		stride = 1;
-		((int *)(section->j))[i] = 0;
+		((long *)(section->j))[i] = 0;
 		for (k = dim + a->ndim - 1; k > dim; k--) {
-			((int *)(section->j))[i] += stride*a->i[k % a->ndim][i];
+			((long *)(section->j))[i] += stride*a->i[k % a->ndim][i];
 			stride *= a->ranges[k % a->ndim];
 		}
 	
@@ -100,27 +100,27 @@ slicemultiply(struct ndsparse *a, cholmod_sparse *b, int dim,
 	}
 
 	/* Now obtain the sparse representation */
-	ssection = cholmod_triplet_to_sparse(section, 0, c);
+	ssection = cholmod_l_triplet_to_sparse(section, 0, c);
 	
-	cholmod_free_triplet(&section, c);
+	cholmod_l_free_triplet(&section, c);
 
 	/* Compute bT . ssection, putting the result in ssection */
 	{
 		cholmod_sparse *bt, *bta;
-		bt = cholmod_transpose(b,1,c);
-		bta = cholmod_ssmult(bt,ssection,0 /*assymmetric */,
+		bt = cholmod_l_transpose(b,1,c);
+		bta = cholmod_l_ssmult(bt,ssection,0 /*assymmetric */,
 		    1 /* compute values */, 0 /* don't bother sorting */,c);
 
-		cholmod_free_sparse(&bt,c);
-		cholmod_free_sparse(&ssection,c);
+		cholmod_l_free_sparse(&bt,c);
+		cholmod_l_free_sparse(&ssection,c);
 
 		ssection = bta;
 	}
 
 	/* Now we need to undo the rotation and flattening from above */
 
-	section = cholmod_sparse_to_triplet(ssection,c);
-	cholmod_free_sparse(&ssection,c);
+	section = cholmod_l_sparse_to_triplet(ssection,c);
+	cholmod_l_free_sparse(&ssection,c);
 
 	/* Set up the nd-array again, bearing in mind that it need not have
 	 * the same number of non-zero elements as before, and that the range
@@ -138,7 +138,7 @@ slicemultiply(struct ndsparse *a, cholmod_sparse *b, int dim,
 		/* The flattened column number is straightforward: it is
 		 * the dim'th coordinate. */
 	
-		a->i[dim][i] = ((int *)(section->i))[i];
+		a->i[dim][i] = ((long *)(section->i))[i];
 
 		/* The fastest running index is the dimension we are looking at.
 		 * The next fastest is that the one that came after that, in a
@@ -149,7 +149,7 @@ slicemultiply(struct ndsparse *a, cholmod_sparse *b, int dim,
 		stride = 1;
 		for (k = dim + a->ndim - 1; k > dim; k--)
 			stride *= a->ranges[k % a->ndim];
-		j = ((int *)(section->j))[i];
+		j = ((long *)(section->j))[i];
 		for (k = dim+1; k < dim + a->ndim; k++) {
 			/* See how many of this dimension's strides we fit */
 			stride /= a->ranges[k % a->ndim];
@@ -162,7 +162,7 @@ slicemultiply(struct ndsparse *a, cholmod_sparse *b, int dim,
 		a->x[i] = ((double *)(section->x))[i];
 	}
 
-	cholmod_free_triplet(&section,c);
+	cholmod_l_free_triplet(&section,c);
 
 	return 0;
 }
@@ -176,9 +176,9 @@ kronecker_product(cholmod_sparse *a, cholmod_sparse *b, cholmod_common *c)
 	cholmod_triplet *ta, *tb, *tf;
 	int i, j;
 
-	ta = cholmod_sparse_to_triplet(a,c);
-	tb = cholmod_sparse_to_triplet(b,c);
-	tf = cholmod_allocate_triplet(ta->nrow*tb->nrow, ta->ncol*tb->ncol,
+	ta = cholmod_l_sparse_to_triplet(a,c);
+	tb = cholmod_l_sparse_to_triplet(b,c);
+	tf = cholmod_l_allocate_triplet(ta->nrow*tb->nrow, ta->ncol*tb->ncol,
 	    ta->nnz*tb->nnz, (ta->stype == tb->stype) ? ta->stype : 0,
 	    CHOLMOD_REAL, c);
 	tf->nnz = ta->nnz*tb->nnz;
@@ -189,19 +189,19 @@ kronecker_product(cholmod_sparse *a, cholmod_sparse *b, cholmod_common *c)
 			((double *)(tf->x))[i*tb->nnz + j] = ((double *)(ta->x))[i]
 			    * ((double *)(tb->x))[j];
 			/* New column index is col_a*ncol_b + col_b */
-			((int *)(tf->j))[i*tb->nnz + j] = ((int *)(ta->j))[i]*tb->ncol
-			    + ((int *)(tb->j))[j];
+			((long *)(tf->j))[i*tb->nnz + j] = ((long *)(ta->j))[i]*tb->ncol
+			    + ((long *)(tb->j))[j];
 			/* New row index is row_a*nrow_b + row_b */
-			((int *)(tf->i))[i*tb->nnz + j] = ((int *)(ta->i))[i]*tb->nrow
-			    + ((int *)(tb->i))[j];
+			((long *)(tf->i))[i*tb->nnz + j] = ((long *)(ta->i))[i]*tb->nrow
+			    + ((long *)(tb->i))[j];
 		}
 	}
 		
-	final = cholmod_triplet_to_sparse(tf, 0, c);
+	final = cholmod_l_triplet_to_sparse(tf, 0, c);
 	
-	cholmod_free_triplet(&ta,c);
-	cholmod_free_triplet(&tb,c);
-	cholmod_free_triplet(&tf,c);
+	cholmod_l_free_triplet(&ta,c);
+	cholmod_l_free_triplet(&tb,c);
+	cholmod_l_free_triplet(&tf,c);
 
 	return final;
 }
@@ -231,7 +231,7 @@ box(cholmod_sparse *a, cholmod_sparse *b, cholmod_common *c)
 	int i, rownum;
 
 	struct rowitem {
-		int col;
+		long col;
 		double val;
 
 		struct rowitem *next;
@@ -244,14 +244,14 @@ box(cholmod_sparse *a, cholmod_sparse *b, cholmod_common *c)
 	if (a->nrow != b->nrow)
 		return NULL;
 	
-	ta = cholmod_sparse_to_triplet(a,c);
-	tb = cholmod_sparse_to_triplet(b,c);
+	ta = cholmod_l_sparse_to_triplet(a,c);
+	tb = cholmod_l_sparse_to_triplet(b,c);
 
 	/*
 	 * The number of non-zero entries cannot be larger than the number
 	 * of nonzero entries in a times the length of a row in b
 	 */
-	tf = cholmod_allocate_triplet(ta->nrow, ta->ncol*tb->ncol,
+	tf = cholmod_l_allocate_triplet(ta->nrow, ta->ncol*tb->ncol,
 	    ta->nnz*tb->ncol, 0, CHOLMOD_REAL, c);
 	tf->nnz = 0;
 
@@ -260,10 +260,10 @@ box(cholmod_sparse *a, cholmod_sparse *b, cholmod_common *c)
 	curbrows = calloc(tb->nrow,sizeof(struct rowitem *)); /* fast lookup for list end*/
 
 	for (i = 0; i < tb->nnz; i++) {
-		rownum = ((int *)(tb->i))[i];
+		rownum = ((long *)(tb->i))[i];
 		item = malloc(sizeof(struct rowitem));
 		item->next = NULL;
-		item->col = ((int *)(tb->j))[i];
+		item->col = ((long *)(tb->j))[i];
 		item->val = ((double *)(tb->x))[i];
 
 		if (brows[rownum] == NULL)
@@ -278,11 +278,12 @@ box(cholmod_sparse *a, cholmod_sparse *b, cholmod_common *c)
 	free(curbrows);
 
 	for (i = 0; i < ta->nnz; i++) {
-		rownum = ((int *)(ta->i))[i];
+		rownum = ((long *)(ta->i))[i];
 
 		for (item = brows[rownum]; item != NULL; item = item->next) {
-			((int *)(tf->i))[tf->nnz] = rownum;
-			((int *)(tf->j))[tf->nnz] = ((int *)(ta->j))[i]*tb->ncol + item->col;
+			((long *)(tf->i))[tf->nnz] = rownum;
+			((long *)(tf->j))[tf->nnz] = ((long *)(ta->j))[i]*tb->ncol +
+			    item->col;
 			((double *)(tf->x))[tf->nnz] = ((double *)(ta->x))[i] * item->val;
 
 			tf->nnz++;
@@ -301,12 +302,12 @@ box(cholmod_sparse *a, cholmod_sparse *b, cholmod_common *c)
 		}
 	}
 
-	final = cholmod_triplet_to_sparse(tf, 0, c);
+	final = cholmod_l_triplet_to_sparse(tf, 0, c);
 
 	/* clean up */
-	cholmod_free_triplet(&ta, c);
-	cholmod_free_triplet(&tb, c);
-	cholmod_free_triplet(&tf, c);
+	cholmod_l_free_triplet(&ta, c);
+	cholmod_l_free_triplet(&tb, c);
+	cholmod_l_free_triplet(&tf, c);
 
 	return (final);
 }
@@ -318,7 +319,7 @@ print_sparse(cholmod_sparse *a, cholmod_common *c)
 	cholmod_dense *dense;
 	int i,j;
 
-	dense = cholmod_sparse_to_dense(a,c);
+	dense = cholmod_l_sparse_to_dense(a,c);
 	printf("----\n");
 	for (i = 0; i < dense->nrow; i++) {
 		for (j = 0; j < dense->ncol; j++) {
@@ -328,7 +329,7 @@ print_sparse(cholmod_sparse *a, cholmod_common *c)
 	}
 	printf("----\n");
 
-	cholmod_free_dense(&dense,c);
+	cholmod_l_free_dense(&dense,c);
 }
 
 
