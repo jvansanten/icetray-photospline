@@ -68,7 +68,7 @@ slicemultiply(struct ndsparse *a, cholmod_sparse *b, int dim,
 
 	cols = 1;
 	for (i = 0; i < a->ndim; i++)
-		if (i != dim) cols *= a->ranges[dim];
+		if (i != dim) cols *= a->ranges[i];
 
 	section = cholmod_l_allocate_triplet(a->ranges[dim], cols, a->rows, 0,
 	    CHOLMOD_REAL,c);
