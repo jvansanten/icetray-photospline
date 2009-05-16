@@ -22,7 +22,7 @@ cholmod_sparse *
 bsplinebasis(double *knots, size_t nknots, double *x, size_t npts, int order,
     cholmod_common *c);
 
-void slicemultiply(struct ndsparse *a, cholmod_sparse *b, int dim,
+int slicemultiply(struct ndsparse *a, cholmod_sparse *b, int dim,
     cholmod_common *c);
 cholmod_sparse *kronecker_product(cholmod_sparse *a, cholmod_sparse *b,
     cholmod_common *c);

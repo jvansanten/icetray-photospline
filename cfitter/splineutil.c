@@ -46,13 +46,17 @@ bsplinebasis(double *knots, size_t nknots, double *x, size_t npts, int order,
  * If you want to understand how it works, look at the Python implementation.
  */
 
-void
+int
 slicemultiply(struct ndsparse *a, cholmod_sparse *b, int dim,
     cholmod_common *c)
 {
 	cholmod_triplet *section;
 	cholmod_sparse *ssection;
 	int cols, i, j, k, stride;
+
+	/* Check that the dimensions match */
+	if (b->nrow != a->ranges[dim])
+		return -1;
 
 	/*
 	 * Construct a matrix with a->ranges[dim] rows based on flattening a 
@@ -159,6 +163,8 @@ slicemultiply(struct ndsparse *a, cholmod_sparse *b, int dim,
 	}
 
 	cholmod_free_triplet(&section,c);
+
+	return 0;
 }
 
 /* Computes the kronecker product of sparse matrices a and b */
