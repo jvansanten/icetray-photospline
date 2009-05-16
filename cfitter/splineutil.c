@@ -233,13 +233,17 @@ box(cholmod_sparse *a, cholmod_sparse *b, cholmod_common *c)
 
 	struct rowitem **brows, **curbrows;
 	struct rowitem *item;
+
+	/* We need the number of rows in both matrices to be equal */
+	if (a->nrow != b->nrow)
+		return NULL;
 	
 	ta = cholmod_sparse_to_triplet(a,c);
 	tb = cholmod_sparse_to_triplet(b,c);
 
 	/*
-	 * The number of non-zero entries cannot be larger than the number of nonzero
-	 * entries in a times the length of a row in b
+	 * The number of non-zero entries cannot be larger than the number
+	 * of nonzero entries in a times the length of a row in b
 	 */
 	tf = cholmod_allocate_triplet(ta->nrow, ta->ncol*tb->ncol,
 	    ta->nnz*tb->ncol, 0, CHOLMOD_REAL, c);

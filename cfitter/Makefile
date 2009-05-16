@@ -4,7 +4,8 @@ CC = cc
 BLAS = goto
 LAPACK = lapack
 LIBDIRS = -L/usr/local/lib -L/usr/local/lib/gcc-4.3.4
-INCDIRS = -I/usr/local/include -I/usr/local/include/python2.6
+#INCDIRS = -I/usr/local/include -I/usr/local/include/python2.6
+INCDIRS = -I/usr/local/include -I/usr/local/include/python2.6 -I/usr/local/lib/python2.6/site-packages/numpy/core/include
 
 SRC = glam.c splineutil.c pyglam.c ../lib/bspline.c
 LIBS = -lm -l$(BLAS) -lcholmod -lcolamd -lamd -lspqr -lstdc++ -llapack -lgfortran

@@ -1,5 +1,5 @@
 #include <Python.h>
-#include <Numeric/arrayobject.h>
+#include <numpy/ndarrayobject.h>
 #include <stdio.h>
 
 #include "glam.h"
@@ -23,9 +23,10 @@ static cholmod_sparse *
 numpy2d_to_sparse(PyArrayObject *a, cholmod_common *c)
 {
 	cholmod_dense ad;
+	cholmod_sparse *sp, *spt;
 
-	ad.nrow = a->dimensions[0];
-	ad.ncol = a->dimensions[1];
+	ad.nrow = a->dimensions[1];
+	ad.ncol = a->dimensions[0];
 	ad.nzmax = ad.nrow * ad.ncol;
 	ad.d = ad.nrow;
 	ad.x = a->data;
@@ -33,22 +34,31 @@ numpy2d_to_sparse(PyArrayObject *a, cholmod_common *c)
 	ad.xtype = CHOLMOD_REAL;
 	ad.dtype = CHOLMOD_DOUBLE;
 
-	return cholmod_dense_to_sparse(&ad, 1, c);
+	sp = cholmod_dense_to_sparse(&ad, 1, c);
+	
+	/* Correct for row-major/column-major ordering issues */
+	spt = cholmod_transpose(sp, 1, c);
+	cholmod_free_sparse(&sp, c);
+
+	return spt;
 }
 
 static PyArrayObject *
 numpy_sparse_to_2d(cholmod_sparse *a, cholmod_common *c)
 {
-	int dimensions[2];
+	npy_intp dimensions[2];
 	PyArrayObject *out;
 	cholmod_dense *ad;
+	cholmod_sparse *at;
 
 	dimensions[0] = a->nrow;
 	dimensions[1] = a->ncol;
-	out = (PyArrayObject *)PyArray_FromDims(2, dimensions,
+	out = (PyArrayObject *)PyArray_SimpleNew(2, dimensions,
 	    PyArray_DOUBLE);
 
-	ad = cholmod_sparse_to_dense(a, c);
+	at = cholmod_transpose(a, 1, c); /* Fix row-major/column-major */
+	ad = cholmod_sparse_to_dense(at, c);
+	cholmod_free_sparse(&at, c);
 	memcpy(out->data, ad->x, sizeof(double) * ad->nrow * ad->ncol);
 	cholmod_free_dense(&ad, c);
 
@@ -88,6 +98,13 @@ static PyObject *pybox(PyObject *self, PyObject *args)
 	result = box(am, bm, &c);
 	cholmod_free_sparse(&am, &c);
 	cholmod_free_sparse(&bm, &c);
+
+	if (result == NULL) {
+		PyErr_SetString(PyExc_ValueError,
+		    "arrays must have compatible dimensions");
+		cholmod_finish(&c);
+		return NULL;
+	}
 
 	result_array = numpy_sparse_to_2d(result, &c);
 
