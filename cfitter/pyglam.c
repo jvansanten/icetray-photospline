@@ -10,11 +10,13 @@
 static PyObject *pybox(PyObject *self, PyObject *args);
 static PyObject *pyrho(PyObject *self, PyObject *args);
 static PyObject *pyfit(PyObject *self, PyObject *args);
+static PyObject *pygrideval(PyObject *self, PyObject *args);
 
 static PyMethodDef methods[] = {
 	{ "box", pybox, METH_VARARGS },
 	{ "rho", pyrho, METH_VARARGS },
 	{ "fit", pyfit, METH_VARARGS },
+	{ "grideval", pygrideval, METH_VARARGS },
 	{ NULL, NULL }
 };
 
@@ -386,7 +388,7 @@ static PyObject *pyfit(PyObject *self, PyObject *args)
 		    "knots must be a sequence with one row for each dimension");
 		goto exit;
 	}
-	if (!PySequence_Check(knots) || data.ndim != PySequence_Length(knots)) {
+	if (!PySequence_Check(coords) || data.ndim != PySequence_Length(coords)) {
 		PyErr_SetString(PyExc_TypeError,
 		    "coord must be a sequence with one row for each dimension");
 		goto exit;
@@ -516,4 +518,68 @@ static PyObject *pyfit(PyObject *self, PyObject *args)
 	return (PyObject *)result;
 }
 
+static PyObject *
+pygrideval(PyObject *self, PyObject *args)
+{
+	PyObject *table, *coords, *knots, *order_obj, *coeff;
+	PyArrayObject *result;
+	struct ndsparse nd;
+	cholmod_common c;
+	long order;
+	int i;
+	
+	if (!PyArg_ParseTuple(args, "OO", &table, &coords))
+		return NULL;
+
+	knots = PyObject_GetAttrString(table, "knots");
+	if (!PySequence_Check(knots) || !PySequence_Check(coords)) {
+		PyErr_SetString(PyExc_TypeError,
+			"Knots or coords not a sequence");
+		return NULL;
+	}
+
+	order_obj = PyObject_GetAttrString(table, "order");
+	order = PyLong_AsLong(order_obj);
+	Py_DECREF(order_obj);
+
+	coeff = PyObject_GetAttrString(table, "coefficients");
+	numpynd_to_ndsparse(coeff, &nd);
+	Py_DECREF(coeff);
+
+	cholmod_l_start(&c);
+
+	for (i = 0; i < PySequence_Length(knots); i++) {
+		PyArrayObject *coord_vec, *knots_vec;
+		cholmod_sparse *basis, *basist;
+
+		coord_vec = (PyArrayObject *)PyArray_ContiguousFromObject(
+		    PySequence_GetItem(coords, i),
+		    PyArray_DOUBLE, 1, 1);
+		knots_vec = (PyArrayObject *)PyArray_ContiguousFromObject(
+		    PySequence_GetItem(knots, i),
+		    PyArray_DOUBLE, 1, 1);
+		
+		basis = bsplinebasis((double *)knots_vec->data,
+		    knots_vec->dimensions[0], (double *)coord_vec->data,
+		    coord_vec->dimensions[0], order, &c);
+		basist = cholmod_l_transpose(basis, 1, &c);
+		cholmod_l_free_sparse(&basis, &c);
+
+		Py_DECREF(coord_vec);
+		Py_DECREF(knots_vec);
+
+		slicemultiply(&nd, basist, i, &c);
+	
+		cholmod_l_free_sparse(&basist, &c);
+	}
+
+	cholmod_l_finish(&c);
+
+	result = numpy_ndsparse_to_ndarray(&nd);
+	for (i = 0; i < nd.ndim; i++)
+		free(nd.i[i]);
+	free(nd.x); free(nd.ranges);
+
+	return ((PyObject *)result);
+}
 
