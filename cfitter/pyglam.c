@@ -308,9 +308,8 @@ static PyObject *pyrho(PyObject *self, PyObject *args)
 
 static PyObject *pyfit(PyObject *self, PyObject *args)
 {
-	PyObject *z, *w, *coords, *knots, *periods;
-	PyArrayObject *result;
-	PyArrayObject *z_arr;
+	PyObject *z, *w, *coords, *knots, *periods, *result;
+	PyArrayObject *result_arr, *z_arr;
 	struct ndsparse data;
 	struct splinetable out;
 	double *data_arr, *weights;
@@ -455,9 +454,47 @@ static PyObject *pyfit(PyObject *self, PyObject *args)
 	elements = 1;
 	for (i = 0; i < out.ndim; i++)
 		elements *= out.naxes[i];
-	result = (PyArrayObject *)PyArray_SimpleNew(out.ndim, out.naxes,
+	result_arr = (PyArrayObject *)PyArray_SimpleNew(out.ndim, out.naxes,
 	    PyArray_DOUBLE);
-	memcpy(result->data, out.coefficients, elements*sizeof(double));
+	memcpy(result_arr->data, out.coefficients, elements*sizeof(double));
+
+	if (result_arr != NULL) {
+		PyObject *splinetable, *splinetable_cls;
+		/* Look up the splinetable class */
+		splinetable = PyImport_ImportModule("splinetable");
+
+		if (splinetable == NULL) {
+			PyErr_SetString(PyExc_ImportError,
+			    "Could not import splinetable module");
+			goto exit;
+		}
+
+		/* allocate result */
+		splinetable_cls = PyObject_GetAttrString(splinetable,
+		    "SplineTable");
+		if (splinetable == NULL) {
+			PyErr_SetString(PyExc_ImportError,
+			    "Could not find spline table class");
+			goto exit;
+		}
+		result = PyInstance_NewRaw(splinetable_cls, NULL);
+		if (result == NULL) {
+			PyErr_SetString(PyExc_ImportError,
+			    "Could not instantiate spline table class");
+			PyObject_Print(splinetable_cls,stdout,0);
+			goto exit;
+		}
+
+		PyObject_SetAttrString(result, "order", PyInt_FromLong(order));
+		PyObject_SetAttrString(result, "knots", knots);
+		PyObject_SetAttrString(result, "periods", periods);
+		PyObject_SetAttrString(result, "coefficients",
+		    (PyObject *)result_arr);
+
+		Py_DECREF(result_arr);
+		Py_DECREF(splinetable_cls);
+		Py_DECREF(splinetable);
+	}
 
    exit:
 	for (i = 0; i < data.ndim; i++)
