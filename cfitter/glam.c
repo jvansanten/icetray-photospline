@@ -12,6 +12,7 @@ static cholmod_sparse *flatten_ndarray_to_sparse(struct ndsparse *array,
     size_t nrow, size_t ncol, cholmod_common *c);
 cholmod_sparse *calc_penalty(int *nsplines, int ndim, int i,
     cholmod_common *c);
+void print_ndsparse_py(struct ndsparse *a);
 
 #define max(a,b) ((a > b) ? a : b)
 
@@ -129,7 +130,7 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 		}
 
 		for (i = 0; i < data->rows; i++)
-			R.x[i] *= weights[i];
+			R.x[i] *= data->x[i];
 
 		/*
 		 * Convolve F and R with the basis matrices
@@ -151,8 +152,7 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 		if (verbose)
 			printf("\tFlattening residuals matrix...\n");
 
-		Rmat = flatten_ndarray_to_sparse(&F, sidelen, 1, c);
-				
+		Rmat = flatten_ndarray_to_sparse(&R, sidelen, 1, c);
 
 		/* XXX: We reshape, transpose, and then flatten F, which is
 		 * potentially memory hungry. This can probably be done in one
@@ -221,8 +221,10 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 
 		if (verbose)
 			printf("Computing iteration %d least square solution...\n",n+1);
-		
-		coefficients = SuiteSparseQR_C_backslash_default(Fmat, Rdens, c);
+	
+		coefficients = SuiteSparseQR_C_backslash_default(fitmat, Rdens, c);
+		if (coefficients == NULL)
+			printf("Solution FAILED\n");
 	}
 	
 	/* Clean up detritus */
@@ -285,7 +287,7 @@ flatten_ndarray_to_sparse(struct ndsparse *array, size_t nrow, size_t ncol,
 			k += array->i[j][i]*moduli[j];
 
 		((int *)(trip->j))[i] = k % ncol;
-		((int *)(trip->i))[i] = k / nrow;
+		((int *)(trip->i))[i] = k / ncol;
 		((double *)(trip->x))[i] = array->x[i];
 	}
 	trip->nnz = array->rows;

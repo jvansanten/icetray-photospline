@@ -322,7 +322,7 @@ print_sparse(cholmod_sparse *a, cholmod_common *c)
 	printf("----\n");
 	for (i = 0; i < dense->nrow; i++) {
 		for (j = 0; j < dense->ncol; j++) {
-			printf("%.0lf\t",((double *)(dense->x))[j*dense->nrow + i]);
+			printf("%.2lf\t",((double *)(dense->x))[j*dense->nrow + i]);
 		}
 		printf("\n");
 	}

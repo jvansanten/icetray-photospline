@@ -9,10 +9,12 @@
 
 static PyObject *pybox(PyObject *self, PyObject *args);
 static PyObject *pyrho(PyObject *self, PyObject *args);
+static PyObject *pyfit(PyObject *self, PyObject *args);
 
 static PyMethodDef methods[] = {
 	{ "box", pybox, METH_VARARGS },
 	{ "rho", pyrho, METH_VARARGS },
+	{ "fit", pyfit, METH_VARARGS },
 	{ NULL, NULL }
 };
 
@@ -213,6 +215,12 @@ static PyObject *pybox(PyObject *self, PyObject *args)
 	return PyArray_Return(result_array);
 }
 
+void print_ndsparse_py(struct ndsparse *a) {
+	PyObject *py = (PyObject *)numpy_ndsparse_to_ndarray(a);
+	PyObject_Print(py, stdout, 0);
+	Py_DECREF(py);
+}
+
 void printndsparse(struct ndsparse *a) {
 	double *x;
 	int moduli[a->ndim];
@@ -297,4 +305,178 @@ static PyObject *pyrho(PyObject *self, PyObject *args)
 
 	return (PyObject *)result_array;
 }
+
+static PyObject *pyfit(PyObject *self, PyObject *args)
+{
+	PyObject *z, *w, *coords, *knots, *periods;
+	PyArrayObject *result;
+	PyArrayObject *z_arr;
+	struct ndsparse data;
+	struct splinetable out;
+	double *data_arr, *weights;
+	double **c_coords;
+	cholmod_common c;
+	int order;
+	double smooth;
+	int i, j, k, elements, err;
+	int *moduli;
+
+	/* Initialize a few things to NULL */
+	moduli = NULL;
+	weights = NULL;
+	z_arr = NULL;
+	result = NULL;
+	memset(&out, 0, sizeof(out));
+
+	/* Parse our arguments from Python land */
+	if (!PyArg_ParseTuple(args, "OOOOidO", &z, &w, &coords, &knots,
+	    &order, &smooth, &periods))
+		return NULL;
+
+	/* Parse weights first to avoid storing data with 0 weight */
+	err = numpynd_to_ndsparse(w, &data);
+	if (err == 0) {
+		z_arr = (PyArrayObject *)PyArray_ContiguousFromObject(z,
+		    PyArray_DOUBLE, data.ndim, data.ndim);
+	}
+
+	if (err != 0 || z_arr == NULL) {
+		PyErr_SetString(PyExc_ValueError,
+		    "could not decode arrays");
+		return NULL;
+	}
+
+	/* Now validate the input */
+
+	result = NULL;
+	for (i = 0; i < data.ndim; i++) {
+		if (z_arr->dimensions[i] != data.ranges[i]) {
+			Py_DECREF(z_arr);
+			PyErr_SetString(PyExc_ValueError,
+			    "weight and data array dimensions do not match");
+			goto exit;
+		}
+	}
+
+	/* Set up the data array */
+	moduli = malloc(sizeof(int) * data.ndim);
+	moduli[data.ndim-1] = 1;
+	for (i = data.ndim-2; i >= 0; i--)
+		moduli[i] = moduli[i+1]*data.ranges[i+1];
+
+	data_arr = calloc(data.rows,sizeof(double));
+	for (i = 0; i < data.rows; i++) {
+		k = 0;
+		for (j = 0; j < data.ndim; j++)
+			k += moduli[j]*data.i[j][i];
+		data_arr[i] = ((double *)(z_arr->data))[k];
+	}
+	free(moduli);
+
+	/* Swap the data into the ndsparse structure to satisfy glamfit's
+	 * calling convention */
+	weights = data.x;
+	data.x = data_arr;
+
+	/* We don't need the Python structure anymore */
+	Py_DECREF(z_arr);
+
+	/* Check knot and coords for consistency */
+	if (!PySequence_Check(knots) || data.ndim != PySequence_Length(knots)) {
+		PyErr_SetString(PyExc_TypeError,
+		    "knots must be a sequence with one row for each dimension");
+		goto exit;
+	}
+	if (!PySequence_Check(knots) || data.ndim != PySequence_Length(knots)) {
+		PyErr_SetString(PyExc_TypeError,
+		    "coord must be a sequence with one row for each dimension");
+		goto exit;
+	}
+
+	/* Start setting up the spline table */
+	out.ndim = data.ndim;
+	out.order = order;
+
+	out.knots = calloc(out.ndim,sizeof(double *));
+	out.nknots = calloc(out.ndim,sizeof(long));
+	for (i = 0; i < PySequence_Length(knots); i++) {
+		PyArrayObject *knot_vec;
+		knot_vec = (PyArrayObject *)PyArray_ContiguousFromObject(
+		    PySequence_GetItem(knots, i),
+		    PyArray_DOUBLE, 1, 1);
+
+		if (knot_vec == NULL) {
+			PyErr_SetString(PyExc_TypeError,
+			    "knots cannot be read as arrays");
+			goto exit;
+		}
+
+		out.nknots[i] = knot_vec->dimensions[0];
+		out.knots[i] = calloc(out.nknots[i], sizeof(double));
+		memcpy(out.knots[i], knot_vec->data,
+		    out.nknots[i] * sizeof(double));
+
+		Py_DECREF(knot_vec);
+	}
+	
+	c_coords = malloc(sizeof(double *)*out.ndim);
+	for (i = 0; i < PySequence_Length(coords); i++) {
+		PyArrayObject *coord_vec;
+		coord_vec = (PyArrayObject *)PyArray_ContiguousFromObject(
+		    PySequence_GetItem(coords, i),
+		    PyArray_DOUBLE, 1, 1);
+
+		if (coord_vec == NULL) {
+			PyErr_SetString(PyExc_TypeError,
+			    "coords cannot be read as arrays");
+			goto exit;
+		}
+
+		if (coord_vec->dimensions[0] != data.ranges[i]) {
+			PyErr_SetString(PyExc_ValueError,
+			    "wrong number of coords");
+			Py_DECREF(coord_vec);
+			goto exit;
+		}
+
+		c_coords[i] = calloc(data.ranges[i], sizeof(double));
+		memcpy(c_coords[i], coord_vec->data,
+		    data.ranges[i] * sizeof(double));
+
+		Py_DECREF(coord_vec);
+	}
+
+	/* Do the fit */
+	cholmod_start(&c);
+	glamfit(&data, weights, c_coords, &out, smooth, order, 1, &c);
+	cholmod_finish(&c);
+
+	/* Now process the splinetable into a numpy array */
+	elements = 1;
+	for (i = 0; i < out.ndim; i++)
+		elements *= out.naxes[i];
+	result = (PyArrayObject *)PyArray_SimpleNew(out.ndim, out.naxes,
+	    PyArray_DOUBLE);
+	memcpy(result->data, out.coefficients, elements*sizeof(double));
+
+   exit:
+	for (i = 0; i < data.ndim; i++)
+		free(data.i[i]);
+	free(data.x); free(data.ranges);
+	if (weights) free(weights);
+	if (out.knots) {
+		free(out.nknots);
+		free(out.periods);
+		for (i = 0; i < out.ndim; i++)
+			free(out.knots[i]);
+		free(out.knots);
+	}
+	if (out.coefficients) {
+		free(out.naxes);
+		free(out.coefficients);
+	}
+
+	return (PyObject *)result;
+}
+
 
