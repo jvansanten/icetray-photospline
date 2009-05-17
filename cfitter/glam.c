@@ -94,30 +94,25 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 	if (verbose)
 		printf("Reticulating splines...\n");
 
-	/*
-	 * Initialize F and R
-	 */
-
-	R.rows = F.rows = data->rows;
-	R.ndim = F.ndim = data->ndim;
-	F.x = malloc(data->rows * sizeof(double));
-	F.i = malloc(2*data->ndim * sizeof(int *));
-	F.ranges = malloc(2*data->ndim * sizeof(int));
-	R.x = malloc(data->rows * sizeof(double));
-	R.i = malloc(data->ndim * sizeof(int *));
-	R.ranges = malloc(data->ndim * sizeof(int));
-
-	for (i = 0; i < data->ndim; i++) {
-		F.i[i] = malloc(data->rows * sizeof(int));
-		R.i[i] = malloc(data->rows * sizeof(int));
-	}
-
 	for (n = 0; n < 1; n++) {	/* XXX: actual fit iteration unimplemented */
 		/*
 		 * Initialize F and R. 
 		 * F = weights
 		 * R = weights * data
 		 */
+		R.rows = F.rows = data->rows;
+		R.ndim = F.ndim = data->ndim;
+		F.x = malloc(data->rows * sizeof(double));
+		F.i = malloc(2*data->ndim * sizeof(int *));
+		F.ranges = malloc(2*data->ndim * sizeof(int));
+		R.x = malloc(data->rows * sizeof(double));
+		R.i = malloc(data->ndim * sizeof(int *));
+		R.ranges = malloc(data->ndim * sizeof(int));
+
+		for (i = 0; i < data->ndim; i++) {
+			F.i[i] = malloc(data->rows * sizeof(int));
+			R.i[i] = malloc(data->rows * sizeof(int));
+		}
 	
 		memcpy(R.x, weights, data->rows * sizeof(double));
 		memcpy(F.x, weights, data->rows * sizeof(double));
@@ -152,6 +147,10 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 			printf("\tFlattening residuals matrix...\n");
 
 		Rmat = flatten_ndarray_to_sparse(&R, sidelen, 1, c);
+
+		for (i = 0; i < R.ndim; i++)
+			free(R.i[i]);
+		free(R.x); free(R.i); free(R.ranges);
 
 		/* XXX: We reshape, transpose, and then flatten F, which is
 		 * potentially memory hungry. This can probably be done in one
@@ -210,6 +209,9 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 		/* Now flatten F */
 
 		Fmat = flatten_ndarray_to_sparse(&F, sidelen, sidelen, c);
+		for (i = 0; i < F.ndim; i++)
+			free(F.i[i]);
+		free(F.x); free(F.i); free(F.ranges);
 	
 		/* XXX: optimization possibilities ended */
 
@@ -237,13 +239,6 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 
 	if (verbose)
 		printf("Done: cleaning up\n");
-
-	for (i = 0; i < F.ndim; i++)
-		free(F.i[i]);
-	free(F.x); free(F.i); free(F.ranges);
-	for (i = 0; i < R.ndim; i++)
-		free(R.i[i]);
-	free(R.x); free(R.i); free(R.ranges);
 
 	cholmod_l_free_sparse(&Fmat, c);
 	cholmod_l_free_dense(&Rdens, c);
