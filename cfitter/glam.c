@@ -176,7 +176,7 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 			if (i % 2 == 0)
 				F.i[i] = F.i[i/2];
 			else
-				F.i[i] = malloc(data->rows * sizeof(int));
+				F.i[i] = malloc(F.rows * sizeof(int));
 		}
 
 		/* Now figure out each point's new coordinates */
