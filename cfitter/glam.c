@@ -103,7 +103,7 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 	R.ndim = F.ndim = data->ndim;
 	F.x = malloc(data->rows * sizeof(double));
 	F.i = malloc(2*data->ndim * sizeof(int *));
-	F.ranges = malloc(data->ndim * sizeof(int));
+	F.ranges = malloc(2*data->ndim * sizeof(int));
 	R.x = malloc(data->rows * sizeof(double));
 	R.i = malloc(data->ndim * sizeof(int *));
 	R.ranges = malloc(data->ndim * sizeof(int));
