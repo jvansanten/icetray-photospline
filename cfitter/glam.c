@@ -10,7 +10,7 @@
 
 static cholmod_sparse *flatten_ndarray_to_sparse(struct ndsparse *array,
     size_t nrow, size_t ncol, cholmod_common *c);
-cholmod_sparse *calc_penalty(int *nsplines, int ndim, int i,
+cholmod_sparse *calc_penalty(long *nsplines, int ndim, int i,
     cholmod_common *c);
 void print_ndsparse_py(struct ndsparse *a);
 
@@ -28,11 +28,10 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 	cholmod_sparse *Fmat, *Rmat, *fitmat;
 	double scale1[2] = {1.0, 0.0}, scale2[2] = {1.0, 0.0};
 	size_t sidelen;
-	int *moduli, *nsplines;
-	int i, j, n;
+	long *nsplines;
+	long i, j, n;
 
-	moduli = calloc(2*data->ndim,sizeof(int));
-	nsplines = calloc(data->ndim,sizeof(int));
+	nsplines = calloc(data->ndim,sizeof(long));
 
 	/*
 	 * We will start by precomputing some things before we don't need to
@@ -141,7 +140,7 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 
 		for (i = 0; i < data->ndim; i++) {
 			if (verbose)
-				printf("\t\tConvolving dimension %d\n",i);
+				printf("\t\tConvolving dimension %ld\n",i);
 
 			slicemultiply(&F, boxedbases[i], i, c);
 			slicemultiply(&R, bases[i], i, c);
@@ -226,7 +225,8 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 		 */
 
 		if (verbose)
-			printf("Computing iteration %d least square solution...\n",n+1);
+			printf("Computing iteration %ld least square solution...\n",
+			    n+1);
 	
 		coefficients = SuiteSparseQR_C_backslash_default(fitmat, Rdens, c);
 		if (coefficients == NULL)
@@ -254,7 +254,6 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 		cholmod_l_free_sparse(&boxedbases[i], c);
 	}
 	free(bases); free(boxedbases);
-	free(moduli);
 	free(nsplines);
 
 	/* Copy out the coefficients */
@@ -277,8 +276,8 @@ flatten_ndarray_to_sparse(struct ndsparse *array, size_t nrow, size_t ncol,
 {
 	cholmod_triplet *trip;
 	cholmod_sparse *sparse;
-	int moduli[array->ndim];
-	int i, j, k;
+	long moduli[array->ndim];
+	long i, j, k;
 
 	trip = cholmod_l_allocate_triplet(nrow, ncol, array->rows, 0,
 	    CHOLMOD_REAL, c);
@@ -337,12 +336,12 @@ offdiagonal(int rows, int cols, int diag, cholmod_common *c)
 }
 
 cholmod_sparse *
-calc_penalty(int *nsplines, int ndim, int dim, cholmod_common *c)
+calc_penalty(long *nsplines, int ndim, int dim, cholmod_common *c)
 {
 	cholmod_sparse *finitediff, *fd_trans, *DtD;
 	cholmod_sparse *tmp, *tmp2, *result;
 	double scale1[2] = {1.0, 0.0}, scale2[2] = {1.0, 0.0};
-	int i;
+	long i;
 
 	/* First, we will compute the finite difference matrix,
 	 * which looks like this:
