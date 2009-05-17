@@ -189,17 +189,23 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 
 		/* Transpose F so that the even-numbered axes come first */
 		{
-			int **oldi;
+			int **oldi, *oldranges;
 
 			oldi = F.i;
+			oldranges = F.ranges;
 			F.i = malloc(F.ndim * sizeof(int *));
+			F.ranges = malloc(F.ndim * sizeof(int));
 			for (i = 0; i < F.ndim; i++) {
-				if (i % 2 == 0)
+				if (i % 2 == 0) {
 					F.i[i/2] = oldi[i];
-				else
+					F.ranges[i/2] = oldranges[i];
+				} else {
 					F.i[F.ndim/2 + i/2] = oldi[i];
+					F.ranges[F.ndim/2 + i/2] = oldranges[i];
+				}
 			}
 			free(oldi);
+			free(oldranges);
 		}
 
 		/* Now flatten F */

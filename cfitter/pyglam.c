@@ -483,7 +483,6 @@ static PyObject *pyfit(PyObject *self, PyObject *args)
 		if (result == NULL) {
 			PyErr_SetString(PyExc_ImportError,
 			    "Could not instantiate spline table class");
-			PyObject_Print(splinetable_cls,stdout,0);
 			goto exit;
 		}
 
