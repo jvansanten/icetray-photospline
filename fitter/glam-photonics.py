@@ -1,19 +1,53 @@
-from glam import glam, splinefitstable
+#from glam import glam, splinefitstable
+from glam import splinefitstable
 import numpy
 import sys
 import os
 
 # Hard-coded params
 
-nknots = 8
+nknots = 11
 smooth = 0.01
 
 # Real code
 
-data = numpy.loadtxt(sys.argv[1])
-weights = numpy.loadtxt(sys.argv[1] + ".stats")[:,6]
-data = data[:,[0,1,2,5,6]]
-ndim = 4
+# Try to get SPGLAM, fall back on Python GLAM
+try:
+	import spglam as glam
+except:
+	print "SPGLAM not found, falling back on Python GLAM...\n"
+	from glam import glam
+
+# Try to use photo2numpy to read tables directly, fall back on it being text
+try:
+	import photo2numpy
+
+	table = photo2numpy.readl1(sys.argv[1])
+	z = table[0]
+	if table[1] == None:
+		weights = numpy.ones(z.shape)
+	else:
+		weights = table[1]
+	munge = table[2]
+	ndim = z.ndim
+
+except:
+	print "Using photo2numpy failed, falling back on text processing...\n"
+
+	data = numpy.loadtxt(sys.argv[1])
+	data = data[:,[0,1,2,5,6]]
+	z = data[:,4]
+	ndim = 4
+	try:
+		weights = numpy.loadtxt(sys.argv[1] + ".stats")[:,6]
+	except:
+		weights = numpy.ones(z.shape)
+	# Get coordinates
+	munge = [numpy.unique(data[:,i]) for i in range(0,4)]
+
+	# Reshape to proper form
+	z = z.reshape(munge[0].size,munge[1].size,munge[2].size,munge[3].size)
+	weights = weights.reshape(z.shape)
 
 # Compute knot locations 
 
@@ -27,18 +61,10 @@ tknots = numpy.append(numpy.append([-1,-0.5,0],numpy.logspace(0,numpy.log10(7000
 periods = [0,0,0,0]
 knots = [rknots, thetaknots, zknots, tknots]
 
-# Get coordinates
-
-z = data[:,4]
-munge = [numpy.unique(data[:,i]) for i in range(0,4)]
-
 # HACK: Move first and last angular bins to 0 and 180
 
 munge[1][0] = 0
 munge[1][munge[1].size - 1] = 180
-
-z = z.reshape(munge[0].size,munge[1].size,munge[2].size,munge[3].size)
-weights = weights.reshape(z.shape)
 
 z = numpy.log(z)
 w = weights
