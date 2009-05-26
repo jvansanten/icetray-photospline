@@ -6,7 +6,7 @@ import os
 
 # Hard-coded params
 
-nknots = 4
+nknots = 11
 smooth = 0.01
 
 # Real code
@@ -69,7 +69,9 @@ munge[1][munge[1].size - 1] = 180
 z = numpy.log(z)
 w = weights
 w[numpy.isinf(z)] = 0
+w[numpy.isnan(z)] = 0
 z[numpy.isinf(z)] = 0
+z[numpy.isnan(z)] = 0
 
 print "Loaded histogram with dimensions ",z.shape
 
