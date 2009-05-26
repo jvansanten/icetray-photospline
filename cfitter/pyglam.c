@@ -12,6 +12,8 @@ static PyObject *pyrho(PyObject *self, PyObject *args);
 static PyObject *pyfit(PyObject *self, PyObject *args);
 static PyObject *pygrideval(PyObject *self, PyObject *args);
 
+static PyObject *splinetable_mod;
+
 static PyMethodDef methods[] = {
 	{ "box", pybox, METH_VARARGS },
 	{ "rho", pyrho, METH_VARARGS },
@@ -23,6 +25,17 @@ static PyMethodDef methods[] = {
 void initspglam()
 {
 	import_array();
+
+	/* Look up the splinetable class */
+	splinetable_mod = PyImport_ImportModule("splinetable");
+	if (splinetable_mod == NULL)
+		splinetable_mod = PyImport_ImportModule("glam.splinetable");
+
+	if (splinetable_mod == NULL) {
+		PyErr_SetString(PyExc_ImportError,
+		    "Could not import splinetable module");
+		return;
+	}
 	Py_InitModule("spglam", methods);
 }
 
@@ -461,20 +474,12 @@ static PyObject *pyfit(PyObject *self, PyObject *args)
 	memcpy(result_arr->data, out.coefficients, elements*sizeof(double));
 
 	if (result_arr != NULL) {
-		PyObject *splinetable, *splinetable_cls;
+		PyObject *splinetable_cls;
+
 		/* Look up the splinetable class */
-		splinetable = PyImport_ImportModule("splinetable");
-
-		if (splinetable == NULL) {
-			PyErr_SetString(PyExc_ImportError,
-			    "Could not import splinetable module");
-			goto exit;
-		}
-
-		/* allocate result */
-		splinetable_cls = PyObject_GetAttrString(splinetable,
+		splinetable_cls = PyObject_GetAttrString(splinetable_mod,
 		    "SplineTable");
-		if (splinetable == NULL) {
+		if (splinetable_cls == NULL) {
 			PyErr_SetString(PyExc_ImportError,
 			    "Could not find spline table class");
 			goto exit;
@@ -494,7 +499,6 @@ static PyObject *pyfit(PyObject *self, PyObject *args)
 
 		Py_DECREF(result_arr);
 		Py_DECREF(splinetable_cls);
-		Py_DECREF(splinetable);
 	}
 
    exit:
