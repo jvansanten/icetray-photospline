@@ -6,7 +6,7 @@ import os
 
 # Hard-coded params
 
-nknots = 11
+nknots = 4
 smooth = 0.01
 
 # Real code
@@ -73,7 +73,11 @@ z[numpy.isinf(z)] = 0
 
 print "Loaded histogram with dimensions ",z.shape
 
-outputfile = sys.argv[1]+".pspl.fits";
+if len(sys.argv) < 3:
+	outputfile = sys.argv[1]+".pspl.fits"
+else:
+	outputfile = sys.argv[2]
+
 if os.path.exists(outputfile):
 	if raw_input("File %s exists. Overwrite? (y/n)" % outputfile) == 'y':
 		os.unlink(outputfile)
