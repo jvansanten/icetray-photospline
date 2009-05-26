@@ -13,7 +13,7 @@ smooth = 0.01
 
 # Try to get SPGLAM, fall back on Python GLAM
 try:
-	import spglam as glam
+	from glam import spglam as glam
 except:
 	print "SPGLAM not found, falling back on Python GLAM...\n"
 	from glam import glam
