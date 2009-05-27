@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 #include <sys/time.h>
 
 #include "splinetable.h"
@@ -66,6 +67,7 @@ int main(int argc, char **argv) {
 	printf("Order: %d\n",table.order);
 
 	printf("Value: %lf\n",value);
+	printf("e^(value): %lf\n",exp(value));
 
 	return 0;
 }
