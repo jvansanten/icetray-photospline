@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
 	printf("Order: %d\n",table.order);
 
 	printf("Value: %lf\n",value);
-	printf("e^(value): %lf\n",exp(value));
+	printf("e^(value): %e\n",exp(value));
 
 	return 0;
 }
