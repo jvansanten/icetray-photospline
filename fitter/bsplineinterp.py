@@ -19,6 +19,11 @@ xfine = numpy.sort(numpy.random.uniform(0,25,size=1000))
 rawdat = Gnuplot.Data(x1, z, title = "Data")
 
 # See if we can jump to the answer weighting by z and shifting the knots
+
+# We want to center of the spline with coefficient z to be at the point x
+# such that f(x) = z. This has to do with the spacing between knots
+# ((max - min)/numpts), as well as the middle of the number of inter-knot
+# cells spanned by a spline ((order - 1)/2).
 baseknots = x1 + (numpy.max(x1)-numpy.min(x1))/(2.0*numpts)*(order-1)
 interpknots = []
 for i in range (order,0,-1):
