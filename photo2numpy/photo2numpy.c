@@ -32,6 +32,7 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 	const char *path;
 	PyObject *main_array, *stats_array;
 	PyObject *coords[L1_MAXDIM], *coords_tuple;
+	PyObject *binwidths[L1_MAXDIM], *binwidths_tuple;
 	PyObject *result;
 	char coordstr[L1_MAXDIM];
 	FILE *table;
@@ -107,7 +108,7 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 	ndim = 0;
 	memset(coordstr, 0, sizeof(coordstr));
 	for (i = 0; i < L1_MAXDIM; i++) {
-		PyArrayObject *axis;
+		PyArrayObject *axis, *widths;
 		npy_intp extent[1];
 
 		if (photoheader.n[i] <= 1)
@@ -116,14 +117,17 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 		extent[0] = photoheader.n[i];
 		axis = (PyArrayObject *)PyArray_SimpleNew(1, extent,
 		    PyArray_DOUBLE);
+		widths = (PyArrayObject *)PyArray_SimpleNew(1, extent,
+		    PyArray_DOUBLE);
 
 		for (j = 0; j < photoheader.n[i]; j++) {
-			double val;
+			double val, width;
 
 			switch (i) {
 				case 5:
 					val = (geo.timing[j] +
 					    geo.timing[j+1])/2.;
+					width = geo.timing[j+1] - geo.timing[j];
 					break;
 				case 1:
 					if (photoheader.geo != CUBIC) {
@@ -131,6 +135,9 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 						    (acos(geo.bracket[i][j]) +
 						     acos(geo.bracket[i][j+1]));
 						val /= 2.0;
+						width = 180.0/M_PI *
+						    (acos(geo.bracket[i][j+1]) -
+						     acos(geo.bracket[i][j]));
 						break;
 					}
 
@@ -139,22 +146,29 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 				default:
 					val = (geo.bracket[i][j] +
 					    geo.bracket[i][j+1])/2.;
+					width = geo.bracket[i][j+1] -
+					    geo.bracket[i][j];
 			}
 
 			((double *)(axis->data))[j] = val;
+			((double *)(widths->data))[j] = width;
 		}
 
 		coords[ndim] = (PyObject *)axis;
+		binwidths[ndim] = (PyObject *)widths;
 		coordstr[ndim] = 'O';
 		ndim++;
 	}
 	
 	coords_tuple = Py_BuildValue(coordstr, coords[0], coords[1], coords[2],
 	    coords[3], coords[4], coords[5]);
+	binwidths_tuple = Py_BuildValue(coordstr, binwidths[0], binwidths[1],
+	    binwidths[2], binwidths[3], binwidths[4], binwidths[5]);
 
 	/* Now put together the final result */
 
-	result = Py_BuildValue("OOO", main_array, stats_array, coords_tuple);
+	result = Py_BuildValue("OOOO", main_array, stats_array, coords_tuple,
+	    binwidths_tuple);
 
     exit:
 	free(io.h);
