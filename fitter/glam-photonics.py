@@ -31,6 +31,23 @@ try:
 	munge = table[2]
 	ndim = z.ndim
 
+	# Now convert to PDF from CDF if we got a .prob table
+	# This uses finite differences, and then divides by the bin widths
+	#
+	# NB: we can only do this with photo2numpy
+	# NB: this is a disgusting hack
+
+	if sys.argv[1].endswith(".prob"):
+		zprime = z.copy()
+		for i in range(0,z.shape[0]):
+		  for j in range(0,z.shape[1]):
+		    for k in range(0,z.shape[2]):
+			zprime[i,j,k,:] = \
+			    numpy.hstack((numpy.diff(z[i,j,k,:]), [0])) \
+			    / table[3][3]
+
+		z = zprime
+
 except:
 	print "Using photo2numpy failed, falling back on text processing...\n"
 
@@ -66,12 +83,11 @@ knots = [rknots, thetaknots, zknots, tknots]
 munge[1][0] = 0
 munge[1][munge[1].size - 1] = 180
 
+# Convert the input to log-space and drop any NaNs or infinites from the fit
 z = numpy.log(z)
 w = weights
-w[numpy.isinf(z)] = 0
-w[numpy.isnan(z)] = 0
-z[numpy.isinf(z)] = 0
-z[numpy.isnan(z)] = 0
+w[numpy.logical_not(numpy.isfinite(z))] = 0
+z[numpy.logical_not(numpy.isfinite(z))] = 0
 
 print "Loaded histogram with dimensions ",z.shape
 
