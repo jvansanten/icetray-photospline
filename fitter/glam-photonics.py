@@ -6,7 +6,7 @@ import os
 
 # Hard-coded params
 
-nknots = 11
+nknots = [15, 7, 11, 20] # [r, phi, z, t]
 smooth = 0.01
 
 # Real code
@@ -68,12 +68,12 @@ except:
 
 # Compute knot locations 
 
-rknots = numpy.append(numpy.logspace(-3,3,nknots), [1100, 1200, 1300, 1400, 1500])
-thetaknots = numpy.append(-1.+numpy.logspace(-3,0,3),numpy.append(numpy.linspace(5,175,nknots),181. - numpy.logspace(0,-3,5)))
+rknots = numpy.append(numpy.logspace(-3,3,nknots[0]), [1100, 1200, 1300, 1400, 1500])
+thetaknots = numpy.append(-1.+numpy.logspace(-3,0,3),numpy.append(numpy.linspace(5,175,nknots[1]),181. - numpy.logspace(0,-3,5)))
 #thetaknots = numpy.linspace(-70,300,16)
-zknots = numpy.append(numpy.logspace(-2,3,nknots/2), [1100, 1200, 1300, 1400, 1500])
-zknots = numpy.append(numpy.append([-1300,-1200,-1100],-1.*numpy.logspace(3,-2,nknots/2)),zknots)
-tknots = numpy.append(numpy.append([-1,-0.5,0],numpy.logspace(0,numpy.log10(7000),nknots-2)), [7100, 7150, 7200, 7300, 7400])
+zknots = numpy.append(numpy.logspace(-2,3,nknots[2]/2), [1100, 1200, 1300, 1400, 1500])
+zknots = numpy.append(numpy.append([-1300,-1200,-1100],-1.*numpy.logspace(3,-2,nknots[2]/2)),zknots)
+tknots = numpy.append(numpy.append([-1,-0.5,0],numpy.logspace(0,numpy.log10(7000),nknots[3]-2)), [7100, 7150, 7200, 7300, 7400])
 
 periods = [0,0,0,0]
 knots = [rknots, thetaknots, zknots, tknots]
