@@ -109,9 +109,12 @@ print "Saving table to %s..." % outputfile
 splinefitstable.write(table,outputfile)
 
 smoothed = glam.grideval(table,munge)
+resid = (smoothed - z)[w != 0]
+fracresid = ((smoothed - z)/z)[w != 0]
 
 print "Fit Statistics:"
-print "\tMaximum Deviation from Data:",numpy.max(numpy.abs(smoothed - z))
-print "\tRMS Deviation from Data:",numpy.sqrt(numpy.mean((smoothed - z)**2))
-print "\tMax Fractional Deviation from Data:",numpy.max(numpy.abs((smoothed - z)/z))
-print "\tMean Fractional Deviation from Data:",numpy.mean(numpy.abs((smoothed - z)/z))
+print "\tMaximum Deviation from Data:",numpy.max(numpy.abs(resid))
+print "\tRMS Deviation from Data:",numpy.sqrt(numpy.mean(resid**2))
+print "\tMax Fractional Deviation from Data:",numpy.max(numpy.abs(fracresid))
+print "\tMean Fractional Deviation from Data:",numpy.mean(numpy.abs(fracresid))
+
