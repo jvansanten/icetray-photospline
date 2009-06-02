@@ -28,7 +28,7 @@ try:
 		weights = numpy.ones(z.shape)
 	else:
 		weights = table[1]
-	munge = table[2]
+	bin_centers = table[2]
 	ndim = z.ndim
 
 	# Now convert to PDF from CDF if we got a .prob table
@@ -38,15 +38,8 @@ try:
 	# NB: this is a disgusting hack
 
 	if sys.argv[1].endswith(".prob"):
-		zprime = z.copy()
-		for i in range(0,z.shape[0]):
-		  for j in range(0,z.shape[1]):
-		    for k in range(0,z.shape[2]):
-			zprime[i,j,k,:] = \
-			    numpy.hstack((numpy.diff(z[i,j,k,:]), [0])) \
-			    / table[3][3]
-
-		z = zprime
+		first_slice = [slice(None)]*(len(z.shape)-1) + [slice(0,1)]
+		z = numpy.append(z[first_slice],numpy.diff(z,axis=-1),axis=-1)
 
 except:
 	print "Using photo2numpy failed, falling back on text processing...\n"
@@ -60,10 +53,10 @@ except:
 	except:
 		weights = numpy.ones(z.shape)
 	# Get coordinates
-	munge = [numpy.unique(data[:,i]) for i in range(0,4)]
+	bin_centers = [numpy.unique(data[:,i]) for i in range(0,4)]
 
 	# Reshape to proper form
-	z = z.reshape(munge[0].size,munge[1].size,munge[2].size,munge[3].size)
+	z = z.reshape(bin_centers[0].size,bin_centers[1].size,bin_centers[2].size,bin_centers[3].size)
 	weights = weights.reshape(z.shape)
 
 # Compute knot locations 
@@ -80,8 +73,8 @@ knots = [rknots, thetaknots, zknots, tknots]
 
 # HACK: Move first and last angular bins to 0 and 180
 
-munge[1][0] = 0
-munge[1][munge[1].size - 1] = 180
+bin_centers[1][0] = 0
+bin_centers[1][bin_centers[1].size - 1] = 180
 
 # Convert the input to log-space and drop any NaNs or infinites from the fit
 z = numpy.log(z)
@@ -103,12 +96,12 @@ if os.path.exists(outputfile):
 		sys.exit()
 
 print "Beginning spline fit..."
-table = glam.fit(z,w,munge,knots,2,smooth,periods)
+table = glam.fit(z,w,bin_centers,knots,2,smooth,periods)
 
 print "Saving table to %s..." % outputfile
 splinefitstable.write(table,outputfile)
 
-smoothed = glam.grideval(table,munge)
+smoothed = glam.grideval(table,bin_centers)
 resid = (smoothed - z)[w != 0]
 fracresid = ((smoothed - z)/z)[w != 0]
 
