@@ -63,11 +63,13 @@ except:
 
 # Compute knot locations 
 
-rknots = numpy.append(numpy.logspace(-3,3,nknots[0]), [1100, 1200, 1300, 1400, 1500])
+radial_extent = 600
+
+rknots = numpy.append(numpy.logspace(-3,numpy.log10(radial_extent),nknots[0]), numpy.asarray([100, 200, 300, 400, 500]) + radial_extent)
 thetaknots = numpy.append(-1.+numpy.logspace(-3,0,3),numpy.append(numpy.linspace(5,175,nknots[1]),181. - numpy.logspace(0,-3,5)))
 #thetaknots = numpy.linspace(-70,300,16)
-zknots = numpy.append(numpy.logspace(-2,3,nknots[2]/2), [1100, 1200, 1300, 1400, 1500])
-zknots = numpy.append(numpy.append([-1300,-1200,-1100],-1.*numpy.logspace(3,-2,nknots[2]/2)),zknots)
+zknots = numpy.append(numpy.logspace(-2,numpy.log10(radial_extent),nknots[2]/2), numpy.asarray([100, 200, 300, 400, 500]) + radial_extent)
+zknots = numpy.append(numpy.append(numpy.asarray([-300,-200,-100]) - radial_extent,-1.*numpy.logspace(numpy.log10(radial_extent),-2,nknots[2]/2)),zknots)
 tknots = numpy.append(numpy.append([-1,-0.5,0],numpy.logspace(0,numpy.log10(7000),nknots[3])), [7100, 7150, 7200, 7300, 7400])
 
 periods = [0,0,0,0]
