@@ -73,6 +73,11 @@ tknots = numpy.append(numpy.append([-1,-0.5,0],numpy.logspace(0,numpy.log10(7000
 periods = [0,0,0,0]
 knots = [rknots, thetaknots, zknots, tknots]
 
+# Get the number of dimensions right: abs tables do not have time
+
+knots = knots[:ndim]
+periods = periods[:ndim]
+
 # HACK: Move first and last angular bins to 0 and 180
 
 bin_centers[1][0] = 0
