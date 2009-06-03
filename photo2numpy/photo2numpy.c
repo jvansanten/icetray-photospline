@@ -7,8 +7,7 @@
 #define L1_MAXDIM 6
 #define L1_CHUNKSIZE 1024
 
-static PyArrayObject *photol1_chunks_to_numpy(Header_type *photoheader,
-    FILE *table);
+static PyObject *photol1_chunks_to_numpy(Header_type *photoheader, FILE *table);
 
 #define min(x,y) (((x) < (y)) ? (x) : (y))
 
@@ -178,7 +177,7 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 	return (result);
 }
 
-static PyArrayObject *photol1_chunks_to_numpy(Header_type *photoheader,
+static PyObject *photol1_chunks_to_numpy(Header_type *photoheader,
     FILE *table)
 {
 	PyArrayObject *result;
@@ -214,9 +213,12 @@ static PyArrayObject *photol1_chunks_to_numpy(Header_type *photoheader,
 	while (valsleft > 0) {
 		valsread = fread(array, sizeof(float),
 		    min(L1_CHUNKSIZE, valsleft), table);
-		if (ferror(table)) {
-			fprintf(stderr,"Error while reading table: %s\n",
-			    strerror(errno));
+		if (valsread == 0 || ferror(table)) {
+			if (valsread == 0)
+				fprintf(stderr,"Unexpected end-of-file!\n");
+			else
+				fprintf(stderr,"Error while reading table: %s\n",
+				    strerror(errno));
 			Py_DECREF(result);
 			result = NULL;
 			goto exit;
@@ -232,6 +234,9 @@ static PyArrayObject *photol1_chunks_to_numpy(Header_type *photoheader,
     exit:
 	free(array);
 
-	return (result);
+	if (result == NULL)
+		return (Py_None);
+
+	return ((PyObject *)result);
 }
 
