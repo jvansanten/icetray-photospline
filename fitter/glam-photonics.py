@@ -6,8 +6,9 @@ import os
 
 # Hard-coded params
 
-nknots = [15, 7, 11, 20] # [r, phi, z, t]
-smooth = 0.01
+nknots = [13, 7, 17, 20] # [r, phi, z, t]
+#nknots = [9, 7, 10, 13] # [r, phi, z, t]
+smooth = 0.05
 
 # Real code
 
@@ -67,7 +68,7 @@ thetaknots = numpy.append(-1.+numpy.logspace(-3,0,3),numpy.append(numpy.linspace
 #thetaknots = numpy.linspace(-70,300,16)
 zknots = numpy.append(numpy.logspace(-2,3,nknots[2]/2), [1100, 1200, 1300, 1400, 1500])
 zknots = numpy.append(numpy.append([-1300,-1200,-1100],-1.*numpy.logspace(3,-2,nknots[2]/2)),zknots)
-tknots = numpy.append(numpy.append([-1,-0.5,0],numpy.logspace(0,numpy.log10(7000),nknots[3]-2)), [7100, 7150, 7200, 7300, 7400])
+tknots = numpy.append(numpy.append([-1,-0.5,0],numpy.logspace(0,numpy.log10(7000),nknots[3])), [7100, 7150, 7200, 7300, 7400])
 
 periods = [0,0,0,0]
 knots = [rknots, thetaknots, zknots, tknots]
