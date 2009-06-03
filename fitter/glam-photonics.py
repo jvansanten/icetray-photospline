@@ -29,6 +29,7 @@ try:
 	else:
 		weights = table[1]
 	bin_centers = table[2]
+	bin_widths  = table[3]
 	ndim = z.ndim
 
 	# Now convert to PDF from CDF if we got a .prob table
@@ -39,7 +40,8 @@ try:
 
 	if sys.argv[1].endswith(".prob"):
 		first_slice = [slice(None)]*(len(z.shape)-1) + [slice(0,1)]
-		z = numpy.append(z[first_slice],numpy.diff(z,axis=-1),axis=-1)
+		z = numpy.append(z[first_slice],numpy.diff(z,axis=-1),axis=-1) / bin_widths[-1]
+		z = numpy.apply_along_axis(lambda timeseries: timeseries/bin_widths[-1],z,axis=-1)
 
 except:
 	print "Using photo2numpy failed, falling back on text processing...\n"
