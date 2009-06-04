@@ -6,9 +6,9 @@ import os
 
 # Hard-coded params
 
-nknots = [13, 7, 17, 20] # [r, phi, z, t]
+nknots = [13, 7, 15, 20] # [r, phi, z, t]
 #nknots = [9, 7, 10, 13] # [r, phi, z, t]
-smooth = 0.05
+smooth = 1e-4
 
 # Real code
 
@@ -61,24 +61,29 @@ except:
 	z = z.reshape(bin_centers[0].size,bin_centers[1].size,bin_centers[2].size,bin_centers[3].size)
 	weights = weights.reshape(z.shape)
 
-# Compute knot locations 
+# Compute knot locations using a sparsified version of the bin centers as
+#    central knots.
 
 radial_extent = 600
 
-rknots = numpy.append(numpy.logspace(-3,numpy.log10(radial_extent),nknots[0]), numpy.asarray([100, 200, 300, 400, 500]) + radial_extent)
-thetaknots = numpy.append(-1.+numpy.logspace(-3,0,3),numpy.append(numpy.linspace(5,175,nknots[1]),181. - numpy.logspace(0,-3,5)))
-#thetaknots = numpy.linspace(-70,300,16)
-zknots = numpy.append(numpy.logspace(-2,numpy.log10(radial_extent),nknots[2]/2), numpy.asarray([100, 200, 300, 400, 500]) + radial_extent)
-zknots = numpy.append(numpy.append(numpy.asarray([-300,-200,-100]) - radial_extent,-1.*numpy.logspace(numpy.log10(radial_extent),-2,nknots[2]/2)),zknots)
-tknots = numpy.append(numpy.append([-1,-0.5,0],numpy.logspace(0,numpy.log10(7000),nknots[3])), [7100, 7150, 7200, 7300, 7400])
+coreknots = [bin_centers[i][numpy.unique(numpy.int32(numpy.linspace(0,len(bin_centers[i])-1,nknots[i])))] for i in range(0,ndim)]
 
-periods = [0,0,0,0]
-knots = [rknots, thetaknots, zknots, tknots]
+# Now append the extra knots off both ends of the axis in order to provide
+# full support at the boundaries
 
-# Get the number of dimensions right: abs tables do not have time
+rknots = numpy.append(numpy.append([-1, -0.5, -0.1],coreknots[0]),numpy.asarray([100, 200, 300, 400, 500]) + radial_extent)
+thetaknots = numpy.append(numpy.append([-1, -0.5, -0.1],coreknots[1]),[180.1,180.2,180.3,180.4,180.5])
+zknots = numpy.append(numpy.append([-800, -700, -600],coreknots[2]),[600,700,800,900,1000])
 
-knots = knots[:ndim]
-periods = periods[:ndim]
+if ndim==4:
+	tknots = numpy.append(numpy.append([-1,-0.5,0],coreknots[3]),[7100, 7150, 7200, 7300, 7400])
+	periods = [0,0,0,0]
+	knots = [rknots, thetaknots, zknots, tknots]
+else:
+	periods = [0,0,0]
+	knots = [rknots, thetaknots, zknots]
+
+print 'Number of knots used: ',[len(a) for a in knots]
 
 # HACK: Move first and last angular bins to 0 and 180
 
