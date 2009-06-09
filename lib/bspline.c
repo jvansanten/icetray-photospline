@@ -92,6 +92,14 @@ tablesearchcenters(struct splinetable *table, double *x, int *centers)
 
 		if (centers[i]+1 >= table->nknots[i])
 			return (-1);
+
+		/*
+		 * Do some sanity checks. Even inside the table, the results
+		 * can make no sense (or worse, crash) if we are only
+		 * a few knots in due to partial support.
+		 */
+		if (centers[i] < table->order)
+			return (-1);
 	}
 
 	return (0);
