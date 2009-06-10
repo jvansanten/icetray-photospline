@@ -114,7 +114,7 @@ z[numpy.logical_not(numpy.isfinite(z))] = 0
 
 print "Loaded histogram with dimensions ",z.shape
 
-if len(args) < 3:
+if len(args) < 2:
 	outputfile = args[0]+".pspl.fits"
 else:
 	outputfile = args[1]
