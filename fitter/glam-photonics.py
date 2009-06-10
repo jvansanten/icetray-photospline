@@ -103,11 +103,11 @@ bin_centers[1][bin_centers[1].size - 1] = 180
 # Set up weights and data array
 w = weights
 
-# Convert the input to log-space and drop any NaNs or infinites from the fit
 if opts.epsilon != None:
 	w[z == 0] = 0.01
 	z = z + opts.epsilon
 
+# Convert the input to log-space and drop any NaNs or infinites from the fit
 z = numpy.log(z)
 w[numpy.logical_not(numpy.isfinite(z))] = 0
 z[numpy.logical_not(numpy.isfinite(z))] = 0
