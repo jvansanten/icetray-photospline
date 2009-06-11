@@ -16,8 +16,6 @@ void print_ndsparse_py(struct ndsparse *a);
 
 #define max(a,b) ((a > b) ? a : b)
 
-#define USE_SPQR 1
-
 void
 glamfit(struct ndsparse *data, double *weights, double **coords,
     struct splinetable *out, double smooth, int order, int verbose,
@@ -232,27 +230,8 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 			printf("Computing iteration %ld least square solution...\n",
 			    n+1);
 	
-		#if USE_SPQR
-			coefficients = SuiteSparseQR_C_backslash_default(fitmat, Rdens, c);
-			cholmod_l_free_sparse(&fitmat, c);
-		#elif USE_CHOLMOD
-			{
-				cholmod_factor *L;
-				cholmod_dense *resid;
-
-				resid = cholmod_l_ones(fitmat->nrow, 1,
-				    fitmat->xtype, c);
-				L = cholmod_l_analyze(fitmat, c);
-				cholmod_l_factorize(fitmat, L, c);
-				cholmod_l_free_sparse(&fitmat, c);
-				coefficients = cholmod_l_solve(CHOLMOD_A, 
-				    L, resid, c);
-				cholmod_l_free_dense(&resid, c);
-				cholmod_l_free_factor(&L, c);
-			}
-		#else
-			#error Solve method undefined!
-		#endif
+		coefficients = SuiteSparseQR_C_backslash_default(fitmat, Rdens, c);
+		cholmod_l_free_sparse(&fitmat, c);
 		if (coefficients == NULL)
 			printf("Solution FAILED\n");
 	}
