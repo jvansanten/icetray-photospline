@@ -121,9 +121,12 @@ localbasis_sub(const double *weights, const int *centers, int ndim,
 		 * vector optimizations pick up on this code.
 		 */
 
-		for (k = -order; k <= 0; k++) {
-			acc += weights[stride + k + centers[n]]*
-			    localbasis[n][k+order];
+		long woff;
+		woff = stride + centers[n] - order;
+
+		for (k = 0; k <= order; k++) {
+			acc += weights[k + woff]*
+			    localbasis[n][k];
 		}
 	} else {
 		for (k = -order; k <= 0; k++) {
