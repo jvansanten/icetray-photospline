@@ -107,16 +107,13 @@ tablesearchcenters(struct splinetable *table, double *x, int *centers)
    
 static double
 localbasis_sub(const double *weights, const int *centers, int ndim,
-    int order, int n, const long *naxes, int pos[ndim],
-    double localbasis[ndim][order + 1])
+    int order, int n, const long *naxes, const unsigned long *strides,
+    int pos[ndim], unsigned long stride, double localbasis[ndim][order + 1])
 {
 	double acc = 0.0;
 	int k;
 
 	if (n+1 == ndim) {
-		int i, j;
-		int stride;
-
 		/*
 		 * If we are at the last recursion level, the weights are
 		 * linear in memory, so grab the row-level basis functions
@@ -124,15 +121,8 @@ localbasis_sub(const double *weights, const int *centers, int ndim,
 		 * vector optimizations pick up on this code.
 		 */
 
-		j = 0;
-		stride = 1;
-		for (i = n; i >= 0; i--) {
-			if (i < n) j += pos[i]*stride;
-			stride *= naxes[i];
-		}
-
 		for (k = -order; k <= 0; k++) {
-			acc += weights[j + k + centers[n]]*
+			acc += weights[stride + k + centers[n]]*
 			    localbasis[n][k+order];
 		}
 	} else {
@@ -144,7 +134,9 @@ localbasis_sub(const double *weights, const int *centers, int ndim,
 
 			pos[n] = centers[n] + k;
 			acc += localbasis_sub(weights, centers, ndim, order,
-			    n+1, naxes, pos, localbasis)*localbasis[n][k+order];
+			    n+1, naxes, strides, pos,
+			    stride + pos[n]*strides[n], localbasis)
+			    * localbasis[n][k+order];
 		}
 	}
 
@@ -167,6 +159,7 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers)
 	int n, offset;
 	double localbasis[table->ndim][table->order + 1];
 	int pos[table->ndim];
+	double result;
 
 	for (n = 0; n < table->ndim; n++) {
 		for (offset = -table->order; offset <= 0; offset++) {
@@ -176,6 +169,8 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers)
 		}
 	}
 
-	return (localbasis_sub(table->coefficients, centers, table->ndim,
-	    table->order, 0, table->naxes, pos, localbasis));
+	result = localbasis_sub(table->coefficients, centers, table->ndim,
+	    table->order, 0, table->naxes, table->strides, pos, 0, localbasis);
+
+	return (result);
 }

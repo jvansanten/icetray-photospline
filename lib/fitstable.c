@@ -78,9 +78,14 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 		table->naxes = naxestmp;
 	}
 
-	arraysize = table->naxes[0];
-	for (i = 1; i < table->ndim; i++)
+	/* Compute the total array size and the strides into each dimension */
+	table->strides = malloc(sizeof(unsigned long)*table->ndim);
+	table->strides[table->ndim - 1] = arraysize = 1;
+	for (i = table->ndim-1; i >= 0; i--) {
 		arraysize *= table->naxes[i];
+		if (i > 0)
+			table->strides[i-1] = arraysize;
+	}
 	table->coefficients = malloc(sizeof(double)*arraysize);
 
 	fpixel = malloc(sizeof(long)*table->ndim);

@@ -12,6 +12,7 @@ struct splinetable {
 
 	double *coefficients;
 	long *naxes;
+	unsigned long *strides;
 };
 
 int readsplinefitstable(const char *path, struct splinetable *table);
