@@ -79,28 +79,26 @@ tablesearchcenters(struct splinetable *table, double *x, int *centers)
 	int i;
 
 	for (i = 0; i < table->ndim; i++) {
-		if (x[i] < table->knots[i][0])
-			return (-1);
-
-		/* XXX: should be a binary search */
-		for (centers[i] = 0; centers[i]+1 < table->nknots[i];
-		    centers[i]++) {
-			if (x[i] >= table->knots[i][centers[i]] &&
-			    x[i] < table->knots[i][centers[i]+1])
-				break;
-		}
-
-		if (centers[i]+1 >= table->nknots[i])
-			return (-1);
 
 		/*
 		 * Do some sanity checks. Even inside the table, the results
 		 * can make no sense (or worse, crash) if we are only
 		 * a few knots in due to partial support.
 		 */
-		if (centers[i] < table->order)
+
+		if (x[i] < table->knots[i][table->order] ||
+		    x[i] > table->knots[i][table->nknots[i]-table->order-1])
 			return (-1);
+
+		/* XXX: should be a binary search */
+		for (centers[i] = table->order; centers[i]+1 < table->nknots[i];
+		    centers[i]++) {
+			if (x[i] >= table->knots[i][centers[i]] &&
+			    x[i] < table->knots[i][centers[i]+1])
+				break;
+		}
 	}
+
 
 	return (0);
 }
