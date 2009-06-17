@@ -1,6 +1,11 @@
 import numpy
-import glam
 import sys
+
+try:
+	import spglam as glam
+except:
+	print "SPGLAM not found, falling back on Python GLAM..."
+	import glam
 
 def fithist(data, weights, bins, nknots, smooth, link):
 	ndim = data.ndim
@@ -12,7 +17,7 @@ def fithist(data, weights, bins, nknots, smooth, link):
 	for r in ranges:
 		print "\t",r[0],"-",r[1]
 		space = (r[1] - r[0])/nknots
-		knots.append(numpy.linspace(r[0]-3.5*space,r[1]+2*space,nknots))
+		knots.append(numpy.linspace(r[0]-3*space,r[1]+2*space,nknots+5))
 		periods.append(0)
 
 	print "Histogramming..."
