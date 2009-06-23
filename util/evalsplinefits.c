@@ -7,7 +7,7 @@
 #include "splinetable.h"
 #include "bspline.h"
 
-void usage() {
+static void usage() {
 	fprintf(stderr,"evalsplinefits <path> x1 x2 x3 ...\n");
 	exit(1);
 }
