@@ -3,20 +3,26 @@
 #include <stdio.h>
 #include <limits.h>
 #include <photonics.h>
+#include <level2_reader.h>
 
 #define L1_MAXDIM 6
-#define L1_CHUNKSIZE 1024
+#define L2_MAXDIM 4
+#define TABLE_CHUNKSIZE 1024
 
 static PyObject *photol1_chunks_to_numpy(Header_type *photoheader, FILE *table);
+static PyObject *photol2_chunks_to_numpy(Level2_header_type *photoheader,
+    FILE *table);
 
 #define min(x,y) (((x) < (y)) ? (x) : (y))
 
 /* Raw Photonics table Python interface */
 
 static PyObject *readl1table(PyObject *self, PyObject *args);
+static PyObject *readl2table(PyObject *self, PyObject *args);
 
 static PyMethodDef methods[] = {
 	{ "readl1", readl1table, METH_VARARGS },
+	{ "readl2", readl2table, METH_VARARGS },
 	{ NULL, NULL }
 };
 
@@ -200,7 +206,7 @@ static PyObject *photol1_chunks_to_numpy(Header_type *photoheader,
 	    PyArray_DOUBLE);
 
 	/*
-	 * Now loop through the file, copying L1_CHUNKSIZE values at a time.
+	 * Now loop through the file, copying TABLE_CHUNKSIZE values at a time.
 	 */
 
 	valsleft = 1;
@@ -208,11 +214,11 @@ static PyObject *photol1_chunks_to_numpy(Header_type *photoheader,
 		valsleft *= photoheader->n[i];
 
 	i = 0;
-	array = malloc(sizeof(float)*L1_CHUNKSIZE);
+	array = malloc(sizeof(float)*TABLE_CHUNKSIZE);
 	errno = 0;
 	while (valsleft > 0) {
 		valsread = fread(array, sizeof(float),
-		    min(L1_CHUNKSIZE, valsleft), table);
+		    min(TABLE_CHUNKSIZE, valsleft), table);
 		if (valsread == 0 || ferror(table)) {
 			if (valsread == 0)
 				fprintf(stderr,"Unexpected end-of-file!\n");
@@ -239,4 +245,207 @@ static PyObject *photol1_chunks_to_numpy(Header_type *photoheader,
 
 	return ((PyObject *)result);
 }
+
+static PyObject *readl2table(PyObject *self, PyObject *args)
+{
+	const char *path;
+	PyObject *main_array, *stats_array;
+	PyObject *coords[L2_MAXDIM], *coords_tuple;
+	PyObject *binwidths[L2_MAXDIM], *binwidths_tuple;
+	PyObject *result;
+	char coordstr[L2_MAXDIM];
+	FILE *table;
+	int i, j, ndim;
+
+	/* Glue variables for Photonics */
+	Level2_header_type photoheader;
+	Level2_geo_type geo;
+
+	result = NULL;
+
+	if (!PyArg_ParseTuple(args, "s", &path))
+		return NULL;
+
+	printf("Opening photon table: %s\n",path);
+
+	/* This mess is copied from the poorly named photonics function
+	 * test_input() */
+
+	table = fopen(path, "rb");
+	if (table == NULL) {
+		PyErr_SetString(PyExc_IOError,
+		    "opening table failed");
+		goto exit;
+	}
+
+	if (fread(&photoheader, sizeof(Level2_header_type), 1, table) <= 0) {
+		PyErr_SetString(PyExc_ValueError,
+		    "reading table header failed");
+		goto exit;
+	}
+
+	if (!level2_geometry(&photoheader, &geo)) {
+		PyErr_SetString(PyExc_ValueError,
+		    "parsing table header failed");
+		goto exit;
+	}
+
+	/* Fudge the time axis for Level 2 ABS tables */
+	if (photoheader.type == ABS)
+		photoheader.n[3] = 1; /* Only 1 time bin */	
+
+	/* Read out the main part of the table */
+
+	main_array = (PyObject *)photol2_chunks_to_numpy(&photoheader, table);
+	stats_array = Py_None;
+
+	/* Build up a tuple of the bin coordinates on each axis */
+	ndim = 0;
+	memset(coordstr, 0, sizeof(coordstr));
+	for (i = 0; i < L1_MAXDIM; i++) {
+		PyArrayObject *axis, *widths;
+		npy_intp extent[1];
+
+		if (photoheader.n[i] <= 1)
+			continue;
+		
+		extent[0] = photoheader.n[i];
+		axis = (PyArrayObject *)PyArray_SimpleNew(1, extent,
+		    PyArray_DOUBLE);
+		widths = (PyArrayObject *)PyArray_SimpleNew(1, extent,
+		    PyArray_DOUBLE);
+
+		for (j = 0; j < photoheader.n[i]; j++) {
+			double val, width;
+
+			switch (i) {
+				case 0:
+					val = photoheader.range[0][0] +
+					    (j + 0.5)*geo.d[0];
+					width = geo.d[0];
+					break;
+				case 1:
+					val = (j + 0.5)*geo.d[1];
+					if (photoheader.d_scale == QUADRATIC) {
+						val *= val;
+						width = sqr((j + 1.5)*geo.d[1])
+						    - val;
+					} else {
+						width = geo.d[1];
+					}
+					val += photoheader.range[1][0];
+					break;
+				case 2:
+					val = photoheader.range[2][0] +
+					    j * geo.d[2];
+					width = geo.d[2];
+					break;
+				case 3:
+					val = (j + 0.5)*geo.d[3];
+					if (photoheader.t_scale == QUADRATIC) {
+						val *= val;
+						width = sqr((j + 1.5)*geo.d[3])
+						    - val;
+					} else {
+						width = geo.d[3];
+					}
+					val += photoheader.range[1][0];
+					break;
+				default:
+					PyErr_SetString(PyExc_ValueError,
+					    "number of dimensions exceeds 4");
+					goto exit;
+			}
+
+			((double *)(axis->data))[j] = val;
+			((double *)(widths->data))[j] = width;
+		}
+
+		coords[ndim] = (PyObject *)axis;
+		binwidths[ndim] = (PyObject *)widths;
+		coordstr[ndim] = 'O';
+		ndim++;
+	}
+	
+	coords_tuple = Py_BuildValue(coordstr, coords[0], coords[1], coords[2],
+	    coords[3], coords[4], coords[5]);
+	binwidths_tuple = Py_BuildValue(coordstr, binwidths[0], binwidths[1],
+	    binwidths[2], binwidths[3], binwidths[4], binwidths[5]);
+
+	/* Now put together the final result */
+
+	result = Py_BuildValue("OOOO", main_array, stats_array, coords_tuple,
+	    binwidths_tuple);
+
+    exit:
+	if (table != NULL)
+		fclose(table);
+
+	return (result);
+}
+
+static PyObject *photol2_chunks_to_numpy(Level2_header_type *photoheader,
+    FILE *table)
+{
+	PyArrayObject *result;
+	npy_intp dimensions[L2_MAXDIM];
+	size_t valsleft;
+	int ndim, i, j, valsread;
+	float *array;
+
+	/* Set up numpy array */
+	ndim = 0;
+	for (i = 0; i < L2_MAXDIM; i++) {
+		/* Don't include dimensions that have only one element */
+		if(photoheader->n[i] > 1) {
+			dimensions[ndim] = photoheader->n[i];
+			ndim++;
+		}
+	}
+
+	result = (PyArrayObject *)PyArray_SimpleNew(ndim, dimensions,
+	    PyArray_DOUBLE);
+
+	/*
+	 * Now loop through the file, copying TABLE_CHUNKSIZE values at a time.
+	 */
+
+	valsleft = 1;
+	for (i = 0; i < L2_MAXDIM; i++)
+		valsleft *= photoheader->n[i];
+
+	i = 0;
+	array = malloc(sizeof(float)*TABLE_CHUNKSIZE);
+	errno = 0;
+	while (valsleft > 0) {
+		valsread = fread(array, sizeof(float),
+		    min(TABLE_CHUNKSIZE, valsleft), table);
+		if (valsread == 0 || ferror(table)) {
+			if (valsread == 0)
+				fprintf(stderr,"Unexpected end-of-file!\n");
+			else
+				fprintf(stderr,"Error while reading table: %s\n",
+				    strerror(errno));
+			Py_DECREF(result);
+			result = NULL;
+			goto exit;
+		}
+
+		for (j = 0; j < valsread; j++)
+			((double *)(result->data))[i++] = array[j];
+
+		valsleft -= valsread;
+	}
+
+	/* All done */
+    exit:
+	free(array);
+
+	if (result == NULL)
+		return (Py_None);
+
+	return ((PyObject *)result);
+}
+
+
 

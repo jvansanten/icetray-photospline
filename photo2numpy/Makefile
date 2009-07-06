@@ -2,8 +2,9 @@
 
 CC = cc
 #INCDIRS = -I/usr/local/include -I/usr/local/include/python2.6
-INCDIRS = -I/afs/ifh.de/group/amanda/software/RHEL_5.0_amd64/include/python2.5 -I/afs/ifh.de/group/amanda/software/RHEL_5.0_amd64/lib/python2.5/site-packages/numpy/core/include -I/afs/ifh.de/user/n/nwhiteho/photonics/lib
-PHOTONICS_LIB = /afs/ifh.de/user/n/nwhiteho/photonics/lib/.libs/libphotonics.a
+INCDIRS = -I/afs/ifh.de/group/amanda/software/RHEL_5.0_amd64/include/python2.5 -I/afs/ifh.de/group/amanda/software/RHEL_5.0_amd64/lib/python2.5/site-packages/numpy/core/include -I/afs/ifh.de/user/n/nwhiteho/photonics/lib -I/afs/ifh.de/user/n/nwhiteho/photonics/level2
+PHOTONICS_LIB = /afs/ifh.de/user/n/nwhiteho/photonics/lib/.libs/libphotonics.a \
+	/afs/ifh.de/user/n/nwhiteho/photonics/level2/.libs/liblevel2amasim.a
 
 SRC = photo2numpy.c
 LIBS = -lm $(PHOTONICS_LIB)
