@@ -7,11 +7,12 @@ except:
 	print "SPGLAM not found, falling back on Python GLAM..."
 	import glam
 
-def fithist(data, weights, bins, nknots, smooth, link):
+def fithist(data, weights, bins, nknots, smooth, link, ranges = None):
 	ndim = data.ndim
-	ranges = numpy.column_stack((data.min(0),data.max(0)))
 	knots = []
 	periods = []
+	if ranges == None:
+		ranges = numpy.column_stack((data.min(0),data.max(0)))
 
 	print "Axis lengths:"
 	for r in ranges:
