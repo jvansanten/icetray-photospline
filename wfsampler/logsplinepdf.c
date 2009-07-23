@@ -10,7 +10,7 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
     double (* proposal)(void), double (* proposal_pdf)(double, double),
     gsl_rng *rng)
 {
-	int i,j;
+	int i, accepted;
 	int centers[table->ndim];
 	double val, lastval;
 	double lastlogpdf, logpdf;
@@ -22,9 +22,7 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 	tablesearchcenters(table, coords, centers);
 	lastlogpdf = ndsplineeval(table, coords, centers);
 
-	i = -burnin;
-	j = 0;
-	while (i < results) {
+	for (i = -burnin; i < results; i++) {
 		coords[dim] = val = (*proposal)();
 		tablesearchcenters(table, coords, centers);
 		logpdf = ndsplineeval(table, coords, centers);
@@ -39,11 +37,13 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 			lastproppdf = proppdf;
 			if (i >= 0)
 				result[i] = val;
-			i++;
+			accepted++;
+		} else {
+			if (i >= 0)
+				result[i] = lastval;
 		}
-		j++;
 	}
 	
-	printf("Efficiency: %e\n", (double)(results)/(double)(j));
+	printf("Efficiency: %e\n", (double)(accepted)/(double)(results));
 }
 
