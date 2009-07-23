@@ -4,7 +4,7 @@ CC = cc
 LIBDIRS = -L/usr/local/lib
 INCDIRS = -I/usr/local/include -I/usr/local/include/python2.6 -I/usr/local/lib/python2.6/site-packages/numpy/core/include
 
-SRC = logsplinepdf.c wfsample_numpy.c ../lib/bspline.c ../lib/fitstable.c
+SRC = ../lib/logsplinepdf.c wfsample_numpy.c ../lib/bspline.c ../lib/fitstable.c
 LIBS = -lm -lgsl -lcfitsio -lgslcblas
 
 # -----
