@@ -17,7 +17,7 @@ dndt = splinefitstable.read("dndt.fits")
 dapdf = hippo.DataArray()
 times = numpy.linspace(0,7000,1000)
 dapdf['Times'] = times
-dapdf['PDF'] = numpy.exp(spglam.grideval(dndt, [[14], [25], [300], times, [10]]).reshape(len(times)))*1e16
+dapdf['PDF'] = numpy.exp(spglam.grideval(dndt, [[coords[0]], [coords[1]], [coords[2]], times, [coords[3]]]).reshape(len(times)))*1e16
 dapdf.register('PDF')
 
 canvas = app.canvas()
