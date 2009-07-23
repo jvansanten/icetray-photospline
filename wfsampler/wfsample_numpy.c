@@ -51,21 +51,38 @@ const double x0 = 100.; // meter
 const double c = 0.2998; // meter/ns
 const double n = 1.34;
 
+/*
+ * GAMMA_PROPOSAL_SCALE can be used to widen the variance of the Pandel
+ * about the mean, which makes sure the tails of the Pandel proposal
+ * distribution are larger than the sampling distribution, preventing
+ * underdispersion in the tails. Set to 1.0 by default, reasonable values
+ * are between 1.0 and 1.5
+ */
+#define GAMMA_PROPOSAL_SCALE	1.0
+
 /* THE FOLLOWING ARE NOT THREAD SAFE */
 double distance;
 
 static double pandel_sample()
 {
-	const double gamma_scale = 1./(1./tau + c/n/x0);
+	double gamma_scale = 1./(1./tau + c/n/x0);
 	double gamma_shape = distance/lambda;
+	
+	/* Widen the distribution for better sampling */
+	gamma_scale *= GAMMA_PROPOSAL_SCALE;
+	gamma_shape /= GAMMA_PROPOSAL_SCALE;
 
 	return gsl_ran_gamma(rng, gamma_shape, gamma_scale);
 }
 
 static double pandel_pdf(double t, double lastt)
 {
-	const double gamma_scale = 1./(1./tau + c/n/x0);
+	double gamma_scale = 1./(1./tau + c/n/x0);
 	double gamma_shape = distance/lambda;
+
+	/* Widen the distribution for better sampling */
+	gamma_scale *= GAMMA_PROPOSAL_SCALE;
+	gamma_shape /= GAMMA_PROPOSAL_SCALE;
 
 	return gsl_ran_gamma_pdf(t, gamma_shape, gamma_scale);
 }

@@ -21,10 +21,15 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 	lastproppdf = (*proposal_pdf)(lastval,lastval);
 	tablesearchcenters(table, coords, centers);
 	lastlogpdf = ndsplineeval(table, coords, centers);
+	accepted = 0;
 
 	for (i = -burnin; i < results; i++) {
 		coords[dim] = val = (*proposal)();
-		tablesearchcenters(table, coords, centers);
+		if (tablesearchcenters(table, coords, centers) != 0) {
+			// If we ended up outside the table, try again
+			i--; continue;
+		}
+			
 		logpdf = ndsplineeval(table, coords, centers);
 		proppdf = (*proposal_pdf)(val,lastval);
 		odds = exp(logpdf - lastlogpdf);
@@ -47,6 +52,6 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 			result[i] = lastval;
 	}
 	
-	printf("Efficiency: %e\n", (double)(accepted)/(double)(results));
+	printf("Efficiency: %e\n", (double)(accepted)/(double)(i));
 }
 
