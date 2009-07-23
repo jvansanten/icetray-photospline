@@ -35,13 +35,16 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 			lastval = val;
 			lastlogpdf = logpdf;
 			lastproppdf = proppdf;
-			if (i >= 0)
-				result[i] = val;
 			accepted++;
-		} else {
-			if (i >= 0)
-				result[i] = lastval;
 		}
+
+		/*
+		 * Lastval has whatever we decided on now. If the burn-in
+		 * period has elapsed, write it to output array
+		 */
+
+		if (i >= 0)
+			result[i] = lastval;
 	}
 	
 	printf("Efficiency: %e\n", (double)(accepted)/(double)(results));
