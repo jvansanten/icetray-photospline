@@ -40,7 +40,9 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 			lastval = val;
 			lastlogpdf = logpdf;
 			lastproppdf = proppdf;
-			accepted++;
+			#ifdef DEBUG
+				accepted++;
+			#endif
 		}
 
 		/*
@@ -51,7 +53,8 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 		if (i >= 0)
 			result[i] = lastval;
 	}
-	
-	printf("Efficiency: %e\n", (double)(accepted)/(double)(i));
+	#ifdef DEBUG
+		printf("Efficiency: %e\n", (double)(accepted)/(double)(i));
+	#endif
 }
 
