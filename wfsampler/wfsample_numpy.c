@@ -45,9 +45,9 @@ void initwfsample()
 	Py_InitModule("wfsample", methods);
 }
 
-const double lambda = 40.; // meter
-const double tau = 500.; // ns
-const double x0 = 100.; // meter
+const double lambda = 71.; // meter
+const double tau = 671.; // ns
+const double x0 = 154.; // meter
 const double c = 0.2998; // meter/ns
 const double n = 1.34;
 
