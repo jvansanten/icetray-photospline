@@ -36,6 +36,28 @@ bspline(const double *knots, double x, int i, int n)
 	return result;
 }
 
+double
+bspline_deriv(const double *knots, double x, int i, int n)
+{
+	double result;
+
+	if (n == 0) {
+		/*
+		 * Special case the 0th order case, where B-Splines
+		 * are constant functions from one knot to the next.
+		 */
+
+		return 0.0;
+	}
+
+	result = ((x - knots[i])*bspline_deriv(knots, x, i, n-1) + 
+	    bspline(knots, x, i, n-1)) / (knots[i+n] - knots[i]);
+	result += ((knots[i+n+1] - x)*bspline_deriv(knots, x, i+1, n-1) -
+	    bspline(knots, x, i+1, n-1)) / (knots[i+n+1] - knots[i+1]);
+
+	return result;
+}
+
 /*
  * Evaluates the results of a full spline basis given a set of knots,
  * a position, an order, and a central spline for the position (or -1).
@@ -97,6 +119,8 @@ tablesearchcenters(struct splinetable *table, double *x, int *centers)
 			    x[i] < table->knots[i][centers[i]+1])
 				break;
 		}
+		if (centers[i]+2 >= table->nknots[i])
+			return (-1);
 	}
 
 
