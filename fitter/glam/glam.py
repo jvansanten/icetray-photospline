@@ -29,7 +29,7 @@ def rho(A,B,p):
 
 	return C
 
-def fit(z,w,coords,knots,order,smooth,periods):
+def fit(z,w,coords,knots,order,smooth,periods,bases=None):
 	ndim=z.ndim
 
 	table = splinetable.SplineTable()
@@ -46,7 +46,10 @@ def fit(z,w,coords,knots,order,smooth,periods):
 
 	print "Calculating spline basis..."
 
-	Basis = [splinebasis(knots[i],order,coords[i],periods[i]) for i in range(0,ndim)]
+	if bases == None:
+		Basis = [splinebasis(knots[i],order,coords[i],periods[i]) for i in range(0,ndim)]
+	else:
+		Basis = [numpy.matrix(i) for i in bases]
 
 	print "Calculating penalty matrix..."
 
