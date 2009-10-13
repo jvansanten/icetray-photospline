@@ -10,7 +10,7 @@
 
 static cholmod_sparse *flatten_ndarray_to_sparse(struct ndsparse *array,
     size_t nrow, size_t ncol, cholmod_common *c);
-cholmod_sparse *calc_penalty(long *nsplines, int ndim, int i,
+cholmod_sparse *calc_penalty(long *nsplines, int ndim, int i, int order,
     cholmod_common *c);
 void print_ndsparse_py(struct ndsparse *a);
 
@@ -72,7 +72,7 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 	for (i = 0; i < out->ndim; i++) {
 		cholmod_sparse *penalty_tmp;
 
-		penalty_chunk = calc_penalty(nsplines, out->ndim, i, c);
+		penalty_chunk = calc_penalty(nsplines, out->ndim, i, 2, c);
 		penalty_tmp = penalty;
 
 		/* Add each chunk to the big matrix, scaling by smooth */
@@ -332,39 +332,45 @@ offdiagonal(int rows, int cols, int diag, cholmod_common *c)
 }
 
 cholmod_sparse *
-calc_penalty(long *nsplines, int ndim, int dim, cholmod_common *c)
+calc_penalty(long *nsplines, int ndim, int dim, int order, cholmod_common *c)
 {
 	cholmod_sparse *finitediff, *fd_trans, *DtD;
 	cholmod_sparse *tmp, *tmp2, *result;
 	double scale1[2] = {1.0, 0.0}, scale2[2] = {1.0, 0.0};
-	long i;
+	long i, j;
 
 	/* First, we will compute the finite difference matrix,
-	 * which looks like this:
+	 * which looks like this for order 2:
 	 * 
 	 * 1 -2  1  0 0 ...
 	 * 0  1 -2  1 0 ...
 	 * 0  0  1 -2 1 ...
 	 */
 
-	tmp = cholmod_l_speye(nsplines[dim] - 2, nsplines[dim],
+	tmp = cholmod_l_speye(nsplines[dim] - order, nsplines[dim],
 	    CHOLMOD_REAL, c);
-	tmp2 = offdiagonal(nsplines[dim] - 2, nsplines[dim],
-	    1, c);
-	scale2[0] = -2.0;
-	finitediff = cholmod_l_add(tmp, tmp2, scale1, scale2, 1,
-	    0, c);
-	cholmod_l_free_sparse(&tmp2, c);
-	cholmod_l_free_sparse(&tmp, c);
 
-	scale2[0] = 1.0;
-	tmp2 = offdiagonal(nsplines[dim] - 2, nsplines[dim],
-	    2, c);
-	tmp = cholmod_l_add(finitediff, tmp2, scale1, scale2, 1,
-	    0, c);
-	cholmod_l_free_sparse(&tmp2, c);
-	cholmod_l_free_sparse(&finitediff, c);
-	finitediff = tmp;
+	for (i = 1; i <= order; i++) {
+		tmp2 = offdiagonal(nsplines[dim] - order, nsplines[dim],
+		    i, c);
+		/* Compute binomial coefficient */
+		scale2[0] = 1.0;
+		for (j = 1; j <= order; j++)	/* multiply by order! */
+			scale2[0] *= j;
+		for (j = 1; j <= i; j++)	/* divide by i! */
+			scale2[0] /= j;
+		for (j = 1; j <= order-i; j++)	/* divide by (order-i)! */
+			scale2[0] /= j;
+		if (i % 2)			/* get the sign right */
+			scale2[0] *= -1.0;
+		finitediff = cholmod_l_add(tmp, tmp2, scale1, scale2, 1,
+		    0, c);
+
+		cholmod_l_free_sparse(&tmp2, c);
+		cholmod_l_free_sparse(&tmp, c);
+
+		tmp = finitediff;
+	}
 
 	/*
 	 * Now we want DtD, which is the transpose of finitediff

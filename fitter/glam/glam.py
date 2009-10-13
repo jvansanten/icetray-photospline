@@ -29,13 +29,17 @@ def rho(A,B,p):
 
 	return C
 
-def fit(z,w,coords,knots,order,smooth,periods,bases=None):
+def fit(z,w,coords,knots,order,smooth,periods=0,penorder=2,bases=None):
 	ndim=z.ndim
 
 	table = splinetable.SplineTable()
 	table.knots = knots
 	table.order = order
 	table.periods = periods
+
+	penorder = numpy.asarray(penorder)
+	if penorder.size == 1:
+		penorder = penorder * numpy.ones(len(knots))
 
 	nsplines = []
 	for i in range(0,len(knots)):
@@ -53,12 +57,18 @@ def fit(z,w,coords,knots,order,smooth,periods,bases=None):
 
 	print "Calculating penalty matrix..."
 
-	def calcP(nsplines, dim):
+	def calcP(nsplines, dim, order):
 		nspl = nsplines[dim]
 
-		D = numpy.eye(nspl-2,nspl,dtype=float,k=0) + \
-		    -2*numpy.eye(nspl-2,nspl,dtype=float,k=1) + \
-		    numpy.eye(nspl-2,nspl,dtype=float,k=2)
+		D = numpy.eye(nspl-order,nspl,dtype=float,k=0)
+
+		for i in range(1,order+1):
+		    binom = 1. * numpy.prod(range(1,order+1))
+		    binom /= numpy.prod(range(1,i+1))
+		    binom /= numpy.prod(range(1,(order-i)+1))
+		    
+		    D += binom*numpy.eye(nspl-order,nspl,dtype=float,k=i)
+
 		D = numpy.matrix(D)
 		DtD = D.transpose() * D
 
@@ -77,9 +87,9 @@ def fit(z,w,coords,knots,order,smooth,periods,bases=None):
 
 		return a
 
-	P = calcP(nsplines,0)
+	P = calcP(nsplines,0,penorder[0])
 	for i in range(1,ndim):
-		P = P + calcP(nsplines,i)
+		P = P + calcP(nsplines,i,penorder[i])
 	P = smooth*P
 
 	sidelen = numpy.product(nsplines)
