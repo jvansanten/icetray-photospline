@@ -36,6 +36,9 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penorder=2,bases=None):
 	table.knots = knots
 	table.order = order
 
+	order = numpy.asarray(order,dtype=long)
+	if order.size == 1:
+		order = order * numpy.ones(len(knots),dtype=long)
 	penorder = numpy.asarray(penorder,dtype=long)
 	if penorder.size == 1:
 		penorder = penorder * numpy.ones(len(knots),dtype=long)
@@ -46,14 +49,14 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penorder=2,bases=None):
 	nsplines = []
 	for i in range(0,len(knots)):
 		if periods[i] == 0:
-			nsplines.append(len(knots[i])-order-1)
+			nsplines.append(len(knots[i])-order[i]-1)
 		else:
 			nsplines.append(len(knots[i]))		
 
 	print "Calculating spline basis..."
 
 	if bases == None:
-		Basis = [splinebasis(knots[i],order,coords[i],periods[i]) for i in range(0,ndim)]
+		Basis = [splinebasis(knots[i],order[i],coords[i],periods[i]) for i in range(0,ndim)]
 	else:
 		Basis = [numpy.matrix(i) for i in bases]
 
@@ -133,7 +136,11 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penorder=2,bases=None):
 
 def grideval(table, coords):
 	results = table.coefficients
-	Basis = [splinebasis(table.knots[i], table.order,coords[i],
+	order = numpy.asarray(table.order,dtype=long)
+	if order.size == 1:
+		order = order * numpy.ones(len(table.knots),dtype=long)
+
+	Basis = [splinebasis(table.knots[i], order[i],coords[i],
 	    table.periods[i]) for i in range(0,len(table.knots))]
 
 	for i in range(0,results.ndim):
