@@ -18,8 +18,8 @@ void print_ndsparse_py(struct ndsparse *a);
 
 void
 glamfit(struct ndsparse *data, double *weights, double **coords,
-    struct splinetable *out, double smooth, int order, int verbose,
-    cholmod_common *c)
+    struct splinetable *out, double smooth, int *order, int *penorder,
+    int verbose, cholmod_common *c)
 {
 	cholmod_sparse **bases, **boxedbases;
 	cholmod_sparse *penalty, *penalty_chunk;
@@ -41,7 +41,7 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 	/* Figure out the total number of spline nodes */
 	sidelen = 1;
 	for (i = 0; i < out->ndim; i++) {
-		nsplines[i] = out->nknots[i] - order - 1;
+		nsplines[i] = out->nknots[i] - order[i] - 1;
 		sidelen *= nsplines[i];
 	}
 
@@ -56,8 +56,8 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 	boxedbases = calloc(out->ndim, sizeof(cholmod_sparse *));
 
 	for (i = 0; i < out->ndim; i++) {
-		bases[i] = bsplinebasis(out->knots[i], out->nknots[i], coords[i], 
-		    data->ranges[i], order, c);
+		bases[i] = bsplinebasis(out->knots[i], out->nknots[i],
+		    coords[i], data->ranges[i], order[i], c);
 		boxedbases[i] = box(bases[i], bases[i], c);
 	}
 
@@ -72,7 +72,8 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 	for (i = 0; i < out->ndim; i++) {
 		cholmod_sparse *penalty_tmp;
 
-		penalty_chunk = calc_penalty(nsplines, out->ndim, i, 2, c);
+		penalty_chunk = calc_penalty(nsplines, out->ndim, i,
+		    penorder[i], c);
 		penalty_tmp = penalty;
 
 		/* Add each chunk to the big matrix, scaling by smooth */
@@ -260,7 +261,7 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 	    coefficients->nrow * coefficients->ncol * sizeof(double));
 	out->naxes = malloc(out->ndim * sizeof(long));
 	for (i = 0; i < out->ndim; i++)
-		out->naxes[i] = out->nknots[i] - order - 1;
+		out->naxes[i] = out->nknots[i] - order[i] - 1;
 
 	/* Free our last matrix */
 	cholmod_l_free_dense(&coefficients, c);

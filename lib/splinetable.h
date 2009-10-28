@@ -3,7 +3,7 @@
 
 struct splinetable {
 	int ndim;
-	int order;
+	int *order;
 	
 	double **knots;
 	long *nknots;
@@ -16,6 +16,7 @@ struct splinetable {
 };
 
 int readsplinefitstable(const char *path, struct splinetable *table);
+void freesplinefitstable(struct splinetable *table);
 
 #endif /* _SPLINE_TABLE_H */
 

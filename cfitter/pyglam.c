@@ -9,7 +9,7 @@
 
 static PyObject *pybox(PyObject *self, PyObject *args);
 static PyObject *pyrho(PyObject *self, PyObject *args);
-static PyObject *pyfit(PyObject *self, PyObject *args);
+static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw);
 static PyObject *pygrideval(PyObject *self, PyObject *args);
 
 static PyObject *splinetable_mod;
@@ -17,7 +17,8 @@ static PyObject *splinetable_mod;
 static PyMethodDef methods[] = {
 	{ "box", pybox, METH_VARARGS },
 	{ "rho", pyrho, METH_VARARGS },
-	{ "fit", pyfit, METH_VARARGS },
+	{ "fit", (PyObject *(*)(PyObject *, PyObject *))pyfit,
+	    METH_VARARGS | METH_KEYWORDS },
 	{ "grideval", pygrideval, METH_VARARGS },
 	{ NULL, NULL }
 };
@@ -321,30 +322,35 @@ static PyObject *pyrho(PyObject *self, PyObject *args)
 	return (PyObject *)result_array;
 }
 
-static PyObject *pyfit(PyObject *self, PyObject *args)
+static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 {
-	PyObject *z, *w, *coords, *knots, *periods, *result;
+	PyObject *z, *w, *coords, *knots, *periods, *order,
+	    *penorder_py, *result;
 	PyArrayObject *result_arr, *z_arr;
 	struct ndsparse data;
 	struct splinetable out;
 	double *data_arr, *weights;
 	double **c_coords;
 	cholmod_common c;
-	int order;
+	int *penorder = NULL;
+	int *moduli;
 	double smooth;
 	int i, j, k, elements, err;
-	int *moduli;
+	char *keywordargs[] = {"z", "w", "coords", "knots", "order", "smooth",
+	    "periods", "penorder", NULL};
 
 	/* Initialize a few things to NULL */
 	moduli = NULL;
 	weights = NULL;
 	z_arr = NULL;
 	result = NULL;
+	periods = NULL;
+	penorder_py = NULL;
 	memset(&out, 0, sizeof(out));
 
 	/* Parse our arguments from Python land */
-	if (!PyArg_ParseTuple(args, "OOOOidO", &z, &w, &coords, &knots,
-	    &order, &smooth, &periods))
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "OOOOOd|OO", keywordargs,
+	    &z, &w, &coords, &knots, &order, &smooth, &periods, &penorder_py))
 		return NULL;
 
 	/* Parse weights first to avoid storing data with 0 weight */
@@ -409,7 +415,6 @@ static PyObject *pyfit(PyObject *self, PyObject *args)
 
 	/* Start setting up the spline table */
 	out.ndim = data.ndim;
-	out.order = order;
 
 	out.knots = calloc(out.ndim,sizeof(double *));
 	out.nknots = calloc(out.ndim,sizeof(long));
@@ -431,6 +436,33 @@ static PyObject *pyfit(PyObject *self, PyObject *args)
 		    out.nknots[i] * sizeof(double));
 
 		Py_DECREF(knot_vec);
+	}
+
+	out.order = calloc(out.ndim,sizeof(int));
+	penorder = calloc(out.ndim,sizeof(int));
+	penorder[0] = 2;
+	{
+
+		if (PySequence_Check(order)) {
+			for (i = 0; i < out.ndim; i++)
+				out.order[i] = PyLong_AsLong(PySequence_GetItem(
+				    order,i));
+		} else {
+			out.order[0] = PyLong_AsLong(order);
+			for (i = 1; i < out.ndim; i++)
+				out.order[i] = out.order[0];
+		}
+
+		if (penorder_py != NULL && PySequence_Check(penorder_py)) {
+			for (i = 0; i < out.ndim; i++)
+				penorder[i] = PyLong_AsLong(PySequence_GetItem(
+				    penorder_py,i));
+		} else {
+			if (penorder_py != NULL)
+				penorder[0] = PyLong_AsLong(penorder_py);
+			for (i = 1; i < out.ndim; i++)
+				penorder[i] = penorder[0];
+		}
 	}
 	
 	c_coords = malloc(sizeof(double *)*out.ndim);
@@ -462,7 +494,8 @@ static PyObject *pyfit(PyObject *self, PyObject *args)
 
 	/* Do the fit */
 	cholmod_l_start(&c);
-	glamfit(&data, weights, c_coords, &out, smooth, order, 1, &c);
+	glamfit(&data, weights, c_coords, &out, smooth, out.order, penorder,
+	    1, &c);
 	cholmod_l_finish(&c);
 
 	/* Now process the splinetable into a numpy array */
@@ -491,9 +524,18 @@ static PyObject *pyfit(PyObject *self, PyObject *args)
 			goto exit;
 		}
 
-		PyObject_SetAttrString(result, "order", PyInt_FromLong(order));
+		PyObject_SetAttrString(result, "order", order);
 		PyObject_SetAttrString(result, "knots", knots);
-		PyObject_SetAttrString(result, "periods", periods);
+		if (periods == NULL) {
+			npy_intp dim;
+
+			dim = out.ndim;
+			periods = PyArray_ZEROS(1, &dim, PyArray_INT, 0);
+			PyObject_SetAttrString(result, "periods", periods);
+			Py_DECREF(periods);
+		} else {
+			PyObject_SetAttrString(result, "periods", periods);
+		}
 		PyObject_SetAttrString(result, "coefficients",
 		    (PyObject *)result_arr);
 
@@ -512,6 +554,8 @@ static PyObject *pyfit(PyObject *self, PyObject *args)
 		for (i = 0; i < out.ndim; i++)
 			free(out.knots[i]);
 		free(out.knots);
+		free(out.order);
+		free(penorder);
 	}
 	if (out.coefficients) {
 		free(out.naxes);
@@ -542,8 +586,6 @@ pygrideval(PyObject *self, PyObject *args)
 	}
 
 	order_obj = PyObject_GetAttrString(table, "order");
-	order = PyLong_AsLong(order_obj);
-	Py_DECREF(order_obj);
 
 	coeff = PyObject_GetAttrString(table, "coefficients");
 	numpynd_to_ndsparse(coeff, &nd);
@@ -561,6 +603,10 @@ pygrideval(PyObject *self, PyObject *args)
 		knots_vec = (PyArrayObject *)PyArray_ContiguousFromObject(
 		    PySequence_GetItem(knots, i),
 		    PyArray_DOUBLE, 1, 1);
+		if (PySequence_Check(order_obj))
+			order = PyLong_AsLong(PySequence_GetItem(order_obj,i));
+		else
+			order = PyLong_AsLong(order_obj);
 		
 		basis = bsplinebasis((double *)knots_vec->data,
 		    knots_vec->dimensions[0], (double *)coord_vec->data,
@@ -575,6 +621,7 @@ pygrideval(PyObject *self, PyObject *args)
 	
 		cholmod_l_free_sparse(&basist, &c);
 	}
+	Py_DECREF(order_obj);
 
 	cholmod_l_finish(&c);
 

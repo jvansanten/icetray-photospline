@@ -7,7 +7,7 @@
 #include "splineutil.h"
 
 void glamfit(struct ndsparse *data, double *weights, double **coords,
-    struct splinetable *out, double smooth, int order, int verbose,
-    cholmod_common *c);
+    struct splinetable *out, double smooth, int *order, int *penorder,
+    int verbose, cholmod_common *c);
 
 #endif

@@ -1,5 +1,6 @@
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "bspline.h"
 
@@ -108,13 +109,13 @@ tablesearchcenters(struct splinetable *table, double *x, int *centers)
 		 * a few knots in due to partial support.
 		 */
 
-		if (x[i] < table->knots[i][table->order] ||
-		    x[i] > table->knots[i][table->nknots[i]-table->order-1])
+		if (x[i] < table->knots[i][table->order[i]] ||
+		    x[i] > table->knots[i][table->nknots[i]-table->order[i]-1])
 			return (-1);
 
 		/* XXX: should be a binary search */
-		for (centers[i] = table->order; centers[i]+1 < table->nknots[i];
-		    centers[i]++) {
+		for (centers[i] = table->order[i];
+		    centers[i]+1 < table->nknots[i]; centers[i]++) {
 			if (x[i] >= table->knots[i][centers[i]] &&
 			    x[i] < table->knots[i][centers[i]+1])
 				break;
@@ -129,8 +130,8 @@ tablesearchcenters(struct splinetable *table, double *x, int *centers)
    
 static double
 localbasis_sub(const double *weights, const int *centers, int ndim,
-    int order, int n, const long *naxes, const unsigned long *strides,
-    int pos[ndim], unsigned long stride, double localbasis[ndim][order + 1])
+    int *order, int n, const long *naxes, const unsigned long *strides,
+    int pos[ndim], unsigned long stride, double *localbasis[ndim])
 {
 	double acc = 0.0;
 	int k;
@@ -144,14 +145,14 @@ localbasis_sub(const double *weights, const int *centers, int ndim,
 		 */
 
 		long woff;
-		woff = stride + centers[n] - order;
+		woff = stride + centers[n] - order[n];
 
-		for (k = 0; k <= order; k++) {
+		for (k = 0; k <= order[n]; k++) {
 			acc += weights[k + woff]*
 			    localbasis[n][k];
 		}
 	} else {
-		for (k = -order; k <= 0; k++) {
+		for (k = -order[n]; k <= 0; k++) {
 			/*
 			 * If we are not at the last dimension, record where we
 			 * are, multiply in the row basis value, and recurse.
@@ -161,7 +162,7 @@ localbasis_sub(const double *weights, const int *centers, int ndim,
 			acc += localbasis_sub(weights, centers, ndim, order,
 			    n+1, naxes, strides, pos,
 			    stride + pos[n]*strides[n], localbasis)
-			    * localbasis[n][k+order];
+			    * localbasis[n][k+order[n]];
 		}
 	}
 
@@ -182,20 +183,24 @@ double
 ndsplineeval(struct splinetable *table, const double *x, const int *centers)
 {
 	int n, offset;
-	double localbasis[table->ndim][table->order + 1];
+	double *localbasis[table->ndim];
 	int pos[table->ndim];
 	double result;
 
 	for (n = 0; n < table->ndim; n++) {
-		for (offset = -table->order; offset <= 0; offset++) {
-			localbasis[n][offset+table->order] =
+		localbasis[n] = calloc(table->order[n] + 1, sizeof(double));
+		for (offset = -table->order[n]; offset <= 0; offset++) {
+			localbasis[n][offset+table->order[n]] =
 			     bspline(table->knots[n],x[n],
-			     centers[n] + offset, table->order);
+			         centers[n] + offset, table->order[n]);
 		}
 	}
 
 	result = localbasis_sub(table->coefficients, centers, table->ndim,
 	    table->order, 0, table->naxes, table->strides, pos, 0, localbasis);
+
+	for (n = 0; n < table->ndim; n++)
+		free(localbasis[n]);
 
 	return (result);
 }

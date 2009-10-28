@@ -29,21 +29,23 @@ def rho(A,B,p):
 
 	return C
 
-def fit(z,w,coords,knots,order,smooth,periods=0,penorder=2,bases=None):
+def fit(z,w,coords,knots,order,smooth,periods=None,penorder=2,bases=None):
 	ndim=z.ndim
 
 	table = splinetable.SplineTable()
 	table.knots = knots
 	table.order = order
-	table.periods = periods
 
-	penorder = numpy.asarray(penorder)
+	penorder = numpy.asarray(penorder,dtype=long)
 	if penorder.size == 1:
-		penorder = penorder * numpy.ones(len(knots))
+		penorder = penorder * numpy.ones(len(knots),dtype=long)
+	if periods == None:
+		periods = numpy.zeros(len(knots))
+	table.periods = periods
 
 	nsplines = []
 	for i in range(0,len(knots)):
-		if (periods[i] == 0):
+		if periods[i] == 0:
 			nsplines.append(len(knots[i])-order-1)
 		else:
 			nsplines.append(len(knots[i]))		
@@ -63,7 +65,7 @@ def fit(z,w,coords,knots,order,smooth,periods=0,penorder=2,bases=None):
 		D = numpy.eye(nspl-order,nspl,dtype=float,k=0)
 
 		for i in range(1,order+1):
-		    binom = 1. * numpy.prod(range(1,order+1))
+		    binom = (-1.)**i * numpy.prod(range(1,order+1))
 		    binom /= numpy.prod(range(1,i+1))
 		    binom /= numpy.prod(range(1,(order-i)+1))
 		    
