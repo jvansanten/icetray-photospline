@@ -47,7 +47,19 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 	if (error != 0)
 		return (error);
 
-	fits_read_key(fits, TINT, "ORDER", &table->order, NULL, &error);
+	table->order = malloc(sizeof(table->order[i])*table->ndim);
+	fits_read_key(fits, TINT, "ORDER", &table->order[0], NULL, &error);
+	if (error != 0) {
+		error = 0;
+		
+		for (i = 0; i < table->ndim; i++) {
+			char name[255];
+			sprintf(name,"ORDER%d",i);
+			fits_read_key(fits, TINT, name, &table->order[i],
+			    NULL, &error);
+		}
+	}
+
 	table->periods = malloc(sizeof(table->periods[i])*table->ndim);
 	for (i = 0; i < table->ndim; i++) {
 		char name[255];

@@ -10,10 +10,10 @@ int main(int argc, char **argv) {
 	readsplinefitstable(argv[1], &table);
 
 	printf("NDim: %d\n",table.ndim);
-	printf("Order: %d\n",table.order);
 
 	for (i = 0; i < table.ndim; i++) {
 		printf("Dimension %d\n",i);
+		printf("\tOrder: %d\n",table.order[i]);
 		printf("\tN Knots: %d",(int)table.nknots[i]);
 		for (j = 0; j < table.nknots[i]; j++) {
 			if (j % 6 == 0)

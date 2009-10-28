@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
     #endif
 
 	printf("NDim: %d\n",table.ndim);
-	printf("Order: %d\n",table.order);
+	printf("Order: %d\n",table.order[0]);
 
 	printf("Value: %lf\n",value);
 	printf("e^(value): %e\n",exp(value));
