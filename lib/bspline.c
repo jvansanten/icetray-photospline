@@ -5,6 +5,15 @@
 #include "bspline.h"
 
 /*
+ * FASTANDLOOSE mode avoids some expensive malloc() calls
+ * at the price of loss of generality (tables with more than
+ * MAXORDER dimensions cannot be processed in this mode).
+ */
+
+#define	FASTANDLOOSE	1
+#define	MAXORDER	5
+
+/*
  * Compute the value of the ith nth-order basis spline of a set
  * defined by knots at the point x.
  *
@@ -131,7 +140,11 @@ tablesearchcenters(struct splinetable *table, double *x, int *centers)
 static double
 localbasis_sub(const double *weights, const int *centers, int ndim,
     int *order, int n, const long *naxes, const unsigned long *strides,
+#if FASTANDLOOSE
+    int pos[ndim], unsigned long stride, double localbasis[ndim][MAXORDER])
+#else
     int pos[ndim], unsigned long stride, double *localbasis[ndim])
+#endif
 {
 	double acc = 0.0;
 	int k;
@@ -183,12 +196,27 @@ double
 ndsplineeval(struct splinetable *table, const double *x, const int *centers)
 {
 	int n, offset;
-	double *localbasis[table->ndim];
 	int pos[table->ndim];
 	double result;
+	#if FASTANDLOOSE
+	double localbasis[table->ndim][MAXORDER];
+	#else
+	double *localbasis[table->ndim];
+	#endif
 
 	for (n = 0; n < table->ndim; n++) {
-		localbasis[n] = calloc(table->order[n] + 1, sizeof(double));
+		#if FASTANDLOOSE
+		   if (table->order[n] > MAXORDER) {
+			fprintf(stderr, "B-spline FASTANDLOOSE mode is on "
+			    "and the table order along dimension %d (%d) is "
+			    "larger than MAXORDER (%d). Either disable FASTAND"
+			    "LOOSE mode or adjust MAXORDER in bspline.c.\n",
+			    n, table->order[n], MAXORDER);
+			abort();
+		   }
+		#else
+		   localbasis[n] = calloc(table->order[n] + 1, sizeof(double));
+		#endif
 		for (offset = -table->order[n]; offset <= 0; offset++) {
 			localbasis[n][offset+table->order[n]] =
 			     bspline(table->knots[n],x[n],
@@ -199,8 +227,10 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers)
 	result = localbasis_sub(table->coefficients, centers, table->ndim,
 	    table->order, 0, table->naxes, table->strides, pos, 0, localbasis);
 
+	#if !(FASTANDLOOSE)
 	for (n = 0; n < table->ndim; n++)
 		free(localbasis[n]);
+	#endif
 
 	return (result);
 }
