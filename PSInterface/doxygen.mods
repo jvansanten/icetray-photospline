@@ -1,9 +1,0 @@
-################################################################
-# doxygen.mods
-# extra entries for offline-mk doxygen steering generation
-#
-# Thomas Burgess
-# (c) The IceCube Collaboration
-################################################################
-INPUT+=public/PSInterface private/PSInterface resources/docs resources/scripts
-FILE_PATTERNS+=*.cxx *.h *.dox *.C
