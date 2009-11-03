@@ -7,19 +7,23 @@ except:
 	print "SPGLAM not found, falling back on Python GLAM..."
 	import glam
 
-def fithist(data, weights, bins, nknots, smooth, link, ranges = None):
+def fithist(data, weights, bins, nknots, smooth, link, ranges = None, penorder=2):
 	ndim = data.ndim
 	knots = []
-	periods = []
 	if ranges == None:
 		ranges = numpy.column_stack((data.min(0),data.max(0)))
 
+	nknots = numpy.asarray(nknots,dtype=long)
+	if nknots.size == 1:
+		nknots = nknots * numpy.ones(len(ranges),dtype=long)
+
 	print "Axis lengths:"
-	for r in ranges:
+	for i in range(0,len(ranges)):
+		r = ranges[i]
 		print "\t",r[0],"-",r[1]
-		space = (r[1] - r[0])/nknots
-		knots.append(numpy.linspace(r[0]-3*space,r[1]+2*space,nknots+5))
-		periods.append(0)
+		space = (r[1] - r[0])/nknots[i]
+		knots.append(numpy.linspace(r[0]-3*space,r[1]+2*space,
+		    nknots[i]+5))
 
 	print "Histogramming..."
 
@@ -49,5 +53,5 @@ def fithist(data, weights, bins, nknots, smooth, link, ranges = None):
 
 	print "Beginning spline fit..."
 
-	return glam.fit(z,w,axes,knots,2,smooth,periods)
+	return glam.fit(z,w,axes,knots,2,smooth,penorder=penorder)
 
