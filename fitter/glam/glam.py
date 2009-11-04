@@ -62,17 +62,26 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penorder=2,bases=None):
 
 	print "Calculating penalty matrix..."
 
-	def calcP(nsplines, dim, order):
+	def calcP(nsplines, knots, dim, order, porder):
 		nspl = nsplines[dim]
+		knots = knots[dim]
 
-		D = numpy.eye(nspl-order,nspl,dtype=float,k=0)
+		D = numpy.zeros((nspl-porder,nspl),dtype=float)
+		splcents = knots[order:]
+		splcents = (splcents[1:] + splcents[:-1])/2.0
 
-		for i in range(1,order+1):
-		    binom = (-1.)**i * numpy.prod(range(1,order+1))
-		    binom /= numpy.prod(range(1,i+1))
-		    binom /= numpy.prod(range(1,(order-i)+1))
-		    
-		    D += binom*numpy.eye(nspl-order,nspl,dtype=float,k=i)
+		def divdiff(x):
+			# Calculate divided difference coefficients
+			# in order to estimate derivatives.
+
+			if len(x) == 2:
+				return numpy.asarray([-1.0,1.0])/(x[1] - x[0])
+
+			return (len(x)-1.0)*(numpy.append(0,divdiff(x[1:])) -
+			    numpy.append(divdiff(x[:-1]),0))/(x[-1] - x[0])
+
+		for i in range(0, len(D)):
+			D[i][i:i+porder+1] = divdiff(splcents[i:i+porder+1])
 
 		D = numpy.matrix(D)
 		DtD = D.transpose() * D
@@ -92,9 +101,9 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penorder=2,bases=None):
 
 		return a
 
-	P = calcP(nsplines,0,penorder[0])
+	P = calcP(nsplines,knots,0,order[0],penorder[0])
 	for i in range(1,ndim):
-		P = P + calcP(nsplines,i,penorder[i])
+		P = P + calcP(nsplines,knots,i,order[i],penorder[i])
 	P = smooth*P
 
 	sidelen = numpy.product(nsplines)
@@ -134,14 +143,17 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penorder=2,bases=None):
 	table.coefficients = a
 	return table
 
-def grideval(table, coords):
+def grideval(table, coords, bases=None):
 	results = table.coefficients
 	order = numpy.asarray(table.order,dtype=long)
 	if order.size == 1:
 		order = order * numpy.ones(len(table.knots),dtype=long)
 
-	Basis = [splinebasis(table.knots[i], order[i],coords[i],
-	    table.periods[i]) for i in range(0,len(table.knots))]
+	if bases == None:
+		Basis = [splinebasis(table.knots[i], order[i],coords[i],
+		    table.periods[i]) for i in range(0,len(table.knots))]
+	else:
+		Basis = bases
 
 	for i in range(0,results.ndim):
 		results = rho(Basis[i].transpose(),results,i)
