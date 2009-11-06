@@ -362,12 +362,12 @@ calc_penalty(long *nsplines, double *knots, int ndim, int dim, int order,
 
 	/* Compute the b-spline centers */
 	for (i = 0; i < nsplines[dim]; i++)
-		splcenters[i] = (knots[order+i] + knots[order+i+1])/2.0;
+		splcenters[i] = knots[i];
 
-	trip = cholmod_l_allocate_triplet(nsplines[dim] - porder, nsplines[dim],
-	    (nsplines[dim] - porder)*(porder+1), 0, CHOLMOD_REAL, c);
+	trip = cholmod_l_allocate_triplet(nsplines[dim] - order, nsplines[dim],
+	    (nsplines[dim] - order)*(porder+1), 0, CHOLMOD_REAL, c);
 
-	for (row = 0; row < nsplines[dim] - porder; row++) {
+	for (row = 0; row < nsplines[dim] - order; row++) {
 		divided_diffs(porder, &splcenters[row], divd);
 
 		for (col = row; col < row + porder + 1; col++) {
