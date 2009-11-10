@@ -1,14 +1,14 @@
 from glam import splinefitstable
 from optparse import OptionParser
+import photo2numpy
 import numpy
 import sys
 import os
 
 # Hard-coded params
 
-nknots = [13, 5, 15, 20] # [r, phi, z, t]
-#nknots = [9, 7, 10, 13] # [r, phi, z, t]
-smooth = 100
+nknots =[17, 6, 12, 25] # [r, phi, z, t]
+smooth = 10.
 
 # Parse arguments
 
@@ -27,48 +27,27 @@ except:
 	print "SPGLAM not found, falling back on Python GLAM...\n"
 	from glam import glam
 
-# Try to use photo2numpy to read tables directly, fall back on it being text
-try:
-	import photo2numpy
+# Read the table
 
-	table = photo2numpy.readl1(args[0])
-	z = table[0]
-	if table[1] == None:
-		weights = numpy.ones(z.shape)
-	else:
-		weights = table[1]
-	bin_centers = table[2]
-	bin_widths  = table[3]
-	ndim = z.ndim
+table = photo2numpy.readl1(args[0])
+z = table[0]
+if table[1] == None:
+	weights = numpy.ones(z.shape)
+else:
+	weights = table[1]
+bin_centers = list(table[2])
+bin_widths  = table[3]
+ndim = z.ndim
 
-	# Now convert to PDF from CDF if we got a .prob table
-	# This uses finite differences, and then divides by the bin widths
-	#
-	# NB: we can only do this with photo2numpy
-	# NB: this is a disgusting hack
+# Now convert to PDF from CDF if we got a .prob table
+# This uses finite differences, and then divides by the bin widths
+#
+# NB: this is a disgusting hack
 
-	if args[0].endswith(".prob"):
-		print "Input table ends in .prob -- attempting to recover PDF"
-		first_slice = [slice(None)]*(len(z.shape)-1) + [slice(0,1)]
-		z = numpy.append(z[first_slice],numpy.diff(z,axis=-1),axis=-1) / bin_widths[-1]
-
-except:
-	print "Using photo2numpy failed, falling back on text processing...\n"
-
-	data = numpy.loadtxt(args[0])
-	data = data[:,[0,1,2,5,6]]
-	z = data[:,4]
-	ndim = 4
-	try:
-		weights = numpy.loadtxt(args[0] + ".stats")[:,6]
-	except:
-		weights = numpy.ones(z.shape)
-	# Get coordinates
-	bin_centers = [numpy.unique(data[:,i]) for i in range(0,4)]
-
-	# Reshape to proper form
-	z = z.reshape(bin_centers[0].size,bin_centers[1].size,bin_centers[2].size,bin_centers[3].size)
-	weights = weights.reshape(z.shape)
+if args[0].endswith(".prob"):
+	print "Input table ends in .prob -- attempting to recover PDF"
+	first_slice = [slice(None)]*(len(z.shape)-1) + [slice(0,1)]
+	z = numpy.append(z[first_slice],numpy.diff(z,axis=-1),axis=-1) / bin_widths[-1]
 
 # Compute knot locations using a sparsified version of the bin centers as
 #    central knots.
@@ -84,14 +63,13 @@ rknots = numpy.append(numpy.append([-1, -0.5, -0.1],coreknots[0]),numpy.asarray(
 thetaknots = numpy.append(numpy.append([-1, -0.5, -0.1],coreknots[1]),[180.1,180.2,180.3,180.4,180.5])
 zknots = numpy.append(numpy.append([-800, -700, -600],coreknots[2]),[600,700,800,900,1000])
 
-if ndim==4:
-	tknots = numpy.append(numpy.append([-1,-0.5,0],coreknots[3]),[7100, 7150, 7200, 7300, 7400])
-	tknots = numpy.sort(numpy.append([1, 5, 10],tknots))
-	periods = [0,0,0,0]
-	knots = [rknots, thetaknots, zknots, tknots]
-else:
-	periods = [0,0,0]
-	knots = [rknots, thetaknots, zknots]
+# Use log spacing for time
+coreknots[3] = numpy.logspace(0,numpy.log10(7000),nknots[3])
+tknots = numpy.append(numpy.append([-1,-0.5,-0.25,0],coreknots[3]),[7100, 7150, 7200, 7300, 7400])
+
+order = [2,2,2,3]	# Quadric splines for t to get smooth derivatives
+penorder = [2,2,2,1]	# Penalize non-constancy in the CDF
+knots = [rknots, thetaknots, zknots, tknots]
 
 print 'Number of knots used: ',[len(a) for a in knots]
 
@@ -99,6 +77,11 @@ print 'Number of knots used: ',[len(a) for a in knots]
 
 bin_centers[1][0] = 0
 bin_centers[1][bin_centers[1].size - 1] = 180
+
+# Take cumulative sum to get the CDF, and adjust fit points to be
+# the right edges of the time bins, where the CDF is measured.
+z = numpy.cumsum(z, axis=3)
+bin_centers[3] += bin_widths[3]/2.
 
 # Set up weights and data array
 w = weights
@@ -126,7 +109,7 @@ if os.path.exists(outputfile):
 		sys.exit()
 
 print "Beginning spline fit..."
-table = glam.fit(z,w,bin_centers,knots,2,smooth,periods)
+table = glam.fit(z,w,bin_centers,knots,order,smooth,penorder=penorder)
 
 print "Saving table to %s..." % outputfile
 splinefitstable.write(table,outputfile)
