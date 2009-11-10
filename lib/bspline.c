@@ -193,7 +193,8 @@ localbasis_sub(const double *weights, const int *centers, int ndim,
  */
 
 double
-ndsplineeval(struct splinetable *table, const double *x, const int *centers)
+ndsplineeval(struct splinetable *table, const double *x, const int *centers,
+    int derivatives)
 {
 	int n, offset;
 	int pos[table->ndim];
@@ -217,10 +218,18 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers)
 		#else
 		   localbasis[n] = calloc(table->order[n] + 1, sizeof(double));
 		#endif
-		for (offset = -table->order[n]; offset <= 0; offset++) {
-			localbasis[n][offset+table->order[n]] =
-			     bspline(table->knots[n],x[n],
-			         centers[n] + offset, table->order[n]);
+		if (derivatives & (1 << n)) {
+			for (offset = -table->order[n]; offset <= 0; offset++) {
+				localbasis[n][offset+table->order[n]] =
+				     bspline_deriv(table->knots[n],x[n],
+					 centers[n] + offset, table->order[n]);
+			}
+		} else {
+			for (offset = -table->order[n]; offset <= 0; offset++) {
+				localbasis[n][offset+table->order[n]] =
+				     bspline(table->knots[n],x[n],
+					 centers[n] + offset, table->order[n]);
+			}
 		}
 	}
 

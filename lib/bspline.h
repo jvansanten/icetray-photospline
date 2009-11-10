@@ -34,7 +34,7 @@ double splineeval(double *knots, double *weights, int nknots, double x,
 int tablesearchcenters(struct splinetable *table, double *x, int *centers);
 
 double ndsplineeval(struct splinetable *table, const double *x, 
-    const int *centers);
+    const int *centers, int derivatives);
 
 
 #endif /* _BSPLINE_H */

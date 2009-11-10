@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
 	    tp2.tv_usec - tp1.tv_usec);
 
 	gettimeofday(&tp1, NULL);
-	value = ndsplineeval(&table, x, centers);
+	value = ndsplineeval(&table, x, centers, 0);
 	gettimeofday(&tp2, NULL);
 
 	if (tp2.tv_usec < tp1.tv_usec)

@@ -6,7 +6,7 @@
 #include "logsplinepdf.h"
 
 void logsplinepdf_n_sample(double *result, int results, int burnin,
-    double *coords, int dim, struct splinetable *table,
+    double *coords, int dim, struct splinetable *table, int derivatives,
     double (* proposal)(void), double (* proposal_pdf)(double, double),
     gsl_rng *rng)
 {
@@ -20,7 +20,10 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 	coords[dim] = lastval = (*proposal)();
 	lastproppdf = (*proposal_pdf)(lastval,lastval);
 	tablesearchcenters(table, coords, centers);
-	lastlogpdf = ndsplineeval(table, coords, centers);
+	lastlogpdf = ndsplineeval(table, coords, centers, 0);
+	if (derivatives)
+		lastlogpdf += log(ndsplineeval(table, coords, centers,
+		    derivatives));
 	accepted = 0;
 
 	for (i = -burnin; i < results; i++) {
@@ -30,7 +33,10 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 			i--; continue;
 		}
 			
-		logpdf = ndsplineeval(table, coords, centers);
+		logpdf = ndsplineeval(table, coords, centers, 0);
+		if (derivatives)
+			logpdf += log(ndsplineeval(table, coords, centers,
+			    derivatives));
 		proppdf = (*proposal_pdf)(val,lastval);
 		odds = exp(logpdf - lastlogpdf);
 		odds *= lastproppdf/proppdf;
