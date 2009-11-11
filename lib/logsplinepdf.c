@@ -16,22 +16,41 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 	double lastlogpdf, logpdf;
 	double lastproppdf, proppdf;
 	double odds, test;
+	double mint, maxt;
 
-	coords[dim] = lastval = (*proposal)();
-	lastproppdf = (*proposal_pdf)(lastval,lastval);
-	tablesearchcenters(table, coords, centers);
-	lastlogpdf = ndsplineeval(table, coords, centers, 0);
-	if (derivatives)
-		lastlogpdf += log(ndsplineeval(table, coords, centers,
-		    derivatives));
-	accepted = 0;
+	/* Find the boundaries by choosing the first and last points
+	 * with full support */
+	mint = table->knots[dim][table->order[dim]];
+	maxt = table->knots[dim][table->nknots[dim] - table->order[dim] - 3];
+
+	do {
+		/*
+		 * Get a starting point from the proposal distribution,
+		 * making sure the PDF at the starting point is finite
+		 * to avoid numerical problems.
+		 */
+
+		coords[dim] = lastval = (*proposal)();
+
+		lastproppdf = (*proposal_pdf)(lastval,lastval);
+		tablesearchcenters(table, coords, centers);
+		lastlogpdf = ndsplineeval(table, coords, centers, 0);
+		if (derivatives)
+			lastlogpdf += log(ndsplineeval(table, coords, centers,
+			    derivatives));
+		accepted = 0;
+	} while (!isfinite(lastlogpdf) || lastval < mint || lastval > maxt);
 
 	for (i = -burnin; i < results; i++) {
 		coords[dim] = val = (*proposal)();
-		if (tablesearchcenters(table, coords, centers) != 0) {
-			// If we ended up outside the table, try again
-			i--; continue;
-		}
+
+		/*
+		 * If we ended up outside the table, reject the sample
+		 * and try again
+		 */
+		if (val > maxt || val < mint ||
+		    tablesearchcenters(table, coords, centers) != 0) 
+			goto reject;
 			
 		logpdf = ndsplineeval(table, coords, centers, 0);
 		if (derivatives)
@@ -53,9 +72,13 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 
 		/*
 		 * Lastval has whatever we decided on now. If the burn-in
-		 * period has elapsed, write it to output array
+		 * period has elapsed, write it to output array.
+		 *
+		 * NB: This code is used in both the accept and reject
+		 * cases.
 		 */
 
+	     reject:
 		if (i >= 0)
 			result[i] = lastval;
 	}
