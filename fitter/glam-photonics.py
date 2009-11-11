@@ -78,17 +78,17 @@ print 'Number of knots used: ',[len(a) for a in knots]
 bin_centers[1][0] = 0
 bin_centers[1][bin_centers[1].size - 1] = 180
 
-# Take cumulative sum to get the CDF, and adjust fit points to be
-# the right edges of the time bins, where the CDF is measured.
-z = numpy.cumsum(z, axis=3)
-bin_centers[3] += bin_widths[3]/2.
-
 # Set up weights and data array
 w = weights
 
 if opts.epsilon != None:
 	w[z == 0] = 0.01
 	z = z + opts.epsilon
+
+# Take cumulative sum to get the CDF, and adjust fit points to be
+# the right edges of the time bins, where the CDF is measured.
+z = numpy.cumsum(z, axis=3)
+bin_centers[3] += bin_widths[3]/2.
 
 # Convert the input to log-space and drop any NaNs or infinites from the fit
 z = numpy.log(z)
