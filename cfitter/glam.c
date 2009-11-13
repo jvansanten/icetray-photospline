@@ -301,7 +301,7 @@ flatten_ndarray_to_sparse(struct ndsparse *array, size_t nrow, size_t ncol,
 }
 
 static void
-divided_diffs(int order, double *points, double *out)
+divided_diffs(int order, int porder, int j, double *knots, double *out)
 {
 	double a[order], b[order];
 	double delta;
@@ -310,17 +310,17 @@ divided_diffs(int order, double *points, double *out)
 	/*
 	 * Recursively calculate divided differences. Returns a coefficient
 	 * array like [1, -2, 1] used to approximate the nth derivative.
+	 *
+	 * From C. DeBoor, "A Practical Guide to Splines", equation X.16
+	 *  2001 edition, page 117
 	 */
-
-	delta = points[order] - points[0];
 
 	/*
 	 * Special case order 1 (first derivative by finite differences)
 	 * to terminate the recursion.
 	 */
-	if (order == 1) {
-		out[0] = -1.0/delta;
-		out[1] = 1.0/delta;
+	if (porder == 0) {
+		out[0] = 1.0;
 		return;
 	}
 
@@ -328,17 +328,24 @@ divided_diffs(int order, double *points, double *out)
 	 * Get each of the (n-1)th derivatives.
 	 */
 
-	divided_diffs(order - 1, &points[0], a);
-	divided_diffs(order - 1, &points[1], b);
+	divided_diffs(order, porder - 1, j, knots, a);
+	divided_diffs(order, porder - 1, j + 1, knots, b);
+
+	/*
+	 * Get the denominator
+	 */
+
+	delta = (knots[j+order+1] - knots[j+porder])/
+	    (double)(order - (porder - 1));
 
 	/*
 	 * Now subtract them, divide by delta, and return
 	 */
 
-	out[0] = a[0]*(double)order/delta;
-	out[order] = -b[order-1]*(double)order/delta;
+	out[0] = a[0]/delta;
+	out[order] = -b[order-1]/delta;
 	for (i = 1; i < order; i++)
-		out[i] = (a[i] - b[i-1])*(double)order/delta;
+		out[i] = (a[i] - b[i-1])/delta;
 }
 
 cholmod_sparse *
@@ -349,7 +356,6 @@ calc_penalty(long *nsplines, double *knots, int ndim, int dim, int order,
 	cholmod_sparse *tmp, *tmp2;
 	cholmod_triplet *trip;
 	double divd[porder + 1];
-	double splcenters[nsplines[dim]];
 	long i, j, row, col;
 
 	/* First, we will compute the finite difference matrix,
@@ -360,15 +366,11 @@ calc_penalty(long *nsplines, double *knots, int ndim, int dim, int order,
 	 * 0  0  1 -2 1 ...
 	 */
 
-	/* Compute the b-spline centers */
-	for (i = 0; i < nsplines[dim]; i++)
-		splcenters[i] = knots[i];
+	trip = cholmod_l_allocate_triplet(nsplines[dim] - porder, nsplines[dim],
+	    (nsplines[dim] - porder)*(porder+1), 0, CHOLMOD_REAL, c);
 
-	trip = cholmod_l_allocate_triplet(nsplines[dim] - order, nsplines[dim],
-	    (nsplines[dim] - order)*(porder+1), 0, CHOLMOD_REAL, c);
-
-	for (row = 0; row < nsplines[dim] - order; row++) {
-		divided_diffs(porder, &splcenters[row], divd);
+	for (row = 0; row < nsplines[dim] - porder; row++) {
+		divided_diffs(order, porder, row, knots, divd);
 
 		for (col = row; col < row + porder + 1; col++) {
 			((long *)(trip->i))[trip->nnz] = row;

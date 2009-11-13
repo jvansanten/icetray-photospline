@@ -67,20 +67,20 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penorder=2,bases=None):
 		knots = knots[dim]
 
 		D = numpy.zeros((nspl-order,nspl),dtype=float)
-		splcents = knots
 
-		def divdiff(x):
+		def divdiff(knots, m, i):
 			# Calculate divided difference coefficients
 			# in order to estimate derivatives.
 
-			if len(x) == 2:
-				return numpy.asarray([-1.0,1.0])/(x[1] - x[0])
+			if m == 0:
+				return numpy.asarray([1.])
 
-			return (len(x)-1.0)*(numpy.append(0,divdiff(x[1:])) -
-			    numpy.append(divdiff(x[:-1]),0))/(x[-1] - x[0])
+			num = numpy.append(0,divdiff(knots,m-1,i+1)) - numpy.append(divdiff(knots,m-1,i),0)
+			dem = (knots[i+order+1] - knots[i+m])/(order-(m-1))
+			return num/dem
 
 		for i in range(0, len(D)):
-			D[i][i:i+porder+1] = divdiff(splcents[i:i+porder+1])
+			D[i][i:i+porder+1] = divdiff(knots,porder,i)
 
 		D = numpy.matrix(D)
 		DtD = D.transpose() * D
