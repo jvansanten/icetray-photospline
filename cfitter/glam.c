@@ -328,8 +328,8 @@ divided_diffs(int order, int porder, int j, double *knots, double *out)
 	 * Get each of the (n-1)th derivatives.
 	 */
 
-	divided_diffs(order, porder - 1, j, knots, a);
-	divided_diffs(order, porder - 1, j + 1, knots, b);
+	divided_diffs(order, porder - 1, j + 1, knots, a);
+	divided_diffs(order, porder - 1, j, knots, b);
 
 	/*
 	 * Get the denominator
@@ -342,10 +342,10 @@ divided_diffs(int order, int porder, int j, double *knots, double *out)
 	 * Now subtract them, divide by delta, and return
 	 */
 
-	out[0] = a[0]/delta;
-	out[order] = -b[order-1]/delta;
-	for (i = 1; i < order; i++)
-		out[i] = (a[i] - b[i-1])/delta;
+	out[0] = -b[0]/delta;
+	out[porder] = a[porder-1]/delta;
+	for (i = 1; i < porder; i++)
+		out[i] = (a[i-1] - b[i])/delta;
 }
 
 cholmod_sparse *
