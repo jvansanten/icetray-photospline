@@ -66,7 +66,7 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penorder=2,bases=None):
 		nspl = nsplines[dim]
 		knots = knots[dim]
 
-		D = numpy.zeros((nspl-order,nspl),dtype=float)
+		D = numpy.zeros((nspl-porder,nspl),dtype=float)
 
 		def divdiff(knots, m, i):
 			# Calculate divided difference coefficients
