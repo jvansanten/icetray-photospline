@@ -1,25 +1,12 @@
 import numpy
+
 from glam import splinetable, splinefitstable
+
 from glob import glob
 import re, os, sys
 import copy
 
-#os.chdir(sys.argv[1])
-sourcedir = sys.argv[1]
-tables = [(i, re.match(".*_z(-?\d+)_a(\d+).*", i).groups()) for i in glob("%s*.fits"%sourcedir)]
-
-# Convert tables to a useful form and sort it
-
-tables = sorted([(i[0], (int(i[1][0]), int(i[1][1]))) for i in tables], key=lambda tab: tab[1])
-
-
-# Read in all the actual tables
-
-print 'Table list acquired, reading in tables...'
-
-tables = [(splinefitstable.read(i[0]), i[1]) for i in tables]
-
-print '\tDONE'
+from optparse import OptionParser
 
 def stack_tables(tablist):
 	# We expect an array of (splinetable, coordinate) tuples
@@ -32,8 +19,10 @@ def stack_tables(tablist):
 
 		slice.coefficients = slice.coefficients.reshape( \
 		    slice.coefficients.shape + (1,))
-		knotloc = position + 0.5*(slice.order - 1.0)
+		#knotloc = position + 0.5*(slice.order - 1.0)
+		knotloc = position + 0.5*(slice.order[1] - 1.0)
 		ndim = slice.coefficients.ndim
+
 		if bigtab is None:
 			bigtab = slice
 			bigtab.knots.append([knotloc])
@@ -46,9 +35,9 @@ def stack_tables(tablist):
 
 	# Shift the knots (see bsplineinterp.py)
 	baseknots = bigtab.knots[ndim - 1]
-	baseknots = baseknots + (numpy.max(baseknots)-numpy.min(baseknots))/(2.0*len(baseknots))*(bigtab.order-1)
+	baseknots = baseknots + (numpy.max(baseknots)-numpy.min(baseknots))/(2.0*len(baseknots))*(bigtab.order[1]-1)
 	interpknots = []
-	for i in range (bigtab.order,0,-1):
+	for i in range (bigtab.order[1],0,-1):
 		interpknots.append(baseknots[0] - i*(baseknots[1] - baseknots[0]))
 	interpknots.extend(baseknots)
 	interpknots.append(interpknots[len(interpknots)-1] + (interpknots[len(interpknots)-1] - interpknots[len(interpknots)-2]))
@@ -56,34 +45,122 @@ def stack_tables(tablist):
 
 	return bigtab
 
-zpos = numpy.unique([i[1][0] for i in tables])
+if __name__ == "__main__":
+	# Parse command line options
+	parser = OptionParser(usage="%prog [options] [source dir] [fits output]")
+	parser.add_option("-z", "--zstep",
+	                  type="int",
+	                  dest="zstep",
+                      metavar="STEP",
+	                  default=0,
+	                  help="Increment between source depths (in meters)")
+	parser.add_option("-a", "--astep",
+	                  type="int",
+	                  dest="astep",
+                      metavar="STEP",
+	                  default=0,
+	                  help="Increment between source azimuth angles (in degrees)")
+	parser.add_option("-f", "--filter",
+	                  dest="file_type",
+                      metavar="EXT",
+	                  default="fits",
+	                  help="File extension filter to use (e.g. '.diff.fits')")
 
-intermedtables = []
+	if len(sys.argv) < 2:
+		print sys.argv
+		sys.argv.append("-h")
 
-for z in zpos:
-	print 'Stacking tables at z =', z
-	
-	# Select all the tables at this z
-	sublist = filter(lambda tab: tab[1][0] == z, tables)
-	# Reformat to just one coordinate for stacking
-	sublist = [(tab[0], tab[1][1]) for tab in sublist]
-	# extend angular range by mirroring next-to-last
-	# angle bins (e.g. 170 and 10 deg) to the outside
-	# (e.g. 190 and -10) so that 0 and 180 will have
-	# support
-	print '\textending angular range by hand...'
-	lowmirror = [(copy.deepcopy(sublist[1][0]),-sublist[1][1])]
-	highmirror = [(copy.deepcopy(sublist[-2][0]),sublist[-1][1]+(sublist[-1][1]-sublist[-2][1]))]
-	sublist = lowmirror + sublist + highmirror
+	(options, args) = parser.parse_args()
 
-	intermedtables.append((stack_tables(sublist), z))
+	if len(args) < 1:
+		print "Please supply a source directory name"
+		sys.exit(0)
+	if len(args) < 2:
+		print "Please supply an output file name"
+		sys.exit(0)
 
-# We no longer need to original tables
-del tables
+	if os.path.exists(args[1]):
+		if raw_input("File %s exists. Overwrite (y/n)? " % args[1]) == 'y':
+			os.unlink(args[1])
+		else:
+			sys.exit()
 
-if len(zpos) > 1:
-	finaltab = stack_tables(intermedtables)
-else:
-	finaltab = intermedtables[0][0]
+	sourcedir = args[0] + "/"
+	tables = [(i, re.match(".*_z(-?\d+)_a(\d+).*", i).groups()) for i in glob("%s*%s" % (sourcedir, options.file_type))]
 
-splinefitstable.write(finaltab, '../' + os.path.basename(os.path.abspath(sourcedir)) + '.fits')
+	# Convert tables to a useful form and sort it
+
+	tables = sorted([(i[0], (int(i[1][0]), int(i[1][1]))) for i in tables], key=lambda tab: tab[1])
+
+	# Read in all the actual tables
+
+	print 'Table list acquired, reading in tables...',
+	tables = [(splinefitstable.read(i[0]), i[1]) for i in tables]
+	print 'done'
+
+	zpos = numpy.unique([i[1][0] for i in tables])
+	if options.zstep:
+		zpos = [i
+		        for i in range(zpos[0],
+		                       zpos[len(zpos)-1] + options.zstep,
+		                       options.zstep)
+		        if i in zpos
+		       ]
+
+	if len(zpos) < (zpos[len(zpos)-1] - zpos[0]) / options.zstep + 1:
+		print "Error: Some depth steps are missing in table directory."
+		sys.exit(1)
+
+	intermedtables = []
+
+	for z in zpos:
+		print 'Stacking tables at z =', z
+		# Select all the tables at this z
+		sublist = filter(lambda tab: tab[1][0] == z, tables)
+		# Reformat to just one coordinate for stacking
+		sublist = [(tab[0], tab[1][1]) for tab in sublist]
+		if options.astep:
+			sublist = [i
+			           for i in sublist
+			           if i[1] in range(sublist[0][1],
+			                            sublist[len(sublist)-1][1] + options.astep,
+			                            options.astep)
+			          ]
+			if len(sublist) < (sublist[len(sublist)-1][1] - sublist[0][1]) / options.astep + 1:
+				print "Error: Some azimuth steps are missing in table directory."
+				sys.exit(1)
+
+		# extend angular range by mirroring next-to-last
+		# angle bins (e.g. 170 and 10 deg) to the outside
+		# (e.g. 190 and -10) so that 0 and 180 will have
+		# support
+		print '\tExtending angular range...',
+		lowmirror  = [(copy.deepcopy(sublist[ 1][0]), -sublist[ 1][1])]
+		highmirror = [(copy.deepcopy(sublist[-2][0]),  sublist[-1][1] + (sublist[-1][1] - sublist[-2][1]))]
+		sublist = lowmirror + sublist + highmirror
+		print 'done'
+
+		print '\tStacking...',
+		intermedtables.append((stack_tables(sublist), z))
+		print 'done'
+
+	# We no longer need to original tables
+	del tables
+
+	if len(zpos) > 1:
+		finaltab = stack_tables(intermedtables)
+	else:
+		finaltab = intermedtables[0][0]
+
+	try:
+		targetfile = args[1]
+	except IndexError:
+		targetfile = os.path.normpath(os.path.join(os.path.abspath(sourcedir), '..', os.path.basename(os.path.abspath(sourcedir)) + '.fits'))
+
+	try:
+		splinefitstable.write(finaltab, targetfile)
+		print "Output written to", targetfile
+	except Exception, inst:
+		print inst
+
+
