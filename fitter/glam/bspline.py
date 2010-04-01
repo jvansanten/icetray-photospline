@@ -55,3 +55,6 @@ def splinebasis(knots,order,x1,period = 0,spline = bspline):
 
 	return numpy.matrix(numpy.column_stack(splinevals))
 
+def tsplinebasis(basis):
+	"""Convert a B-spline basis to a T-spline basis."""
+	return basis + basis.sum(axis=1).reshape((basis.shape[0],1)) - basis.cumsum(axis=1)
