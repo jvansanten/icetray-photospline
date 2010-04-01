@@ -15,7 +15,7 @@ axis_labels = ("Perpendicular distance (m)",
                "Parallel distance (m)",
                "Time (ns)")
 
-usage = "usage: %prog [options] table.pt table.fits"
+usage = "usage: %prog [options] table.pt table.fits [table2.fits [ ... ] ]"
 optparser = OptionParser(usage=usage)
 optparser.add_option("-0", "--dim0", dest="dim0", type="string",
              help="How to plot histogram dimension 0 [x|y|i|<bin>]")
@@ -49,7 +49,7 @@ if 'y' in axes:
         print ydim,"-> y: Table only has dimensions", range(table.ndim())
         sys.exit()
     free_axes.remove(ydim)
-    tree_d = True
+    three_d = True
 
 if 'x' in axes:
     xdim = axes.index('x')
@@ -78,10 +78,19 @@ table.values = numpy.log(table.values)
 
 # Load the spline fit
 
-spline   = splinefitstable.read(args[1])
-smoothed = glam.grideval(spline,table.bin_centers)
+smoothed = []
+for file in args[1:]:
+    spline = splinefitstable.read(file)
+    vals   = glam.grideval(spline, table.bin_centers)
+    vals   = vals[numpy.isfinite(vals)]
+    smoothed.append(vals)
+    del spline
 
-print "Loaded spline"
+print "Loaded", len(smoothed),
+if len(smoothed) == 1:
+    print "spline file"
+else:
+    print "spline files"
 
 # ---------------------------------------------------------------------------
 
@@ -98,8 +107,8 @@ coords = n.meshgrid_nd(*table.bin_centers,**{'lex_order':True})
 coords = numpy.column_stack(map(lambda arr: arr.reshape(arr.size),coords))
 zvec = table.values.reshape(table.values.size)
 bigdat = numpy.column_stack((coords,zvec))
-bigdat = numpy.column_stack((bigdat,smoothed.reshape(smoothed.size)))
-bigdat = bigdat[numpy.isfinite(bigdat[:,table.ndim()+1])]
+for spline in smoothed:
+    bigdat = numpy.column_stack((bigdat, spline.reshape(spline.size)))
 
 gp = Gnuplot.Gnuplot()
 
@@ -117,17 +126,27 @@ for i in table.bin_centers[idim]:
 
         gp.xlabel(axis_labels[xdim])
         gp.title(title)
+        plots = []
         if three_d:
-            raw  = Gnuplot.Data(sample[:,xdim], sample[:,ydim], sample[:,table.ndim()],   title="Raw")
-            fit = Gnuplot.Data(sample[:,xdim], sample[:,ydim], sample[:,table.ndim()+1], title="Fit")
+            pass
+            for plot in range(table.ndim()+1,sample.shape[1]):
+                plots.append(Gnuplot.Data(sample[:,xdim],
+                                          sample[:,ydim],
+                                          sample[:,plot],
+                                          title="Fit %d" % (plot - table.ndim())))
+            plots.append(Gnuplot.Data(sample[:,xdim], sample[:,ydim], sample[:,table.ndim()],   title="Raw"))
             gp.ylabel(axis_labels[ydim])
             gp.zlabel("log Photon density")
-            gp.splot(raw,fit)
+            #gp.set_range("zrange", "[-50:0]")
+            gp.splot(*plots)
         else:
-            raw = Gnuplot.Data(sample[:,xdim], sample[:,table.ndim()],   title="Raw")
-            fit = Gnuplot.Data(sample[:,xdim], sample[:,table.ndim()+1], title="Fit")
+            for plot in range(table.ndim()+1,sample.shape[1]):
+                plots.append(Gnuplot.Data(sample[:,xdim],
+                                          sample[:,plot],
+                                          title="Fit %d" % (plot - table.ndim())))
+            plots.append(Gnuplot.Data(sample[:,xdim], sample[:,table.ndim()],   title="Raw"))
             gp.ylabel("log Photon density")
-            gp.plot(raw,fit)
+            gp.plot(*plots)
 
         printdiffstats(sample[:,table.ndim()],sample[:,table.ndim()+1])
         raw_input('Press Enter to continue')
