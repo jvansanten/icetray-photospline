@@ -29,7 +29,7 @@ def rho(A,B,p):
 
 	return C
 
-def fit(z,w,coords,knots,order,smooth,periods=None,penorder=2,bases=None):
+def fit(z,w,coords,knots,order,smooth,periods=None,penalties={2:None},bases=None):
 	ndim=z.ndim
 
 	table = splinetable.SplineTable()
@@ -39,9 +39,21 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penorder=2,bases=None):
 	order = numpy.asarray(order,dtype=long)
 	if order.size == 1:
 		order = order * numpy.ones(len(knots),dtype=long)
-	penorder = numpy.asarray(penorder,dtype=long)
-	if penorder.size == 1:
-		penorder = penorder * numpy.ones(len(knots),dtype=long)
+	
+	# the user can pass an arbitrary linear combination of penalty orders
+	penorder = [dict() for i in xrange(len(knots))]
+	for o,coefficients in penalties.items():
+		if int(o) <= 0:
+			raise ValueError, "Penalty order must by > 0 (not %s)" % o
+		if coefficients is None:
+			# if no coefficient is specified, use the smoothness (old behavior)
+			coefficients = smooth
+		coefficients = numpy.asarray(coefficients,dtype=float)	
+		if coefficients.size == 1:
+			coefficients = coefficients * numpy.ones(len(knots),dtype=float)
+		for i,coeff in enumerate(coefficients):
+			penorder[i][int(o)] = coeff
+	
 	if periods == None:
 		periods = numpy.zeros(len(knots))
 	table.periods = periods
@@ -62,11 +74,9 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penorder=2,bases=None):
 
 	print "Calculating penalty matrix..."
 
-	def calcP(nsplines, knots, dim, order, porder):
+	def calcP(nsplines, knots, dim, order, porders):
 		nspl = nsplines[dim]
 		knots = knots[dim]
-
-		D = numpy.zeros((nspl-porder,nspl),dtype=float)
 
 		def divdiff(knots, m, i):
 			# Calculate divided difference coefficients
@@ -79,11 +89,18 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penorder=2,bases=None):
 			dem = (knots[i+order+1] - knots[i+m])/(order-(m-1))
 			return num/dem
 
-		for i in range(0, len(D)):
-			D[i][i:i+porder+1] = divdiff(knots,porder,i)
+		def penalty_matrix(penorder):
+			D = numpy.zeros((nspl-penorder,nspl),dtype=float)
+			for i in range(0, len(D)):
+				D[i][i:i+penorder+1] = divdiff(knots,penorder,i)
+			return numpy.asmatrix(D)
 
-		D = numpy.matrix(D)
-		DtD = D.transpose() * D
+		D = penalty_matrix(porders.keys()[0])
+		DtD = porders.values()[0] * D.transpose() * D
+		
+		for porder,coeff in porders.items()[1:]:
+			D1 = penalty_matrix(porder)
+			DtD += coeff * D1.transpose() * D1
 
 		def prodterm(i):
 			if (i == dim):
@@ -103,7 +120,7 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penorder=2,bases=None):
 	P = calcP(nsplines,knots,0,order[0],penorder[0])
 	for i in range(1,ndim):
 		P = P + calcP(nsplines,knots,i,order[i],penorder[i])
-	P = smooth*P
+	# P = smooth*P
 
 	sidelen = numpy.product(nsplines)
 	a = numpy.reshape(numpy.zeros(sidelen,float),nsplines)
@@ -140,6 +157,45 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penorder=2,bases=None):
 		a = numpy.reshape(result[0],nsplines)
 
 	table.coefficients = a
+	return table
+
+def monotonize(table,monodim=0):
+	"""Use the t-spline hammer to enforce monotonicity along one axis"""
+	print "Futzing with t-spline basis"
+	
+	nsplines = []
+	for i in range(0,len(table.knots)):
+		if table.periods[i] == 0:
+			nsplines.append(len(table.knots[i])-table.order[i]-1)
+		else:
+			nsplines.append(len(table.knots[i]))
+	
+	# multiplying by a lower-triangular matrix sums b-spline coefficients
+	# to yield t-spline (cumulative) coefficients
+	L = numpy.tril(numpy.ones((nsplines[monodim],nsplines[monodim])))
+	# the b-spline coefficients are the differences between the t-spline coefficients
+	Linv = numpy.linalg.inv(L)
+	
+	def futz(b_coefficients):
+		# first, convert b-spline coefficients to t-spline coefficients
+		coefficients = numpy.dot(Linv,b_coefficients)
+		for i in xrange(len(coefficients)):
+			a = coefficients[i]
+			if a < 0:
+				print 't-spline coeff %d = %e' % (i,a)
+				if (i > 0) and (coefficients[i-1]+a >= 0): 
+					# we're coming out of an (over-)ring; add back'erds
+					coefficients[i-1] += a
+					coefficients[i] = 0
+				elif i+1 < len(coefficients):
+					# we're going in to an (under-)ring; add forwards
+					coefficients[i+1] += a
+					coefficients[i] = 0
+
+		# now, convert back to a b-spline basis
+		coefficients = numpy.dot(L,coefficients)
+		return coefficients
+	table.coefficients = numpy.apply_along_axis(futz,monodim,table.coefficients)
 	return table
 
 def grideval(table, coords, bases=None):
