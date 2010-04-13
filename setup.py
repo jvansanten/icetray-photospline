@@ -32,7 +32,7 @@ def setup_extensions():
 	
 	spglam = Extension("spglam", sources = ["cfitter/glam.c","cfitter/splineutil.c","cfitter/pyglam.c","lib/bspline.c"],
 						include_dirs = inc_dirs + ['lib'],
-						libraries = ['m','cholmod','ccolamd','colamd','amd','spqr','gfortran','stdc++','gfortranbegin'] + lapack_libs,
+						libraries = ['m','cholmod','ccolamd','colamd','amd','spqr','gfortran','stdc++'] + lapack_libs,
 						)
 	
 	if photo2numpy is not None:
@@ -48,7 +48,7 @@ def setup_package():
 		package_dir = {'glam': 'fitter/glam', 'pyphotonics': 'fitter/pyphotonics'},
 		packages = ["glam","pyphotonics"],
 		
-		ext_modules = setup_extensions
+		ext_modules = setup_extensions()
 	)
 
 if __name__ == "__main__":

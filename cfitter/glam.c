@@ -12,6 +12,14 @@ static cholmod_sparse *flatten_ndarray_to_sparse(struct ndsparse *array,
     size_t nrow, size_t ncol, cholmod_common *c);
 cholmod_sparse *calc_penalty(long *nsplines, double *knots, int ndim, int i,
     int order, int porder, cholmod_common *c);
+cholmod_sparse* add_penalty_term(long *nsplines, double *knots, int ndim, int dim, int order,
+    int porder, double scale, 
+    cholmod_sparse *penalty, cholmod_common *c);
+void
+glamfit_complex(struct ndsparse *data, double *weights, double **coords,
+    struct splinetable *out, int *order, cholmod_sparse* penalty,
+    int verbose, cholmod_common *c);
+
 void print_ndsparse_py(struct ndsparse *a);
 
 #define max(a,b) ((a > b) ? a : b)
@@ -19,10 +27,54 @@ void print_ndsparse_py(struct ndsparse *a);
 void
 glamfit(struct ndsparse *data, double *weights, double **coords,
     struct splinetable *out, double smooth, int *order, int *penorder,
+    int verbose, cholmod_common *c) {
+	
+	long *nsplines;
+	cholmod_sparse *penalty;
+	size_t sidelen;
+	int i;
+	
+	
+	nsplines = calloc(data->ndim,sizeof(long));
+
+	/*
+	 * We will start by precomputing some things before we don't need to
+	 * worry about memory pressure on temporaries.
+	 */
+
+	/* Figure out the total number of spline nodes */
+	sidelen = 1;
+	for (i = 0; i < out->ndim; i++) {
+		nsplines[i] = out->nknots[i] - order[i] - 1;
+		sidelen *= nsplines[i];
+	}
+	
+	
+	if (verbose)
+		printf("Calculating penalty matrix...\n");
+
+	penalty = cholmod_l_spzeros(sidelen, sidelen, 1, CHOLMOD_REAL, c);
+	
+	for (i = 0; i < out->ndim; i++) {
+		penalty = add_penalty_term(nsplines, out->knots[i], out->ndim, i, out->order[i],
+			penorder[i], smooth, penalty, c);
+	}
+	
+	free(nsplines);
+	
+	glamfit_complex(data,weights,coords,out,order,penalty,verbose,c);
+	
+	// clean up what we passed in
+	cholmod_l_free_sparse(&penalty, c);
+}
+
+void
+glamfit_complex(struct ndsparse *data, double *weights, double **coords,
+    struct splinetable *out, int *order, cholmod_sparse* penalty,
     int verbose, cholmod_common *c)
 {
 	cholmod_sparse **bases, **boxedbases;
-	cholmod_sparse *penalty, *penalty_chunk;
+	// cholmod_sparse *penalty, *penalty_chunk;
 	cholmod_dense *coefficients, *Rdens;
 	struct ndsparse F, R;
 	cholmod_sparse *Fmat, *Rmat, *fitmat;
@@ -65,25 +117,25 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 	 * Now we want to get the penalty matrix.
 	 */
 
-	if (verbose)
-		printf("Calculating penalty matrix...\n");
-
-	penalty = cholmod_l_spzeros(sidelen, sidelen, 1, CHOLMOD_REAL, c);
-	for (i = 0; i < out->ndim; i++) {
-		cholmod_sparse *penalty_tmp;
-
-		penalty_chunk = calc_penalty(nsplines, out->knots[i], out->ndim,
-		    i, out->order[i], penorder[i], c);
-		penalty_tmp = penalty;
-
-		/* Add each chunk to the big matrix, scaling by smooth */
-		scale2[0] = smooth;
-		penalty = cholmod_l_add(penalty, penalty_chunk, scale1, scale2,
-		    1, 0, c);
-
-		cholmod_l_free_sparse(&penalty_tmp, c);
-		cholmod_l_free_sparse(&penalty_chunk, c);
-	}
+	// if (verbose)
+	// 	printf("Calculating penalty matrix...\n");
+	// 
+	// penalty = cholmod_l_spzeros(sidelen, sidelen, 1, CHOLMOD_REAL, c);
+	// for (i = 0; i < out->ndim; i++) {
+	// 	cholmod_sparse *penalty_tmp;
+	// 
+	// 	penalty_chunk = calc_penalty(nsplines, out->knots[i], out->ndim,
+	// 	    i, out->order[i], penorder[i], c);
+	// 	penalty_tmp = penalty;
+	// 
+	// 	/* Add each chunk to the big matrix, scaling by smooth */
+	// 	scale2[0] = smooth;
+	// 	penalty = cholmod_l_add(penalty, penalty_chunk, scale1, scale2,
+	// 	    1, 0, c);
+	// 
+	// 	cholmod_l_free_sparse(&penalty_tmp, c);
+	// 	cholmod_l_free_sparse(&penalty_chunk, c);
+	// }
 
 	
 	/*
@@ -218,6 +270,7 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 
 		scale2[0] = 1.0;
 		fitmat = cholmod_l_add(Fmat, penalty, scale1, scale2, 1, 0, c);
+		
 		cholmod_l_free_sparse(&Fmat, c); /* we don't need Fmat anymore */
 
 		Rdens = cholmod_l_sparse_to_dense(Rmat, c);
@@ -244,7 +297,7 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 
 	cholmod_l_free_sparse(&Fmat, c);
 	cholmod_l_free_dense(&Rdens, c);
-	cholmod_l_free_sparse(&penalty, c);
+	// cholmod_l_free_sparse(&penalty, c);
 
 	for (i = 0; i < out->ndim; i++) {
 		cholmod_l_free_sparse(&bases[i], c);
@@ -265,6 +318,26 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 
 	/* Free our last matrix */
 	cholmod_l_free_dense(&coefficients, c);
+}
+
+cholmod_sparse*
+add_penalty_term(long *nsplines, double *knots, int ndim, int dim, int order,
+		int porder, double scale, 
+		cholmod_sparse *penalty, cholmod_common *c) {
+	cholmod_sparse *penalty_tmp, *penalty_chunk;
+	double scale1[2] = {1.0, 0.0}; double scale2[2] = {1.0, 0.0};
+	penalty_chunk = calc_penalty(nsplines, knots, ndim,
+	    dim, order, porder, c);
+	penalty_tmp = penalty;
+
+	/* Add each chunk to the big matrix, scaling by smooth */
+	scale2[0] = scale;
+	penalty = cholmod_l_add(penalty, penalty_chunk, scale1, scale2,
+	    1, 0, c);
+
+	cholmod_l_free_sparse(&penalty_tmp, c);
+	cholmod_l_free_sparse(&penalty_chunk, c);
+	return penalty;
 }
 
 static cholmod_sparse *
@@ -356,7 +429,7 @@ calc_penalty(long *nsplines, double *knots, int ndim, int dim, int order,
 	cholmod_sparse *tmp, *tmp2;
 	cholmod_triplet *trip;
 	double divd[porder + 1];
-	long i, j, row, col;
+	long i, row, col;
 
 	/* First, we will compute the finite difference matrix,
 	 * which looks like this for order 2:
