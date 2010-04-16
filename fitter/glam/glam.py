@@ -29,7 +29,7 @@ def rho(A,B,p):
 
 	return C
 
-def fit(z,w,coords,knots,order,smooth,periods=None,penalties={2:None},bases=None):
+def fit(z,w,coords,knots,order,smooth,periods=None,penalties={2:None},bases=None,iterations=1):
 	ndim=z.ndim
 
 	table = splinetable.SplineTable()
@@ -128,7 +128,7 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penalties={2:None},bases=None
 	print "Reticulating splines..."
 
 	n = 0
-	while n < 1:
+	while n < iterations:
 		n = n+1
 
 		F = w
@@ -153,8 +153,24 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penalties={2:None},bases=None
 
 		print "Computing iteration %d least squares solution..." % n
 
+		if n > 1:
+			# fit for residual on further iterations
+			x = numpy.reshape(a,r.shape)
+			r = numpy.asarray(r - F*x)
+			resid = (r**2).sum()
+			print 'The sum of squared residuals is %e'%resid
+
 		result = numpy.linalg.lstsq(F, r)
-		a = numpy.reshape(result[0],nsplines)
+		
+		coefficients = numpy.reshape(result[0],nsplines)
+		
+		if n == 1:
+			a = coefficients
+		else:
+			a = a + coefficients
+			
+		
+		
 
 	table.coefficients = a
 	return table
