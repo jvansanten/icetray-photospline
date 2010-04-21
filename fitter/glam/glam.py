@@ -2,6 +2,9 @@ import numpy
 import splinetable
 from bspline import *
 
+import nnls as nnls_mockup
+from scipy.optimize import nnls
+
 def box(A,B):
 	ea = numpy.ones((1,A.shape[1]),float)
 	eb = numpy.ones((1,B.shape[1]),float)
@@ -29,7 +32,8 @@ def rho(A,B,p):
 
 	return C
 
-def fit(z,w,coords,knots,order,smooth,periods=None,penalties={2:None},bases=None,iterations=1):
+def fit(z,w,coords,knots,order,smooth,
+		periods=None,penalties={2:None},bases=None,iterations=1,monodim=None):
 	ndim=z.ndim
 
 	table = splinetable.SplineTable()
@@ -71,6 +75,14 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penalties={2:None},bases=None
 		Basis = [splinebasis(knots[i],order[i],coords[i],periods[i]) for i in range(0,ndim)]
 	else:
 		Basis = [numpy.matrix(i) for i in bases]
+	
+	if monodim is not None:
+		# multiplying by a lower-triangular matrix sums b-spline coefficients
+		# to yield t-spline (cumulative) coefficients
+		L = numpy.tril(numpy.ones((nsplines[monodim],nsplines[monodim])))
+		# the b-spline coefficients are the differences between the t-spline coefficients
+		Linv = numpy.linalg.inv(L)
+		Basis[monodim] = numpy.dot(Basis[monodim],L)
 
 	print "Calculating penalty matrix..."
 
@@ -88,16 +100,21 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penalties={2:None},bases=None
 			num = numpy.append(0,divdiff(knots,m-1,i+1)) - numpy.append(divdiff(knots,m-1,i),0)
 			dem = (knots[i+order+1] - knots[i+m])/(order-(m-1))
 			return num/dem
-
+		
+		if dim == monodim:
+			L = numpy.tril(numpy.ones((nsplines[monodim],nsplines[monodim]),dtype=numpy.double))
+		
 		def penalty_matrix(penorder):
 			D = numpy.zeros((nspl-penorder,nspl),dtype=float)
 			for i in range(0, len(D)):
 				D[i][i:i+penorder+1] = divdiff(knots,penorder,i)
+				
+			if dim == monodim:
+				D = numpy.dot(D,L)
 			return numpy.asmatrix(D)
 
 		D = penalty_matrix(porders.keys()[0])
 		DtD = porders.values()[0] * D.transpose() * D
-		
 		for porder,coeff in porders.items()[1:]:
 			D1 = penalty_matrix(porder)
 			DtD += coeff * D1.transpose() * D1
@@ -150,7 +167,7 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penalties={2:None},bases=None
 		r = numpy.reshape(R,(sidelen,1))
 
 		F = F + P
-
+		
 		print "Computing iteration %d least squares solution..." % n
 
 		if n > 1:
@@ -159,18 +176,30 @@ def fit(z,w,coords,knots,order,smooth,periods=None,penalties={2:None},bases=None
 			r = numpy.asarray(r - F*x)
 			resid = (r**2).sum()
 			print 'The sum of squared residuals is %e'%resid
-
-		result = numpy.linalg.lstsq(F, r)
+		
+		if monodim is not None:
+			print '%d negative coefficients' % (a < 0).sum()
+		
+		if monodim is None:
+			result = numpy.linalg.lstsq(F, r)
+		else:
+			# result = nnls(numpy.asarray(F),numpy.asarray(r).flatten())
+			# result = (nnls_mockup.nnls(F,r),)
+			# result = (nnls_mockup.nnls_normal(F,r),)
+			result = (nnls_mockup.nnls_normal_block(F,r),)
 		
 		coefficients = numpy.reshape(result[0],nsplines)
 		
 		if n == 1:
 			a = coefficients
 		else:
-			a = a + coefficients
-			
+			a = a + coefficients			
 		
-		
+	if monodim is not None:
+		def t_to_b(t_coeff):
+			b_coeff = numpy.dot(L,t_coeff)
+			return b_coeff
+		a = numpy.apply_along_axis(t_to_b,monodim,a)
 
 	table.coefficients = a
 	return table
