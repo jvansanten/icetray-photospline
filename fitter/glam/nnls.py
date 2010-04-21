@@ -171,7 +171,7 @@ def nnls_normal(AtA,Atb,verbose=True):
 		y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[:,G]
 	return x
 
-def nnls_normal_block(AtA,Atb):
+def nnls_normal_block(AtA,Atb,verbose=True):
 	"""A mockup of the Portugal/Judice/Vicente block-pivoting algorithm for pre-formulated normal equations
 	
 	See:
