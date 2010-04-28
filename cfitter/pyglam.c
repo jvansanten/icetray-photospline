@@ -11,6 +11,7 @@ static PyObject *pybox(PyObject *self, PyObject *args);
 static PyObject *pyrho(PyObject *self, PyObject *args);
 static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw);
 static PyObject *pygrideval(PyObject *self, PyObject *args);
+static PyObject *pynnls(PyObject *self, PyObject *args);
 
 static cholmod_sparse *construct_penalty(struct splinetable* out,
     PyObject* py_penalty, double smooth, int monodim, cholmod_common* c);
@@ -23,6 +24,7 @@ static PyMethodDef methods[] = {
 	{ "fit", (PyObject *(*)(PyObject *, PyObject *))pyfit,
 	    METH_VARARGS | METH_KEYWORDS },
 	{ "grideval", pygrideval, METH_VARARGS },
+	{ "nnls", pynnls, METH_VARARGS },
 	{ NULL, NULL }
 };
 
@@ -689,5 +691,61 @@ pygrideval(PyObject *self, PyObject *args)
 	free(nd.x); free(nd.ranges);
 
 	return ((PyObject *)result);
+}
+
+static PyObject *pynnls(PyObject *self, PyObject *args)
+{
+	PyObject *xa, *xb;
+	PyArrayObject *a, *b, *result_array;
+	npy_intp dimensions[2];
+	cholmod_common c;
+	cholmod_sparse *am;
+	cholmod_dense *bm, *result;
+
+	if (!PyArg_ParseTuple(args, "OO", &xa, &xb))
+		return NULL;
+
+	a = (PyArrayObject *)PyArray_ContiguousFromObject(xa,
+	    PyArray_DOUBLE, 2, 2);
+	b = (PyArrayObject *)PyArray_ContiguousFromObject(xb,
+	    PyArray_DOUBLE, 1, 1);
+
+	if (a == NULL || b == NULL) {
+		PyErr_SetString(PyExc_ValueError,
+		    "arrays must be two-dimensional and of type float");
+		return NULL;
+	}
+
+	cholmod_l_start(&c);
+
+	am = numpy2d_to_sparse(a, &c);
+	bm = cholmod_l_allocate_dense(b->dimensions[0], 1, b->dimensions[0],
+	    CHOLMOD_REAL, &c);
+	memcpy(bm->x, b->data, b->dimensions[0]*sizeof(double));
+
+	Py_DECREF(a);
+	Py_DECREF(b);
+
+	result = nnls_normal_block(am, bm, 1, &c);
+	cholmod_l_free_dense(&bm, &c);
+
+	if (result == NULL) {
+		PyErr_SetString(PyExc_ValueError,
+		    "arrays must have compatible dimensions");
+		cholmod_l_finish(&c);
+		return NULL;
+	}
+
+	dimensions[0] = am->nrow;
+	cholmod_l_free_sparse(&am, &c);
+
+	result_array = (PyArrayObject *)PyArray_SimpleNew(1, dimensions,
+	    PyArray_DOUBLE);
+	memcpy(result_array->data, result->x, dimensions[0]*sizeof(double));
+
+	cholmod_l_free_dense(&result, &c);
+	cholmod_l_finish(&c);
+
+	return PyArray_Return(result_array);
 }
 
