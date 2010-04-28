@@ -13,8 +13,8 @@ cholmod_tril(int dim, cholmod_common *c)
 	dtril = cholmod_l_allocate_dense(dim, dim, dim, CHOLMOD_REAL, c);
 
 	/* CHOLMOD dense matrices are in column-major order */
-	for (row = 0; row < dim; row++) for (col = row; col < dim; col++)
-		((double *)(dtril->x))[row*dim + col] = 1;
+	for (col = 0; col < dim; col++) for (row = col; row < dim; row++)
+		((double *)(dtril->x))[col*dim + row] = 1;
 
 	stril = cholmod_l_dense_to_sparse(dtril, 1, c);
 	cholmod_l_free_dense(&dtril, c);
