@@ -4,6 +4,25 @@
 #include "bspline.h"
 
 cholmod_sparse *
+cholmod_tril(int dim, cholmod_common *c)
+{
+	cholmod_dense *dtril;
+	cholmod_sparse *stril;
+	int row, col;
+
+	dtril = cholmod_l_allocate_dense(dim, dim, dim, CHOLMOD_REAL, c);
+
+	/* CHOLMOD dense matrices are in column-major order */
+	for (row = 0; row < dim; row++) for (col = row; col < dim; col++)
+		((double *)(dtril->x))[row*dim + col] = 1;
+
+	stril = cholmod_l_dense_to_sparse(dtril, 1, c);
+	cholmod_l_free_dense(&dtril, c);
+
+	return (stril);
+}
+
+cholmod_sparse *
 bsplinebasis(double *knots, size_t nknots, double *x, size_t npts, int order,
     cholmod_common *c)
 {

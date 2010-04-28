@@ -1,19 +1,18 @@
 # definitions
 
-CC = cc
-BLAS = goto
+CC = clang
+BLAS = goto2
 LAPACK = lapack
-LIBDIRS = -L/usr/lib64 -L/afs/ifh.de/group/amanda/software/RHEL_5.0_amd64/lib -L/afs/ifh.de/user/n/nwhiteho/SuiteSparse/lib -L/usr/lib/gcc/x86_64-redhat-linux/4.1.2 -rpath /afs/ifh.de/user/n/nwhiteho/SuiteSparse/lib
+LIBDIRS = -L/usr/local/lib -L/usr/local/lib/gcc44
 #INCDIRS = -I/usr/local/include -I/usr/local/include/python2.6
-#INCDIRS = -I/usr/local/include -I/usr/local/include/python2.6 -I/usr/local/lib/python2.6/site-packages/numpy/core/include
-INCDIRS = -I/afs/ifh.de/group/amanda/software/RHEL_5.0_amd64/include/python2.5 -I/afs/ifh.de/group/amanda/software/RHEL_5.0_amd64/lib/python2.5/site-packages/numpy/core/include -I/afs/ifh.de/user/n/nwhiteho/SuiteSparse
+INCDIRS = -I/usr/local/include -I/usr/local/include/python2.6 -I/usr/local/lib/python2.6/site-packages/numpy/core/include
 
-SRC = glam.c splineutil.c pyglam.c ../lib/bspline.c
-LIBS = -lm -l$(BLAS) -lcholmod -lccolamd -lcolamd -lamd -lspqr -llapack -lgfortran -lstdc++ -lgfortranbegin /usr/lib64/libg2c.so.0
+SRC = glam.c nnls.c splineutil.c pyglam.c ../lib/bspline.c
+LIBS = -lm -l$(BLAS) -lcamd -lcolamd -lamd -lstdc++ -llapack -lccolamd -lmetis -lgfortran -lcholmod -lspqr
 
 # -----
 
-CFLAGS = -g -fPIC -Wall -Werror -Wno-unused -I../lib $(INCDIRS)
+CFLAGS = -g -fPIC -Wall -Werror -Wno-unused -march=native -I../lib $(INCDIRS) -DUSE_CHOLMOD
 LDFLAGS = -shared $(LIBDIRS)
 
 RM = /bin/rm

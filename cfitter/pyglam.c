@@ -12,6 +12,9 @@ static PyObject *pyrho(PyObject *self, PyObject *args);
 static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw);
 static PyObject *pygrideval(PyObject *self, PyObject *args);
 
+static cholmod_sparse *construct_penalty(struct splinetable* out,
+    PyObject* py_penalty, double smooth, int monodim, cholmod_common* c);
+
 static PyObject *splinetable_mod;
 
 static PyMethodDef methods[] = {
@@ -322,8 +325,6 @@ static PyObject *pyrho(PyObject *self, PyObject *args)
 	return (PyObject *)result_array;
 }
 
-cholmod_sparse*  construct_penalty(struct splinetable* out, PyObject* py_penalty, double smooth, cholmod_common* c);
-
 static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 {
 	PyObject *z, *w, *coords, *knots, *periods, *order,
@@ -338,8 +339,9 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 	int *moduli;
 	double smooth;
 	int i, j, k, elements, err;
+	int monodim = -1;
 	char *keywordargs[] = {"z", "w", "coords", "knots", "order", "smooth",
-	    "periods", "penalties", NULL};
+	    "periods", "penalties", "monodim", NULL};
 
 	/* Initialize a few things to NULL */
 	moduli = NULL;
@@ -348,19 +350,20 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 	result = NULL;
 	periods = NULL;
 	penorder_py = NULL;
+	smooth = 1;
 	memset(&out, 0, sizeof(out));
 
 	/* Parse our arguments from Python land */
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "OOOOOd|OO", keywordargs,
-	    &z, &w, &coords, &knots, &order, &smooth, &periods, &penorder_py))
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "OOOOO|dOOi", keywordargs,
+	    &z, &w, &coords, &knots, &order, &smooth, &periods, &penorder_py,
+	    &monodim))
 		return NULL;
 
 	/* Parse weights first to avoid storing data with 0 weight */
 	err = numpynd_to_ndsparse(w, &data);
-	if (err == 0) {
+	if (err == 0)
 		z_arr = (PyArrayObject *)PyArray_ContiguousFromObject(z,
 		    PyArray_DOUBLE, data.ndim, data.ndim);
-	}
 
 	if (err != 0 || z_arr == NULL) {
 		PyErr_SetString(PyExc_ValueError,
@@ -487,15 +490,16 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 	cholmod_l_start(&c);
 	
 	if (penorder_py == NULL) {
-		/* do a fit with 2nd-order penalties, weighted with smoothness */
-		glamfit(&data, weights, c_coords, &out, smooth, out.order, penorder,
-	    	1, &c);
+		/* do a fit with default penalties, weighted with smoothness */
+		glamfit(&data, weights, c_coords, &out, smooth, out.order,
+		    penorder, monodim, 1, &c);
 	} else {
 		/* do a fit with arbitrary linear combinations of penalties */
-		cholmod_sparse* penalty = construct_penalty(&out, penorder_py, smooth, &c);
-		glamfit_complex(&data, weights, c_coords, &out, out.order, penalty, 1, &c);
+		cholmod_sparse* penalty = construct_penalty(&out, penorder_py,
+		    smooth, monodim, &c);
+		glamfit_complex(&data, weights, c_coords, &out, out.order,
+		    penalty, monodim, 1, &c);
 	        cholmod_l_free_sparse(&penalty, &c);
-
 	}
 	cholmod_l_finish(&c);
 
@@ -567,49 +571,56 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 }
 
 /* Construct a penalty term from a dictionary of penalty orders */
-cholmod_sparse*  construct_penalty(struct splinetable* out, PyObject* py_penalty, double smooth, cholmod_common* c) {
+static cholmod_sparse*
+construct_penalty(struct splinetable* out, PyObject* py_penalty,
+    double smooth, int monodim, cholmod_common* c)
+{
+	long *nsplines;
+	cholmod_sparse *penalty;
+	size_t sidelen;
+	int i,j;
+	long order;
+	PyObject *key,*value,*py_scale;
+	Py_ssize_t ppos = 0;
+	double scale;
+	
+	nsplines = calloc(out->ndim,sizeof(long));
+	
+	sidelen = 1;
+	for (i = 0; i < out->ndim; i++) {
+		nsplines[i] = out->nknots[i] - out->order[i] - 1;
+		sidelen *= nsplines[i];
+	}
+	
+	penalty = cholmod_l_spzeros(sidelen, sidelen, 1, CHOLMOD_REAL,
+	    c);
 
-		long *nsplines;
-		cholmod_sparse *penalty;
-		size_t sidelen;
-		int i,j;
-		long order;
-		PyObject *key,*value,*py_scale;
-		Py_ssize_t ppos = 0;
-		double scale;
-		
-		nsplines = calloc(out->ndim,sizeof(long));
-		
-		sidelen = 1;
-		for (i = 0; i < out->ndim; i++) {
-			nsplines[i] = out->nknots[i] - out->order[i] - 1;
-			sidelen *= nsplines[i];
-		}
-		
-		penalty = cholmod_l_spzeros(sidelen, sidelen, 1, CHOLMOD_REAL, c);
-
-		while ( PyDict_Next(py_penalty, &ppos, &key, &value) ) {
-			order = PyInt_AsLong(key);
-			if (PySequence_Check(value)) {
-				for (j=0; j<out->ndim; ++j) {
-					py_scale = PySequence_GetItem(value,j);
-					scale = PyFloat_AsDouble(py_scale);
-					Py_DECREF(py_scale);
-					penalty = add_penalty_term(nsplines, out->knots[j], out->ndim, j, out->order[j],
-						order, scale, penalty, c);
-				}
-			} else {
-				if (py_penalty == Py_None) scale = smooth;
-				else scale = PyFloat_AsDouble(value);
-				for (j=0; j<out->ndim; ++j) {
-					penalty = add_penalty_term(nsplines, out->knots[j], out->ndim, j, out->order[j],
-						order, scale, penalty, c);
-				}	
+	while (PyDict_Next(py_penalty, &ppos, &key, &value)) {
+		order = PyInt_AsLong(key);
+		if (PySequence_Check(value)) {
+			for (j = 0; j < out->ndim; j++) {
+				py_scale = PySequence_GetItem(value,j);
+				scale = PyFloat_AsDouble(py_scale);
+				Py_DECREF(py_scale);
+				penalty = add_penalty_term(nsplines,
+				    out->knots[j], out->ndim, j,
+				    out->order[j], order, scale,
+				    j == monodim, penalty, c);
 			}
+		} else {
+			scale = (py_penalty == Py_None) ? smooth :
+			    PyFloat_AsDouble(value);
+			for (j = 0; j < out->ndim; j++) {
+				penalty = add_penalty_term(nsplines,
+				    out->knots[j], out->ndim, j,
+				    out->order[j], order, scale,
+				    j == monodim, penalty, c);
+			}	
 		}
-		
-		free(nsplines);
-		return penalty;
+	}
+	
+	free(nsplines);
+	return penalty;
 }
 
 static PyObject *

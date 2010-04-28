@@ -11,14 +11,7 @@
 static cholmod_sparse *flatten_ndarray_to_sparse(struct ndsparse *array,
     size_t nrow, size_t ncol, cholmod_common *c);
 cholmod_sparse *calc_penalty(long *nsplines, double *knots, int ndim, int i,
-    int order, int porder, cholmod_common *c);
-cholmod_sparse* add_penalty_term(long *nsplines, double *knots, int ndim, int dim, int order,
-    int porder, double scale, 
-    cholmod_sparse *penalty, cholmod_common *c);
-void
-glamfit_complex(struct ndsparse *data, double *weights, double **coords,
-    struct splinetable *out, int *order, cholmod_sparse* penalty,
-    int verbose, cholmod_common *c);
+    int order, int porder, int mono, cholmod_common *c);
 
 void print_ndsparse_py(struct ndsparse *a);
 
@@ -27,7 +20,7 @@ void print_ndsparse_py(struct ndsparse *a);
 void
 glamfit(struct ndsparse *data, double *weights, double **coords,
     struct splinetable *out, double smooth, int *order, int *penorder,
-    int verbose, cholmod_common *c)
+    int monodim, int verbose, cholmod_common *c)
 {
 	long *nsplines;
 	cholmod_sparse *penalty;
@@ -56,11 +49,13 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 	
 	for (i = 0; i < out->ndim; i++)
 		penalty = add_penalty_term(nsplines, out->knots[i], out->ndim,
-		    i, out->order[i], penorder[i], smooth, penalty, c);
+		    i, out->order[i], penorder[i], smooth, i == monodim,
+		    penalty, c);
 	
 	free(nsplines);
 	
-	glamfit_complex(data,weights,coords,out,order,penalty,verbose,c);
+	glamfit_complex(data, weights, coords, out, order, penalty,
+	    monodim, verbose, c);
 	
 	/* clean up what we passed in */
 	cholmod_l_free_sparse(&penalty, c);
@@ -69,7 +64,7 @@ glamfit(struct ndsparse *data, double *weights, double **coords,
 void
 glamfit_complex(struct ndsparse *data, double *weights, double **coords,
     struct splinetable *out, int *order, cholmod_sparse* penalty,
-    int verbose, cholmod_common *c)
+    int monodim, int verbose, cholmod_common *c)
 {
 	cholmod_sparse **bases, **boxedbases;
 	cholmod_dense *coefficients, *Rdens;
@@ -78,7 +73,7 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 	double scale1[2] = {1.0, 0.0}, scale2[2] = {1.0, 0.0};
 	size_t sidelen;
 	long *nsplines;
-	long i, j, n;
+	long i, j, k, n;
 
 	nsplines = calloc(data->ndim,sizeof(long));
 
@@ -107,6 +102,18 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 	for (i = 0; i < out->ndim; i++) {
 		bases[i] = bsplinebasis(out->knots[i], out->nknots[i],
 		    coords[i], data->ranges[i], order[i], c);
+		if (monodim == i) {
+			/* If this dimension is the monotonic one, convert
+			 * the basis to T-Splines */
+			cholmod_sparse *oldbasis, *tril;
+
+			oldbasis = bases[i];
+			tril = cholmod_tril(nsplines[i], c);
+			bases[i] = cholmod_l_ssmult(oldbasis, tril, 0, 1, 0, c);
+			cholmod_l_free_sparse(&oldbasis, c);
+			cholmod_l_free_sparse(&tril, c);
+		}
+
 		boxedbases[i] = box(bases[i], bases[i], c);
 	}
 
@@ -182,17 +189,17 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 		 * step. */
 
 		/*
-		 * F now has the number of splines squared as each axis dimension.
-		 * We now want to double the dimensionality of F so that it is
-		 * n1xn1xn2xn2x... instead of (n1xn1)x(n2xn2)x...
+		 * F now has the number of splines squared as each axis
+		 * dimension. We now want to double the dimensionality of F
+		 * so that it is n1xn1xn2xn2x... instead of (n1xn1)x(n2xn2)x...
 		 */
 
 		if (verbose)
 			printf("Transforming fit array...\n");
 
-		/* Fill the ranges array in-place by starting at the back, and make
-		 * use of 3/2 = 2/2 = 1 to get the pairs. While here, rearrange the
-		 * index columns using the same logic. */
+		/* Fill the ranges array in-place by starting at the back, and
+		 * make use of 3/2 = 2/2 = 1 to get the pairs. While here,
+		 * rearrange the index columns using the same logic. */
 		F.ndim *= 2;
 		for (i = F.ndim-1; i >= 0; i--) {
 			F.ranges[i] = sqrt(F.ranges[i/2]);
@@ -243,20 +250,28 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 		scale2[0] = 1.0;
 		fitmat = cholmod_l_add(Fmat, penalty, scale1, scale2, 1, 0, c);
 		
-		cholmod_l_free_sparse(&Fmat, c); /* we don't need Fmat anymore */
+		cholmod_l_free_sparse(&Fmat, c);/* we don't need Fmat anymore */
 
 		Rdens = cholmod_l_sparse_to_dense(Rmat, c);
-		cholmod_l_free_sparse(&Rmat, c); /* we don't need Fmat anymore */
+		cholmod_l_free_sparse(&Rmat, c); /* nor Rmat */
 
 		/*
 		 * Now, we can solve the linear system 
 		 */
 
 		if (verbose)
-			printf("Computing iteration %ld least square solution...\n",
-			    n+1);
+		    printf("Computing iteration %ld least square solution...\n",
+		      n+1);
 	
-		coefficients = SuiteSparseQR_C_backslash_default(fitmat, Rdens, c);
+		if (monodim >= 0) {
+			coefficients = nnls_normal_block(fitmat, Rdens,
+			    verbose, c);
+		} else {
+			fitmat->stype = 1;
+			coefficients = SuiteSparseQR_C_backslash_default(fitmat,
+			    Rdens, c);
+		}
+
 		cholmod_l_free_sparse(&fitmat, c);
 		if (coefficients == NULL)
 			printf("Solution FAILED\n");
@@ -269,7 +284,6 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 
 	cholmod_l_free_sparse(&Fmat, c);
 	cholmod_l_free_dense(&Rdens, c);
-	// cholmod_l_free_sparse(&penalty, c);
 
 	for (i = 0; i < out->ndim; i++) {
 		cholmod_l_free_sparse(&bases[i], c);
@@ -290,16 +304,45 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 
 	/* Free our last matrix */
 	cholmod_l_free_dense(&coefficients, c);
+
+	/*
+	 * If we had a monotonic dimension, it was fit with t-splines. These
+	 * must be converted back to b-spline coefficients before returning.
+	 *
+	 * The equivalent set of b-spline coefficients is the set where
+	 * each b-spline coefficient is the sum of all preceding t-spline ones.
+	 */
+	if (monodim >= 0) {
+		long stride1, stride2;
+		stride1 = stride2 = 1;
+
+		for (i = 0; i < out->ndim; i++) {
+			if (i < monodim)	
+				stride1 *= out->naxes[i];
+			else if (i > monodim)
+				stride2 *= out->naxes[i];
+		}
+
+		for (i = 0; i < stride1; i++) {
+		    for (j = 1; j < out->naxes[monodim]; j++) {
+			for (k = 0; k < stride2; k++) {
+			  out->coefficients[i*stride1 + j*stride2 + k] +=
+			     out->coefficients[i*stride1 + (j-1)*stride2 + k];
+			}
+		    }
+		}
+	}
 }
 
 cholmod_sparse*
 add_penalty_term(long *nsplines, double *knots, int ndim, int dim, int order,
-   int porder, double scale, cholmod_sparse *penalty, cholmod_common *c)
+   int porder, double scale, int mono, cholmod_sparse *penalty,
+   cholmod_common *c)
 {
 	cholmod_sparse *penalty_tmp, *penalty_chunk;
 	double scale1[2] = {1.0, 0.0}; double scale2[2] = {1.0, 0.0};
-	penalty_chunk = calc_penalty(nsplines, knots, ndim,
-	    dim, order, porder, c);
+	penalty_chunk = calc_penalty(nsplines, knots, ndim, dim, order,
+	    porder, mono, c);
 	penalty_tmp = penalty;
 
 	/* Add each chunk to the big matrix, scaling by smooth */
@@ -395,7 +438,7 @@ divided_diffs(int order, int porder, int j, double *knots, double *out)
 
 cholmod_sparse *
 calc_penalty(long *nsplines, double *knots, int ndim, int dim, int order,
-    int porder, cholmod_common *c)
+    int porder, int mono, cholmod_common *c)
 {
 	cholmod_sparse *finitediff, *fd_trans, *DtD, *result;
 	cholmod_sparse *tmp, *tmp2;
@@ -428,6 +471,18 @@ calc_penalty(long *nsplines, double *knots, int ndim, int dim, int order,
 
 	finitediff = cholmod_l_triplet_to_sparse(trip, trip->nnz, c);
 	cholmod_l_free_triplet(&trip, c);
+
+	if (mono) {
+		/* If this dimension is the monotonic one, convert
+		 * the basis to T-Splines */
+		cholmod_sparse *old, *tril;
+
+		old = finitediff;
+		tril = cholmod_tril(nsplines[dim], c);
+		finitediff = cholmod_l_ssmult(old, tril, 0, 1, 0, c);
+		cholmod_l_free_sparse(&old, c);
+		cholmod_l_free_sparse(&tril, c);
+	}
 
 	/*
 	 * Now we want DtD, which is the transpose of finitediff
