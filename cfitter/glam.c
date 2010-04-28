@@ -267,7 +267,6 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 			coefficients = nnls_normal_block(fitmat, Rdens,
 			    verbose, c);
 		} else {
-			fitmat->stype = 1;
 			coefficients = SuiteSparseQR_C_backslash_default(fitmat,
 			    Rdens, c);
 		}
