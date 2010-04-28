@@ -10,7 +10,7 @@ cholmod_tril(int dim, cholmod_common *c)
 	cholmod_sparse *stril;
 	int row, col;
 
-	dtril = cholmod_l_allocate_dense(dim, dim, dim, CHOLMOD_REAL, c);
+	dtril = cholmod_l_zeros(dim, dim, CHOLMOD_REAL, c);
 
 	/* CHOLMOD dense matrices are in column-major order */
 	for (col = 0; col < dim; col++) for (row = col; row < dim; row++)
