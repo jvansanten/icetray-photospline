@@ -2,6 +2,8 @@
 #include <string.h>
 #include <math.h>
 
+#include <time.h>
+
 #include <suitesparse/cholmod.h>
 #include "splineutil.h"
 
@@ -36,6 +38,8 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	cholmod_factor *L;
 	int nF, nG, nH1, nH2, ninf;
 	int i, j, k, trials, iter;
+
+	clock_t t0,t1;
 
 	/* XXX: make these settable? */
 	iter = 3*nvar;		/* Maximum number of iterations */
@@ -111,7 +115,7 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 					H1[0] = rmax1;
 				} else {
 					nH2 = 1; nH1 = 0;
-					H2[1] = rmax2;
+					H2[0] = rmax2;
 				}
 			}
 		}
@@ -155,9 +159,26 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		for (i = 0; i < nF; i++)
 			((double *)(Atb_F->x))[i] = ((double *)(Atb->x))[F[i]];
 
+		t0 = clock();
+
 		L = cholmod_l_analyze(AtA_F, c);
+
+		t1 = clock();
+		printf("Analyze: %f s\n",(double)(t1-t0)/(CLOCKS_PER_SEC));
+		t0 = clock();
+
 		cholmod_l_factorize(AtA_F, L, c);
+
+		t1 = clock();
+		printf("Factorize: %f s\n",(double)(t1-t0)/(CLOCKS_PER_SEC));
+		t0 = clock();
+
 		x_F = cholmod_l_solve(CHOLMOD_A, L, Atb_F, c);
+
+		t1 = clock();
+		printf("Solve: %f s\n",(double)(t1-t0)/(CLOCKS_PER_SEC));
+		t0 = clock();
+
 		cholmod_l_free_factor(&L, c);
 		for (i = 0; i < nF; i++)
 			((double *)(x->x))[F[i]] = ((double *)(x_F->x))[i];
