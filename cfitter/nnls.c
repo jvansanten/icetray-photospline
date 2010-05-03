@@ -102,7 +102,13 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 				 * infeasible coordinate).
 				 */
 				
-				if (H1[nH1 - 1] > H2[nH1 - 2]) {
+				if (nH2 == 0) {
+					H1[0] = H1[nH1 - 1];
+					nH1 = 1; nH2 = 0;
+				} else if (nH1 == 0) {
+					H2[0] = H2[nH2 - 1];
+					nH2 = 1; nH1 = 0;
+				} else if (H1[nH1 - 1] > H2[nH1 - 1]) {
 					H1[0] = H1[nH1 - 1];
 					nH1 = 1; nH2 = 0;
 				} else {
