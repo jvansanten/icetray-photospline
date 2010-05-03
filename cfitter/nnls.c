@@ -108,7 +108,7 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 				} else if (nH1 == 0) {
 					H2[0] = H2[nH2 - 1];
 					nH2 = 1; nH1 = 0;
-				} else if (H1[nH1 - 1] > H2[nH1 - 1]) {
+				} else if (H1[nH1 - 1] > H2[nH2 - 1]) {
 					H1[0] = H1[nH1 - 1];
 					nH1 = 1; nH2 = 0;
 				} else {
