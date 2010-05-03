@@ -96,26 +96,18 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 			/* Stuck, check if we need to try something else */
 			trials--;
 			if (trials < 0) {
-				int rmax1, rmax2;
-
 				/*
 				 * Out of luck. Fall back to slow but
 				 * guaranteed method (picking the last
 				 * infeasible coordinate).
 				 */
 				
-				rmax1 = rmax2 = 0;
-				for (i = 0; i < nH1; i++)
-					if (rmax1 < H1[i]) rmax1 = H1[i];
-				for (i = 0; i < nH2; i++)
-					if (rmax2 < H2[i]) rmax2 = H2[i];
-	
-				if (rmax1 > rmax2) {
+				if (H1[nH1 - 1] > H2[nH1 - 2]) {
+					H1[0] = H1[nH1 - 1];
 					nH1 = 1; nH2 = 0;
-					H1[0] = rmax1;
 				} else {
+					H2[0] = H2[nH2 - 1];
 					nH2 = 1; nH1 = 0;
-					H2[0] = rmax2;
 				}
 			}
 		}
