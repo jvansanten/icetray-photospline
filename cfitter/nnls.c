@@ -86,7 +86,8 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		if (nH1 == 0 && nH2 == 0)
 			break;
 
-		if (ninf <= 10) trials = -1;
+		if (ninf <= murty_steps)
+			trials = -1;
 
 		/*
 		 * Check the status of the bulk set switching.
@@ -94,8 +95,10 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		 * revert to block switching.
 		 */
 		
-		if (ninf > 10 && ((nH2 + nH1 < ninf) || (trials < -murty_steps))) {
-			if (nH2 + nH1 <= ninf) murty_steps += 1;
+		if (ninf > murty_steps &&
+		    (nH2 + nH1 < ninf || trials < -murty_steps)) {
+			if (nH2 + nH1 <= ninf)
+			    murty_steps++;
 			ninf = nH2 + nH1;
 			trials = MAX_TRIALS;
 		} else {
