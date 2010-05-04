@@ -7,7 +7,7 @@
 #include <suitesparse/cholmod.h>
 #include "splineutil.h"
 
-#define MAX_TRIALS 10
+#define MAX_TRIALS 3
 
 static int intcmp(const void *xa, const void *xb);
 
@@ -37,7 +37,7 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	cholmod_sparse *AtA_F;
 	cholmod_factor *L;
 	int nF, nG, nH1, nH2, ninf;
-	int i, j, k, trials, iter;
+	int i, j, k, trials, murty_steps, iter;
 
 	clock_t t0,t1;
 
@@ -45,6 +45,7 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	iter = 3*nvar;		/* Maximum number of iterations */
 	trials = MAX_TRIALS;	/* Runs without progress before reverting
 				 * to a deterministic algorithm */
+	murty_steps = MAX_TRIALS;
 
 	x = cholmod_l_zeros(nvar, 1, CHOLMOD_REAL, c);
 	y = cholmod_l_allocate_dense(nvar, 1, nvar, CHOLMOD_REAL, c);
@@ -85,16 +86,22 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		if (nH1 == 0 && nH2 == 0)
 			break;
 
+		if (ninf <= 10) trials = -1;
+
 		/*
 		 * Check the status of the bulk set switching.
+		 * After MAX_TRIALS iterations of Murty's finite method,
+		 * revert to block switching.
 		 */
 		
-		if (nH2 + nH1 < ninf) {
+		if (ninf > 10 && ((nH2 + nH1 < ninf) || (trials < -murty_steps))) {
+			if (nH2 + nH1 <= ninf) murty_steps += 1;
 			ninf = nH2 + nH1;
 			trials = MAX_TRIALS;
 		} else {
 			/* Stuck, check if we need to try something else */
 			trials--;
+			printf("Stuck! trials: %d nH1: %d nH2: %d\n",trials,nH1,nH2);
 			if (trials < 0) {
 				/*
 				 * Out of luck. Fall back to slow but
@@ -103,23 +110,25 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 				 */
 				
 				if (nH2 == 0) {
-					H1[0] = H1[nH1 - 1];
-					nH1 = 1; nH2 = 0;
+					goto maxh1;
 				} else if (nH1 == 0) {
-					H2[0] = H2[nH2 - 1];
-					nH2 = 1; nH1 = 0;
+					goto maxh2;
 				} else if (H1[nH1 - 1] > H2[nH2 - 1]) {
+					maxh1:
 					H1[0] = H1[nH1 - 1];
 					nH1 = 1; nH2 = 0;
+					printf("H1: %d\n",H1[0]);
 				} else {
+					maxh2:
 					H2[0] = H2[nH2 - 1];
 					nH2 = 1; nH1 = 0;
+					printf("H2: %d\n",H2[0]);
 				}
 			}
 		}
 
 		if (verbose)
-			printf("Infeasibles: %d\n", ninf);
+			printf("Iteration %d Infeasibles: %d\n", (3*nvar - iter), ninf);
 
 		/*
 		 * Next, remove elements in H1 from F, and add them to G,
@@ -178,6 +187,7 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		t0 = clock();
 
 		cholmod_l_free_factor(&L, c);
+		L = NULL;
 		for (i = 0; i < nF; i++)
 			((double *)(x->x))[F[i]] = ((double *)(x_F->x))[i];
 		cholmod_l_free_sparse(&AtA_F, c);
