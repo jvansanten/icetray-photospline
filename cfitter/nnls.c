@@ -3,11 +3,13 @@
 #include <math.h>
 
 #include <time.h>
+#include <float.h>
 
 #include <suitesparse/cholmod.h>
 #include "splineutil.h"
 
 #define MAX_TRIALS 3
+#define EENTSY_WEENTSY 1e-4
 
 static int intcmp(const void *xa, const void *xb);
 
@@ -73,10 +75,10 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 
 		nH1 = nH2 = 0;
 		for (i = 0; i < nF; i++)
-			if (((double *)(x->x))[F[i]] < 0)
+			if (((double *)(x->x))[F[i]] < -EENTSY_WEENTSY)
 				H1[nH1++] = F[i];
 		for (i = 0; i < nG; i++)
-			if (((double *)(y->x))[G[i]] < 0)
+			if (((double *)(y->x))[G[i]] < -EENTSY_WEENTSY)
 				H2[nH2++] = G[i];
 
 		/*
@@ -120,12 +122,12 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 					maxh1:
 					H1[0] = H1[nH1 - 1];
 					nH1 = 1; nH2 = 0;
-					printf("H1: %d\n",H1[0]);
+					printf("H1: %d (%e)\n",H1[0],((double *)(x->x))[H1[0]]);
 				} else {
 					maxh2:
 					H2[0] = H2[nH2 - 1];
 					nH2 = 1; nH1 = 0;
-					printf("H2: %d\n",H2[0]);
+					printf("H2: %d (%e)\n",H2[0],((double *)(y->x))[H2[0]]);
 				}
 			}
 		}
