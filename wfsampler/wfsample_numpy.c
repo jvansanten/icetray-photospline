@@ -160,7 +160,7 @@ static PyObject *wfsample_numpy(PyObject *self, PyObject *args, PyObject *kws)
 	extent[0] = size;
 	result = (PyArrayObject *)PyArray_SimpleNew(1, extent, PyArray_DOUBLE);
 
-	logsplinepdf_n_sample((double *)result->data, size, burnin, coords,
+	splinepdf_n_sample((double *)result->data, size, burnin, coords,
 	    3 /* time */, &table, (1 << 3), &pandel_sample, &pandel_pdf, rng);
 
 	return (PyObject *)(result);
