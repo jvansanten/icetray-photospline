@@ -325,8 +325,9 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 		for (i = 0; i < stride1; i++) {
 		    for (j = 1; j < out->naxes[monodim]; j++) {
 			for (k = 0; k < stride2; k++) {
-			  out->coefficients[i*stride2*out->naxes[monodim] + j*stride2 + k] +=
-			     out->coefficients[i*stride2*out->naxes[monodim] + (j-1)*stride2 + k];
+			  out->coefficients[i*stride2*out->naxes[monodim] +
+			    j*stride2 + k] += out->coefficients[
+			    i*stride2*out->naxes[monodim] + (j-1)*stride2 + k];
 			}
 		    }
 		}
