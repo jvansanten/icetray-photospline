@@ -30,7 +30,7 @@ def setup_extensions():
 		print "Couldn't find photonics! Skipping build of photo2numpy..."
 		photo2numpy = None
 	
-	spglam = Extension("spglam", sources = ["cfitter/glam.c","cfitter/splineutil.c","cfitter/pyglam.c","lib/bspline.c"],
+	spglam = Extension("spglam", sources = ["cfitter/glam.c","cfitter/nnls.c","cfitter/cholesky_solve.c","cfitter/splineutil.c","cfitter/pyglam.c","lib/bspline.c"],
 						include_dirs = inc_dirs + ['lib'],
 						libraries = ['m','cholmod','ccolamd','colamd','amd','spqr','gfortran','stdc++'] + lapack_libs,
 						)

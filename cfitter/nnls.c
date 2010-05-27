@@ -7,9 +7,11 @@
 
 #include <suitesparse/cholmod.h>
 #include "splineutil.h"
+#include "cholesky_solve.h"
 
 #define MAX_TRIALS 3
-#define EENTSY_WEENTSY 1e-4
+#define N_RESOLVES 3
+#define KKT_TOL 1e-6
 
 static int intcmp(const void *xa, const void *xb);
 
@@ -37,11 +39,8 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	int H1[nvar], H2[nvar];
 	cholmod_dense *x, *y, *x_F, *Atb_F;
 	cholmod_sparse *AtA_F;
-	cholmod_factor *L;
 	int nF, nG, nH1, nH2, ninf;
 	int i, j, k, trials, murty_steps, iter;
-
-	clock_t t0,t1;
 
 	/* XXX: make these settable? */
 	iter = 3*nvar;		/* Maximum number of iterations */
@@ -63,6 +62,9 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		G[i] = i;
 	ninf = nvar + 1;	/* Number of infeasible coefficients */
 
+	/* Drop small entries from the problem */
+	cholmod_l_drop(DBL_EPSILON, AtA, c);
+
 	/* Set up the dual vector */
 	for (i = 0; i < nvar; i++)
 		((double *)(y->x))[i] = -((double *)(Atb->x))[i];
@@ -75,10 +77,10 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 
 		nH1 = nH2 = 0;
 		for (i = 0; i < nF; i++)
-			if (((double *)(x->x))[F[i]] < -EENTSY_WEENTSY)
+			if (((double *)(x->x))[F[i]] < -KKT_TOL)
 				H1[nH1++] = F[i];
 		for (i = 0; i < nG; i++)
-			if (((double *)(y->x))[G[i]] < -EENTSY_WEENTSY)
+			if (((double *)(y->x))[G[i]] < -KKT_TOL)
 				H2[nH2++] = G[i];
 
 		/*
@@ -106,7 +108,8 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		} else {
 			/* Stuck, check if we need to try something else */
 			trials--;
-			printf("Stuck! trials: %d nH1: %d nH2: %d\n",trials,nH1,nH2);
+			if (verbose)
+				printf("Stuck! trials: %d nH1: %d nH2: %d\n",trials,nH1,nH2);
 			if (trials < 0) {
 				/*
 				 * Out of luck. Fall back to slow but
@@ -122,12 +125,14 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 					maxh1:
 					H1[0] = H1[nH1 - 1];
 					nH1 = 1; nH2 = 0;
-					printf("H1: %d (%e)\n",H1[0],((double *)(x->x))[H1[0]]);
+					if (verbose)
+						printf("H1: %d (%e)\n",H1[0],((double *)(x->x))[H1[0]]);
 				} else {
 					maxh2:
 					H2[0] = H2[nH2 - 1];
 					nH2 = 1; nH1 = 0;
-					printf("H2: %d (%e)\n",H2[0],((double *)(y->x))[H2[0]]);
+					if (verbose)
+						printf("H2: %d (%e)\n",H2[0],((double *)(y->x))[H2[0]]);
 				}
 			}
 		}
@@ -171,28 +176,9 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		for (i = 0; i < nF; i++)
 			((double *)(Atb_F->x))[i] = ((double *)(Atb->x))[F[i]];
 
-		t0 = clock();
+		/* Solve the system AtA_F*x = Atb_F, refining the solution iteratively */
+		x_F = cholesky_solve(AtA_F, Atb_F, c, verbose, N_RESOLVES);
 
-		L = cholmod_l_analyze(AtA_F, c);
-
-		t1 = clock();
-		printf("Analyze: %f s\n",(double)(t1-t0)/(CLOCKS_PER_SEC));
-		t0 = clock();
-
-		cholmod_l_factorize(AtA_F, L, c);
-
-		t1 = clock();
-		printf("Factorize: %f s\n",(double)(t1-t0)/(CLOCKS_PER_SEC));
-		t0 = clock();
-
-		x_F = cholmod_l_solve(CHOLMOD_A, L, Atb_F, c);
-
-		t1 = clock();
-		printf("Solve: %f s\n",(double)(t1-t0)/(CLOCKS_PER_SEC));
-		t0 = clock();
-
-		cholmod_l_free_factor(&L, c);
-		L = NULL;
 		for (i = 0; i < nF; i++)
 			((double *)(x->x))[F[i]] = ((double *)(x_F->x))[i];
 		cholmod_l_free_sparse(&AtA_F, c);

@@ -4,6 +4,7 @@
 
 #include <suitesparse/SuiteSparseQR_C.h>
 
+#include "cholesky_solve.h"
 #include "splineutil.h"
 #include "splinetable.h"
 #include "glam.h"
@@ -73,7 +74,7 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 	double scale1[2] = {1.0, 0.0}, scale2[2] = {1.0, 0.0};
 	size_t sidelen;
 	long *nsplines;
-	long i, j, k, n;
+	long i, j, k;
 
 	nsplines = calloc(data->ndim,sizeof(long));
 
@@ -117,164 +118,160 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 		boxedbases[i] = box(bases[i], bases[i], c);
 	}
 
-	/*
-	 * Begin iterating.
-	 *
-	 * XXX: clamped to 1 iteration
-	 */
-
 	if (verbose)
 		printf("Reticulating splines...\n");
 
-	for (n = 0; n < 1; n++) { /* XXX: actual fit iteration unimplemented */
-		/*
-		 * Initialize F and R. 
-		 * F = weights
-		 * R = weights * data
-		 */
-		R.rows = F.rows = data->rows;
-		R.ndim = F.ndim = data->ndim;
-		F.x = malloc(data->rows * sizeof(double));
-		F.i = malloc(2*data->ndim * sizeof(int *));
-		F.ranges = malloc(2*data->ndim * sizeof(int));
-		R.x = malloc(data->rows * sizeof(double));
-		R.i = malloc(data->ndim * sizeof(int *));
-		R.ranges = malloc(data->ndim * sizeof(int));
+	/*
+	 * Initialize F and R. 
+	 * F = weights
+	 * R = weights * data
+	 */
+	R.rows = F.rows = data->rows;
+	R.ndim = F.ndim = data->ndim;
+	F.x = malloc(data->rows * sizeof(double));
+	F.i = malloc(2*data->ndim * sizeof(int *));
+	F.ranges = malloc(2*data->ndim * sizeof(int));
+	R.x = malloc(data->rows * sizeof(double));
+	R.i = malloc(data->ndim * sizeof(int *));
+	R.ranges = malloc(data->ndim * sizeof(int));
 
-		for (i = 0; i < data->ndim; i++) {
-			F.i[i] = malloc(data->rows * sizeof(int));
-			R.i[i] = malloc(data->rows * sizeof(int));
-		}
-	
-		memcpy(R.x, weights, data->rows * sizeof(double));
-		memcpy(F.x, weights, data->rows * sizeof(double));
-
-		for (i = 0; i < data->ndim; i++) {
-			memcpy(R.i[i], data->i[i], data->rows * sizeof(int));
-			memcpy(F.i[i], data->i[i], data->rows * sizeof(int));
-			R.ranges[i] = F.ranges[i] = data->ranges[i];
-		}
-
-		for (i = 0; i < data->rows; i++)
-			R.x[i] *= data->x[i];
-
-		/*
-		 * Convolve F and R with the basis matrices
-		 */
-
-		if (verbose)
-			printf("\tConvolving bases...\n");
-
-		for (i = 0; i < data->ndim; i++) {
-			if (verbose)
-				printf("\t\tConvolving dimension %ld\n",i);
-
-			slicemultiply(&F, boxedbases[i], i, c);
-			slicemultiply(&R, bases[i], i, c);
-		}
-
-		/* Now flatten R into a matrix */
-
-		if (verbose)
-			printf("\tFlattening residuals matrix...\n");
-
-		Rmat = flatten_ndarray_to_sparse(&R, sidelen, 1, c);
-
-		for (i = 0; i < R.ndim; i++)
-			free(R.i[i]);
-		free(R.x); free(R.i); free(R.ranges);
-
-		/* XXX: We reshape, transpose, and then flatten F, which is
-		 * potentially memory hungry. This can probably be done in one
-		 * step. */
-
-		/*
-		 * F now has the number of splines squared as each axis
-		 * dimension. We now want to double the dimensionality of F
-		 * so that it is n1xn1xn2xn2x... instead of (n1xn1)x(n2xn2)x...
-		 */
-
-		if (verbose)
-			printf("Transforming fit array...\n");
-
-		/* Fill the ranges array in-place by starting at the back, and
-		 * make use of 3/2 = 2/2 = 1 to get the pairs. While here,
-		 * rearrange the index columns using the same logic. */
-		F.ndim *= 2;
-		for (i = F.ndim-1; i >= 0; i--) {
-			F.ranges[i] = sqrt(F.ranges[i/2]);
-			if (i % 2 == 0)
-				F.i[i] = F.i[i/2];
-			else
-				F.i[i] = malloc(F.rows * sizeof(int));
-		}
-
-		/* Now figure out each point's new coordinates */
-		for (i = 0; i < F.rows; i++) {
-			for (j = 0; j < F.ndim; j += 2) {
-				F.i[j+1][i] = F.i[j][i] % F.ranges[j];
-				F.i[j][i] = F.i[j][i] / F.ranges[j];
-			}
-		}
-
-		/* Transpose F so that the even-numbered axes come first */
-		{
-			int **oldi, *oldranges;
-
-			oldi = F.i;
-			oldranges = F.ranges;
-			F.i = malloc(F.ndim * sizeof(int *));
-			F.ranges = malloc(F.ndim * sizeof(int));
-			for (i = 0; i < F.ndim; i++) {
-				if (i % 2 == 0) {
-					F.i[i/2] = oldi[i];
-					F.ranges[i/2] = oldranges[i];
-				} else {
-					F.i[F.ndim/2 + i/2] = oldi[i];
-					F.ranges[F.ndim/2 + i/2] = oldranges[i];
-				}
-			}
-			free(oldi);
-			free(oldranges);
-		}
-
-		/* Now flatten F */
-
-		Fmat = flatten_ndarray_to_sparse(&F, sidelen, sidelen, c);
-		for (i = 0; i < F.ndim; i++)
-			free(F.i[i]);
-		free(F.x); free(F.i); free(F.ranges);
-	
-		/* XXX: optimization possibilities ended */
-
-		scale2[0] = 1.0;
-		fitmat = cholmod_l_add(Fmat, penalty, scale1, scale2, 1, 0, c);
-		
-		cholmod_l_free_sparse(&Fmat, c);/* we don't need Fmat anymore */
-
-		Rdens = cholmod_l_sparse_to_dense(Rmat, c);
-		cholmod_l_free_sparse(&Rmat, c); /* nor Rmat */
-
-		/*
-		 * Now, we can solve the linear system 
-		 */
-
-		if (verbose)
-		    printf("Computing iteration %ld least square solution...\n",
-		      n+1);
-	
-		if (monodim >= 0) {
-			coefficients = nnls_normal_block(fitmat, Rdens,
-			    verbose, c);
-		} else {
-			coefficients = SuiteSparseQR_C_backslash_default(fitmat,
-			    Rdens, c);
-		}
-
-		cholmod_l_free_sparse(&fitmat, c);
-		if (coefficients == NULL)
-			printf("Solution FAILED\n");
+	for (i = 0; i < data->ndim; i++) {
+		F.i[i] = malloc(data->rows * sizeof(int));
+		R.i[i] = malloc(data->rows * sizeof(int));
 	}
+
+	memcpy(R.x, weights, data->rows * sizeof(double));
+	memcpy(F.x, weights, data->rows * sizeof(double));
+
+	for (i = 0; i < data->ndim; i++) {
+		memcpy(R.i[i], data->i[i], data->rows * sizeof(int));
+		memcpy(F.i[i], data->i[i], data->rows * sizeof(int));
+		R.ranges[i] = F.ranges[i] = data->ranges[i];
+	}
+
+	for (i = 0; i < data->rows; i++)
+		R.x[i] *= data->x[i];
+
+	/*
+	 * Convolve F and R with the basis matrices
+	 */
+
+	if (verbose)
+		printf("\tConvolving bases...\n");
+
+	for (i = 0; i < data->ndim; i++) {
+		if (verbose)
+			printf("\t\tConvolving dimension %ld\n",i);
+
+		slicemultiply(&F, boxedbases[i], i, c);
+		slicemultiply(&R, bases[i], i, c);
+	}
+
+	/* Now flatten R into a matrix */
+
+	if (verbose)
+		printf("\tFlattening residuals matrix...\n");
+
+	Rmat = flatten_ndarray_to_sparse(&R, sidelen, 1, c);
+
+	for (i = 0; i < R.ndim; i++)
+		free(R.i[i]);
+	free(R.x); free(R.i); free(R.ranges);
+
+	/* XXX: We reshape, transpose, and then flatten F, which is
+	 * potentially memory hungry. This can probably be done in one
+	 * step. */
+
+	/*
+	 * F now has the number of splines squared as each axis
+	 * dimension. We now want to double the dimensionality of F
+	 * so that it is n1xn1xn2xn2x... instead of (n1xn1)x(n2xn2)x...
+	 */
+
+	if (verbose)
+		printf("Transforming fit array...\n");
+
+	/* Fill the ranges array in-place by starting at the back, and
+	 * make use of 3/2 = 2/2 = 1 to get the pairs. While here,
+	 * rearrange the index columns using the same logic. */
+	F.ndim *= 2;
+	for (i = F.ndim-1; i >= 0; i--) {
+		F.ranges[i] = sqrt(F.ranges[i/2]);
+		if (i % 2 == 0)
+			F.i[i] = F.i[i/2];
+		else
+			F.i[i] = malloc(F.rows * sizeof(int));
+	}
+
+	/* Now figure out each point's new coordinates */
+	for (i = 0; i < F.rows; i++) {
+		for (j = 0; j < F.ndim; j += 2) {
+			F.i[j+1][i] = F.i[j][i] % F.ranges[j];
+			F.i[j][i] = F.i[j][i] / F.ranges[j];
+		}
+	}
+
+	/* Transpose F so that the even-numbered axes come first */
+	{
+		int **oldi, *oldranges;
+
+		oldi = F.i;
+		oldranges = F.ranges;
+		F.i = malloc(F.ndim * sizeof(int *));
+		F.ranges = malloc(F.ndim * sizeof(int));
+		for (i = 0; i < F.ndim; i++) {
+			if (i % 2 == 0) {
+				F.i[i/2] = oldi[i];
+				F.ranges[i/2] = oldranges[i];
+			} else {
+				F.i[F.ndim/2 + i/2] = oldi[i];
+				F.ranges[F.ndim/2 + i/2] = oldranges[i];
+			}
+		}
+		free(oldi);
+		free(oldranges);
+	}
+
+	/* Now flatten F */
+
+	Fmat = flatten_ndarray_to_sparse(&F, sidelen, sidelen, c);
+	for (i = 0; i < F.ndim; i++)
+		free(F.i[i]);
+	free(F.x); free(F.i); free(F.ranges);
+
+	/* XXX: optimization possibilities ended */
+
+	scale2[0] = 1.0;
+	fitmat = cholmod_l_add(Fmat, penalty, scale1, scale2, 1, 0, c);
+	
+	cholmod_l_free_sparse(&Fmat, c);/* we don't need Fmat anymore */
+
+	Rdens = cholmod_l_sparse_to_dense(Rmat, c);
+	cholmod_l_free_sparse(&Rmat, c); /* nor Rmat */
+
+	/*
+	 * Now, we can solve the linear system 
+	 */
+
+	if (verbose)
+	    printf("Computing least square solution...\n");
+
+	if (monodim >= 0) {
+		coefficients = nnls_normal_block(fitmat, Rdens,
+		    verbose, c);
+	} else {
+		/* XXX: clamped to one iteration */
+		coefficients = cholesky_solve(fitmat, Rdens, c,
+		    verbose, 1);
+		/*
+		coefficients = SuiteSparseQR_C_backslash_default(fitmat,
+		    Rdens, c);
+		*/
+	}
+
+	cholmod_l_free_sparse(&fitmat, c);
+	if (coefficients == NULL)
+		printf("Solution FAILED\n");
 	
 	/* Clean up detritus */
 
