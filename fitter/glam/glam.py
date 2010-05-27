@@ -113,9 +113,9 @@ def fit(z,w,coords,knots,order,smooth,
 				D = numpy.dot(D,L)
 			return numpy.asmatrix(D)
 
-		D = penalty_matrix(porders.keys()[0])
-		DtD = porders.values()[0] * D.transpose() * D
-		for porder,coeff in porders.items()[1:]:
+		DtD = numpy.zeros((nspl,nspl))
+		for porder,coeff in porders.items():
+			if coeff == 0: continue
 			D1 = penalty_matrix(porder)
 			DtD += coeff * D1.transpose() * D1
 

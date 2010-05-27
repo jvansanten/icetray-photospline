@@ -340,6 +340,10 @@ add_penalty_term(long *nsplines, double *knots, int ndim, int dim, int order,
 {
 	cholmod_sparse *penalty_tmp, *penalty_chunk;
 	double scale1[2] = {1.0, 0.0}; double scale2[2] = {1.0, 0.0};
+
+	if (scale == 0.0)
+		return (penalty);		
+
 	penalty_chunk = calc_penalty(nsplines, knots, ndim, dim, order,
 	    porder, mono, c);
 	penalty_tmp = penalty;
