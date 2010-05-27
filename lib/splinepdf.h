@@ -10,4 +10,9 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
     double (* proposal)(void), double (* proposal_pdf)(double, double),
     gsl_rng *rng);
 
+void splinepdf_n_sample(double *result, int results, int burnin,
+    double *coords, int dim, struct splinetable *table, int derivatives,
+    double (* proposal)(void), double (* proposal_pdf)(double, double),
+    gsl_rng *rng);
+
 #endif

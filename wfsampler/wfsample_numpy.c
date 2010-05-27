@@ -6,7 +6,7 @@
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_rng.h>
 
-#include "logsplinepdf.h"
+#include "splinepdf.h"
 
 #ifndef __FreeBSD__
 void srandomdev() {
