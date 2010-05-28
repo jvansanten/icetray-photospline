@@ -39,7 +39,7 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 	PyObject *coords[L1_MAXDIM], *coords_tuple;
 	PyObject *binwidths[L1_MAXDIM], *binwidths_tuple;
 	PyObject *result;
-	char coordstr[L1_MAXDIM];
+	char coordstr[L1_MAXDIM+1];
 	FILE *table;
 	int i, j, ndim;
 
@@ -253,7 +253,7 @@ static PyObject *readl2table(PyObject *self, PyObject *args)
 	PyObject *coords[L2_MAXDIM], *coords_tuple;
 	PyObject *binwidths[L2_MAXDIM], *binwidths_tuple;
 	PyObject *result;
-	char coordstr[L2_MAXDIM];
+	char coordstr[L2_MAXDIM+1];
 	FILE *table;
 	int i, j, ndim;
 
