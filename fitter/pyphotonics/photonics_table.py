@@ -86,7 +86,7 @@ class photonics_table():
         # Check consistency of table shapes and derive type
         ndim = self.ndim()
         if ndim == 3:
-            self.is_intrgral = True;
+            self.is_integral = True;
         
         # Convert to standard format unless user doesn't want this
         if convert:
