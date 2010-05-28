@@ -10,7 +10,6 @@ import numpy
 # Hard-coded params
 
 #nknots =[17, 6, 12, 25] # [r, phi, z, t]  For Nathan/Jakob's binning
-smooth = 10.
 
 # Parse arguments
 
@@ -26,10 +25,39 @@ optparser.add_option("-z", "--zknots", dest="zknots", type="int",
              help="number of knots in longitudinal dimension")
 optparser.add_option("-t", "--tknots", dest="tknots", type="int",
              help="number of knots in time dimension")
+optparser.add_option("-s", "--smooth", dest="smooth", type="float",
+             help="smoothness coefficient", default=10.0)
+optparser.add_option("--prob", dest="prob", action="store_true",
+             help="Fit only the normalized CDFs", default=False)
+optparser.add_option("--abs", dest="abs", action="store_true",
+             help="Fit only the total amplitude in each cell", default=False)
 (opts, args) = optparser.parse_args()
 
+# by default, do both fits
+if not opts.prob and not opts.abs:
+	opts.prob = opts.abs = True
+
+def check_exists(outputfile):
+    if os.path.exists(outputfile):
+        if raw_input("File %s exists. Overwrite? (y/n)" % outputfile) == 'y':
+            os.unlink(outputfile)
+        else:
+            sys.exit()
+
+if len(args) < 2:
+    abs_outputfile = args[0]+"abs.pspl.fits"
+    prob_outfile = args[0]+"prob.pspl.fits"
+else:
+    abs_outputfile = args[1]+".abs.fits"
+    prob_outputfile = args[1]+".prob.fits"
+
+if opts.prob: check_exists(prob_outputfile)
+if opts.abs: check_exists(abs_outputfile)
+
+smooth = opts.smooth
+
 # Real code
-from glam import spglam as glam
+import spglam as glam
 
 table = photonics_table(args[0])
 
@@ -48,7 +76,7 @@ if opts.zknots:
 if opts.tknots and table.ndim() > 3:
     nknots[3] = opts.tknots
 
-print "Knots used to fit table:", nknots
+print "Core knots:", nknots
 
 # Compute knot locations using a sparsified version of the bin centers as
 #    central knots.
@@ -67,70 +95,80 @@ thetaknots = numpy.append(numpy.append([-1, -0.5, -0.1], coreknots[1]),
 zknots     = numpy.append(numpy.append([-800, -700, -600], coreknots[2]),
                           [600,700,800,900,1000])
 
-# Use log spacing for time
-if table.ndim() > 3:
-    coreknots[3] = numpy.logspace(0,numpy.log10(7000),nknots[3])
-    tknots = numpy.append(numpy.append([-1,-0.5,-0.25,0], coreknots[3]),
-                          [7100, 7150, 7200, 7300, 7400])
+# use quadratic spacing in time
+coreknots[3] = numpy.linspace(0,7000**(0.5),nknots[3])**2
+endgap = coreknots[3][-1] - coreknots[3][-2]
+tknots = numpy.concatenate(([-10,-5,-3,-1], coreknots[3], 7000 + endgap*numpy.arange(1,8)))
 
-if table.ndim() > 3:
-    order = [2,2,2,3]        # Quadric splines for t to get smooth derivatives
-    penorder = [2,2,2,1]    # Penalize non-constancy in the CDF
-    knots = [rknots, thetaknots, zknots, tknots]
-else:
-    order = [2,2,2]    # Quadric splines for t to get smooth derivatives
-    penorder = [2,2,2]    # Penalize non-constancy in the CDF
-    knots = [rknots, thetaknots, zknots]
+def spline_spec(ndim):
+   if ndim > 3:
+       order = [2,2,2,3]        # Quadric splines for t to get smooth derivatives
+       penalties = {2:[smooth]*3 + [0], # penalize curvature in rho,z,phi
+                    3:[0]*3 + [smooth]} # order 3 in time CDF => order 2 in time PDF
+       knots = [rknots, thetaknots, zknots, tknots]
+   else:
+       order = [2,2,2]    # Quadric splines to get smooth derivatives
+       penalties = {2:[smooth]*3}    # Penalize curvature 
+       knots = [rknots, thetaknots, zknots]
+   return order, penalties, knots
 
-print 'Number of knots used: ',[len(a) for a in knots]
-
-if opts.epsilon != None:
-    table.weights[table.values == 0] = 0.01
-    table.values = table.values + opts.epsilon
 
 # Take cumulative sum to get the CDF, and adjust fit points to be
 # the right edges of the time bins, where the CDF is measured.
-#if table.ndim() > 3:
-    #table.values = numpy.cumsum(table.values, axis=3)
-    #table.bin_centers[3] += table.bin_widths[3]/2.
-
-#if len(table.bin_centers) > table.ndim():
-    #table.bin_centers = table.bin_centers[0:table.ndim()]
+table.values = numpy.cumsum(table.values, axis=3)
+table.bin_centers[3] += table.bin_widths[3]/2.
 
 # HACK: Move first and last angular bins to 0 and 180
 table.bin_centers[1][0] = 0
 table.bin_centers[1][table.bin_centers[1].size - 1] = 180
 
-# Convert the input to log-space and drop any NaNs or infinites from the fit
-table.values = numpy.log(table.values)
-
-table.remove_nans_and_infinites()
-
 print "Loaded histogram with dimensions ", table.shape()
 
-if len(args) < 2:
-    outputfile = args[0]+".pspl.fits"
-else:
-    outputfile = args[1]
+norm = table.values[:,:,:,-1]
 
-if os.path.exists(outputfile):
-    if raw_input("File %s exists. Overwrite? (y/n)" % outputfile) == 'y':
-        os.unlink(outputfile)
-    else:
-        sys.exit()
+if opts.abs:
+	z = numpy.log(norm)
 
-print "Beginning spline fit..."
-spline = glam.fit(table.values,table.weights,table.bin_centers,knots,order,smooth,penorder=penorder)
+	# remove NaNs and infinites from the fit
+	#w = numpy.ones(norm.shape)
+	w = numpy.sum(table.weights, axis=-1)
+	w[numpy.logical_not(numpy.isfinite(z))] = 0
+	z[numpy.logical_not(numpy.isfinite(z))] = 0
 
-print "Saving table to %s..." % outputfile
-splinefitstable.write(spline, outputfile)
+	# XXX HACK: de-weight the first radial bin everywhere
+	w[:3,:,:] = 0 
 
-smoothed = glam.grideval(spline, table.bin_centers)
-resid = (smoothed - table.values)[table.weights != 0]
-fracresid = ((smoothed - table.values)/table.values)[table.weights != 0]
+	order, penalties, knots = spline_spec(3)
 
-print "Fit Statistics:"
-print "\tMaximum Deviation from Data:",numpy.max(numpy.abs(resid))
-print "\tRMS Deviation from Data:",numpy.sqrt(numpy.mean(resid**2))
-print "\tMax Fractional Deviation from Data:",numpy.max(numpy.abs(fracresid))
-print "\tMean Fractional Deviation from Data:",numpy.mean(numpy.abs(fracresid))
+	print 'Number of knots used: ',[len(a) for a in knots]
+	print "Beginning spline fit for abs table..."
+	spline = glam.fit(z,w,table.bin_centers[:3],knots,order,smooth,penalties=penalties)
+
+	print "Saving table to %s..." % abs_outputfile
+	splinefitstable.write(spline, abs_outputfile)
+
+if opts.prob:
+	z = table.values / norm.reshape(norm.shape + (1,))
+	# XXX HACK: ignore weights for normalized timing
+	w = numpy.ones(table.weights.shape)
+	order, penalties, knots = spline_spec(4)
+
+	print 'Number of knots used: ',[len(a) for a in knots]
+	print "Beginning spline fit for timing table..."
+	spline = glam.fit(z,table.weights,table.bin_centers,knots,order,smooth,penalties=penalties,monodim=3)
+
+	print "Saving table to %s..." % prob_outputfile
+	splinefitstable.write(spline, prob_outputfile)
+
+
+# smoothed = glam.grideval(spline, table.bin_centers)
+# resid = (smoothed - table.values)[table.weights != 0]
+# fracresid = ((smoothed - table.values)/table.values)[table.weights != 0]
+# 
+# 
+# print "Fit Statistics:"
+# print "\tMaximum Deviation from Data:",numpy.max(numpy.abs(resid))
+# print "\tRMS Deviation from Data:",numpy.sqrt(numpy.mean(resid**2))
+# print "\tMax Fractional Deviation from Data:",numpy.max(numpy.abs(fracresid))
+# print "\tMean Fractional Deviation from Data:",numpy.mean(numpy.abs(fracresid))
+
