@@ -63,6 +63,12 @@ table = photonics_table(args[0])
 
 table.convert_to_level1()
 
+# check for a sane normalization
+if (Efficiency.DIFFERENTIAL & table.header['efficiency']):
+	raise ValueError, "This appears to be a dP/dt table. Don't do that, okay?"
+if (not Efficiency.N_PHOTON & table.header['efficiency']):
+	raise ValueError, "This table does not appear to be normalized."
+
 nknots = [17, 6, 12]
 if table.ndim() > 3:
     nknots.append(25) # [t]
@@ -109,7 +115,14 @@ def spline_spec(ndim):
    else:
        order = [2,2,2]    # Quadric splines to get smooth derivatives
        penalties = {2:[smooth]*3}    # Penalize curvature 
-       knots = [rknots, thetaknots, zknots]
+       # XXX HACK: add more knots near the cascade
+       extras = numpy.logspace(-1,1,5)
+       zk = numpy.concatenate((zknots[abs(zknots) > 10], -extras, extras, [0]))
+       zk.sort()
+       extras = numpy.logspace(-1,1,10)
+       rk = numpy.concatenate((rknots[(rknots > 10)|(rknots < 0)], extras))
+       rk.sort()
+       knots = [rk, thetaknots, zk]
    return order, penalties, knots
 
 
@@ -130,13 +143,13 @@ if opts.abs:
 	z = numpy.log(norm)
 
 	# remove NaNs and infinites from the fit
-	#w = numpy.ones(norm.shape)
-	w = numpy.sum(table.weights, axis=-1)
+	w = numpy.ones(norm.shape)
+	#w = numpy.sum(table.weights, axis=-1)
 	w[numpy.logical_not(numpy.isfinite(z))] = 0
 	z[numpy.logical_not(numpy.isfinite(z))] = 0
 
 	# XXX HACK: de-weight the first radial bin everywhere
-	w[:3,:,:] = 0 
+	#w[:3,:,:] = 0 
 
 	order, penalties, knots = spline_spec(3)
 

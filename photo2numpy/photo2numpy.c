@@ -38,6 +38,7 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 	PyObject *main_array, *stats_array;
 	PyObject *coords[L1_MAXDIM], *coords_tuple;
 	PyObject *binwidths[L1_MAXDIM], *binwidths_tuple;
+	PyObject *header_dict;
 	PyObject *result;
 	char coordstr[L1_MAXDIM+1];
 	FILE *table;
@@ -71,6 +72,10 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 		    "parsing table header failed");
 		goto exit;
 	}
+
+	header_dict = PyDict_New();
+	PyDict_SetItemString(header_dict, "n_photon",  PyInt_FromLong(io.h->n_photon));
+	PyDict_SetItemString(header_dict, "efficiency", PyInt_FromLong((long)(io.h->efficiency)));
 
 	#ifdef SUPPORT_BIGENDIAN
 		if(!isLittleEndian() && checkMetaHeadLittle(&(io.h->MetaHead)))
@@ -172,8 +177,8 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 
 	/* Now put together the final result */
 
-	result = Py_BuildValue("OOOO", main_array, stats_array, coords_tuple,
-	    binwidths_tuple);
+	result = Py_BuildValue("OOOOO", main_array, stats_array, coords_tuple,
+	    binwidths_tuple, header_dict);
 
     exit:
 	free(io.h);
