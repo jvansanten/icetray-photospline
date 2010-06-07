@@ -7,3 +7,6 @@ class SplineTable:
 	# The tensor-product basis function coefficients
 	coefficients = 0
 
+	# logarithmic bias
+	bias = 0
+

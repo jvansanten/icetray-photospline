@@ -2,6 +2,20 @@
 import numpy
 import photo2numpy
 
+class Efficiency:
+	"""Normalization types from photonics.h"""
+	NONE         = 0x00
+	RECEIVER     = 0x01 
+	SOURCE       = 0x02
+	WAVELENGTH   = 0x04
+	AREA         = 0x08
+	VOLUME       = 0x10
+	N_PHOTON     = 0x20
+	EMISSION     = 0x40
+	USER_DEFINED = 0x80
+	DIFFERENTIAL = 0x100
+
+
 # Class for reading IceCube photonics tables
 class photonics_table():
 
@@ -77,6 +91,8 @@ class photonics_table():
         self.bin_centers = list(table[2])
         self.bin_widths  = list(table[3])
 
+	self.header = table[4]
+
         # Level 2 tables get an extra, random element here for some reason
         if len(self.bin_centers) > self.values.ndim:
             self.bin_centers = self.bin_centers[0:self.values.ndim]
@@ -143,6 +159,17 @@ class photonics_table():
             
         print "Don't know how to convert table with level", self.level
         return 0
+
+    def mirror(self,rho=3,phi=3):
+	"""Extend table to rho < 0 and 180 < phi < 360. This may be useful for surpressing edge effects while fitting."""
+	# XXX only rho mirroring for now
+	# the mirror images of the radial slices are in reverse order
+	indices = numpy.arange(self.values.shape[1], -1, -1)
+	# first rho radial slices in descending radial order	
+	mirrorslice = [slice(None,rho,-1),indices] + [slice(None)]*self.values.ndim
+	mirror = table.values
+	# XXX not done yet...
+	return None
 
     #def __del__(self):
         #

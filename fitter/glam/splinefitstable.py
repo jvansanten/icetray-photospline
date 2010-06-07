@@ -15,6 +15,8 @@ def write(table,path):
 	for i in range(0,len(table.periods)):
 		data.header.update('PERIOD%d' % i,table.periods[i])
 
+	data.header.update('BIAS',table.bias)
+
 	hdulist = pyfits.HDUList([data])
 
 	for i in range(0,len(table.knots)):
@@ -41,5 +43,11 @@ def read(path):
 		table.order = []
 		for i in range(0,table.coefficients.ndim):
 			table.order.append(data.header['ORDER%d' % i])
+
+	try:
+		table.bias = data.header['BIAS']
+	except:
+		pass
+
 	return table
 
