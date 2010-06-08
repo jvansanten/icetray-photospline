@@ -182,6 +182,7 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		for (i = 0; i < nF; i++)
 			((double *)(x->x))[F[i]] = ((double *)(x_F->x))[i];
 		cholmod_l_free_sparse(&AtA_F, c);
+		cholmod_l_free_dense(&Atb_F, c);
 
 		/* Update the constrained part */
 

@@ -262,7 +262,7 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 	} else {
 		/* XXX: clamped to one iteration */
 		coefficients = cholesky_solve(fitmat, Rdens, c,
-		    verbose, 1);
+		    verbose, 3);
 		/*
 		coefficients = SuiteSparseQR_C_backslash_default(fitmat,
 		    Rdens, c);

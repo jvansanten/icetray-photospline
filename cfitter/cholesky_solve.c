@@ -94,8 +94,8 @@ cholesky_solve(cholmod_sparse *AtA, cholmod_dense *Atb, cholmod_common *c, int v
 		cholmod_l_free_dense(&delta_x, c);
 	}
 
-	cholmod_free_factor(&L, c);
-	if (n_resolves > 0) cholmod_free_dense(&delta_Atb, c);
+	cholmod_l_free_factor(&L, c);
+	if (n_resolves > 0) cholmod_l_free_dense(&delta_Atb, c);
 
 	return (x);
 }
