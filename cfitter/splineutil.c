@@ -351,4 +351,35 @@ print_sparse(cholmod_sparse *a, cholmod_common *c)
 	cholmod_l_free_dense(&dense,c);
 }
 
+void
+print_factor(cholmod_factor *L, cholmod_common *c)
+{
+	cholmod_sparse *Lsparse;
+	cholmod_factor *Lcopy;
+	cholmod_dense *Ldense;
+	int i, j;
+	double val;
+	Lcopy = cholmod_l_copy_factor(L, c);
+	Lsparse = cholmod_l_factor_to_sparse(Lcopy, c);
+	Ldense = cholmod_l_sparse_to_dense(Lsparse, c);
+
+	printf("----\n");
+	for (i = 0; i < Ldense->nrow; i++) {
+		for (j = 0; j < Ldense->ncol; j++) {
+			val = ((double*)(Ldense->x))[j*(Ldense->nrow)+i];
+			if (i >= j) {
+				if (val != 0) printf(" % -.1e",val);
+				else printf("    -    ");
+			} else {
+				printf("         ");
+			}
+		}	
+		printf("\n");
+	}
+	printf("----\n");
+
+	cholmod_l_free_factor(&Lcopy, c);
+	cholmod_l_free_dense(&Ldense, c);
+	cholmod_l_free_sparse(&Lsparse, c);
+}
 

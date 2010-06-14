@@ -31,7 +31,12 @@ cholmod_sparse *cholmod_tril(int dim, cholmod_common *c);
 cholmod_dense *nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb,
    int verbose, cholmod_common *c);
 
+cholmod_dense *nnls_normal_block_updown(cholmod_sparse *AtA, cholmod_dense *Atb,
+   int verbose, cholmod_common *c);
+
 void print_sparse(cholmod_sparse *a, cholmod_common *c);
+
+void print_factor(cholmod_factor *L, cholmod_common *c);
 
 #endif // SPLINEUTIL_H
 
