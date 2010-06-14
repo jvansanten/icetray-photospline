@@ -15,5 +15,9 @@ modify_factor(cholmod_sparse* A, cholmod_factor *L,
     long *F, long *nF, long *G, long *nG, long *H1, long *nH1,
     long *H2, long *nH2, bool verbose, cholmod_common *c);
 
+cholmod_factor* 
+recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
+    long *F, long nF, cholmod_common *c);
+
 #endif /* CHOLESKY_SOLVE_H */
 
