@@ -337,12 +337,18 @@ print_sparse(cholmod_sparse *a, cholmod_common *c)
 {
 	cholmod_dense *dense;
 	int i,j;
+	double val;
 
 	dense = cholmod_l_sparse_to_dense(a,c);
 	printf("----\n");
 	for (i = 0; i < dense->nrow; i++) {
 		for (j = 0; j < dense->ncol; j++) {
-			printf("%.2lf\t",((double *)(dense->x))[j*dense->nrow + i]);
+			val = ((double *)(dense->x))[j*dense->nrow + i];
+			if (fabs(val) <= 1e-12) {
+				printf("    -    ");
+			} else {
+				printf(" %- .1e",val);
+			}
 		}
 		printf("\n");
 	}
@@ -365,11 +371,13 @@ print_factor(cholmod_factor *L, cholmod_common *c)
 
 	printf("----\n");
 	for (i = 0; i < Ldense->nrow; i++) {
-		for (j = 0; j < Ldense->ncol; j++) {
+		for (j = 0; j < i+1; j++) {
 			val = ((double*)(Ldense->x))[j*(Ldense->nrow)+i];
 			if (i >= j) {
-				if (val != 0) printf(" % -.1e",val);
-				else printf("    -    ");
+				if (val == 0) printf("    -    ");
+				else if (val == 1) printf("    %d    ",
+				    (int)val);
+				else printf(" % -.1e",val);
 			} else {
 				printf("         ");
 			}
