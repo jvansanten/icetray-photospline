@@ -14,8 +14,9 @@
 static int
 intcmp(const void *xa, const void *xb);
 
-cholmod_dense*
-cholesky_solve(cholmod_sparse *AtA, cholmod_dense *Atb, cholmod_common *c, int verbose, int n_resolves)
+cholmod_dense *
+cholesky_solve(cholmod_sparse *AtA, cholmod_dense *Atb, cholmod_common *c,
+     int verbose, int n_resolves)
 {
 	int i,j,nvar;
 	double ones[2] = {1., 0}, mones[2] = {-1., 0};
@@ -23,9 +24,6 @@ cholesky_solve(cholmod_sparse *AtA, cholmod_dense *Atb, cholmod_common *c, int v
 	cholmod_dense *x, *delta_x, *delta_Atb;
 	cholmod_factor *L;
 	clock_t t0, t1;
-
-	/* drop small entries from AtA */
-	cholmod_l_drop(DBL_EPSILON, AtA, c);
 
 	/* set symmetry */
 	AtA->stype = 1;
@@ -116,7 +114,7 @@ cholmod_sparse* get_column(cholmod_sparse *A, long k,
 	int i, j, nz, A_col_nz;
 
 	/* n-by-1, rows not sorted, packed, stype 0 (unsymmetric) */
-	R = cholmod_l_allocate_sparse(A->nrow, 1, A->nrow, 
+	R = cholmod_l_allocate_sparse(A->nrow, 1, nF, 
 	    false, true, 0, CHOLMOD_REAL, c);
 
 	Ap = (long*)(A->p);   /* pointers to the start of each column */
@@ -181,12 +179,66 @@ modify_factor(cholmod_sparse *A, cholmod_factor *L,
     long *F, long *nF_, long *G, long *nG_, long *H1, long *nH1_,
     long *H2, long *nH2_, bool verbose, cholmod_common *c)
 {
+	double changed;
+	bool update;
+	long nF, nG, nH1, nH2;
+
+	nF = *nF_;
+	nG = *nG_;
+	nH1 = *nH1_;
+	nH2 = *nH2_;
+
+	update = true;
+	changed = 1.0;
+	/*
+	 * If available, use the flop counts from the most recent call to
+	 * cholmod_analyze or cholmod_rowadd/rowdel to estimate the expense
+	 * of the job.
+	 *
+	 * XXX: assumptions here are:
+	 * 1. we can get ~ 8x speedup from 16 threads in GotoBLAS. 
+	 * 2. the size of F is roughly constant: the next factorization will
+	 *    be about as expensive as the previous one.
+	 */
+	if ((c->fl > 0) && (c->modfl > 0)) {
+		update = ((c->fl)/8.0 > ((double)(nH1 + nH2))*(c->modfl));
+		if (verbose)
+			printf("\tFactor flops: %.0lf Mod flops: %.0lf\n",
+			    c->fl, c->modfl);
+	} else {
+		/* 
+	 	 * This is th Portugal/Judice/Vincente heuristic for updating
+		 * a QR factorization, and not necessarily related to the work
+		 * required by CHOLMOD.
+		 */
+		changed = ((double)(nH1 + nH2))/((double)(nF - nH1 + nH2));
+		if ((nF == 0) || (changed > 0.2)) update = false;
+	}
+
+	/* short-circuit for rank-1 updates */
+	if (nH1 + nH2 == 1) update = true;
+
+	if ((!update) && verbose)
+		printf("\tRecomputing factorization from scratch "
+		    "(F[%ld], G[%ld], H1[%ld], H2[%ld], changed=%.2lf)\n",
+		    nF, nG, nH1, nH2, changed);
+
+	return(modify_factor_p(A, L, F, nF_, G, nG_, H1, nH1_, H2, nH2_,
+	    update, verbose, c));
+
+}
+
+cholmod_factor* 
+modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
+    long *F, long *nF_, long *G, long *nG_, long *H1, long *nH1_,
+    long *H2, long *nH2_, bool update, bool verbose, cholmod_common *c)
+{
 	long iPerm[L->n];
 	cholmod_sparse *col;
 	int i, j, k;
 	long nF, nG, nH1, nH2;
 	double changed;
-	bool update;
+	clock_t t0, t1;
 	
 	nF = *nF_;
 	nG = *nG_;
@@ -196,20 +248,8 @@ modify_factor(cholmod_sparse *A, cholmod_factor *L,
 	/* Compute the inverse of the fill-reducing permutation */
 	for (i = 0; i < L->n; i++)  iPerm[ ((long*)(L->Perm))[i] ] = i;
 
-	/* 
-	 * FIXME: This is the ancient Portugal/Judice/Vincente heuristic.
-	 * This decision should be made using the flop counts for CHOLMOD.
-	  */
-	update = true;
-	changed = ((double)(nH1 + nH2))/((double)(nF - nH1 + nH2));
-	if ((nF == 0) || (changed > 0.2)) update = false;
-	/* short-circuit for rank-1 updates */
-	if (nH1 + nH2 == 1) update = true;
 
-	if ((!update) && verbose)
-		printf("Recomputing factorization from scratch "
-		    "(F[%ld], G[%ld], H1[%ld], H2[%ld], changed=%f)\n",
-		    nF, nG, nH1, nH2, changed);
+	t0 = clock();
 
 	/*
 	 * Remove elements in H1 from F, and add them to G,
@@ -225,12 +265,18 @@ modify_factor(cholmod_sparse *A, cholmod_factor *L,
 		if (update) {
 			/* remove the row from the factorization */
 			/* XXX: pass non-zero pattern of row, instead of NULL */
-			if (verbose) printf("Deleting row %ld\n", H1[i]);
 			cholmod_l_rowdel(iPerm[H1[i]], NULL, L, c);
 		}
 	}
+	if (verbose && update && (nH1 > 0)) {
+		t1 = clock();
+		printf("\tDelete %ld rows: %.2f s\n",nH1,
+		    (double)(t1-t0)/(CLOCKS_PER_SEC));
+	}
 	nF -= nH1;
 	nH1 = 0;
+
+	t0 = clock();
 
 	/* And vice versa */
 	for (i = 0, j = 0; i < nH2; i++) {
@@ -245,12 +291,16 @@ modify_factor(cholmod_sparse *A, cholmod_factor *L,
 			 * row not in F and permuting the rows to
 			 * match the ordering of the columns in L.
 			 */
-			if (verbose) printf("Adding col %ld\n",H2[i]);
 			col = get_column(A, H2[i], iPerm, F, nF, c);
 			/* insert the column at the permuted index */
 			cholmod_l_rowadd(iPerm[H2[i]], col, L, c);
 			cholmod_l_free_sparse(&col, c);
 		}
+	}
+	if (verbose && update && (nH2 > 0)) {
+		t1 = clock();
+		printf("\tAdd %ld rows: %.2f s\n",nH2,
+		    (double)(t1-t0)/(CLOCKS_PER_SEC));
 	}
 	nG -= nH2;
 	nH2 = 0;
@@ -263,7 +313,13 @@ modify_factor(cholmod_sparse *A, cholmod_factor *L,
 	 * factorization of A[:,F][F,:] from scratch.
 	 */
 	if (!update) {
+		t0 = clock();
 		L = recompute_factor(A, L, iPerm, F, nF, c);
+		if (verbose) {
+			t1 = clock();
+			printf("\tFactorize[%ld]: %.2f s\n",nF,
+			    (double)(t1-t0)/(CLOCKS_PER_SEC));
+		}
 	}
 
 	*nF_  = nF;
@@ -282,11 +338,12 @@ recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
 	long FPerm[nF];
 	long Lrows[nF]; /* mapping from permuted Lprime to permuted L */
 	long *LPerm, *LColCount, *L_FColCount;
-	long *Li, *Lp, *Lnz, *L_Fi, *L_Fp, *L_Fnz;
+	long *Li, *Lp, *Lnz, *Lnext, *L_Fi, *L_Fp, *L_Fnz;
 	double *Lx, *L_Fx;
 	cholmod_sparse *A_F;
 	cholmod_factor *L_F;
-	int i, j, nFPerm, common_nmethods, Astype;
+	int i, j, nz, nFPerm, common_nmethods, Astype;
+	bool common_postorder;
 
 	/* 
 	 * Scortched earth: free the unneeded numeric 
@@ -334,14 +391,21 @@ recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
 
 	Astype = A->stype;
 	assert( Astype != 0);
-	A->stype = 0; /* cholmod_submatrix doesn't like unsymmetric matrices */
+	A->stype = 0; /* cholmod_submatrix doesn't like symmetric matrices */
 	A_F = cholmod_l_submatrix(A, F, nF, F, nF, 1, 1, c);
 	A->stype = Astype;
 	A_F->stype = Astype;
+	A_F->stype = 1;
 
-	/* force cholmod_analyze to use our permutation */
+	/* 
+	 * Since we intend to copy the results of the submatrix factorization
+	 * in to L, we need to force cholmod_analyze to use exactly the same
+	 * permutation previously calculated for L, without postordering.
+	 */
 	common_nmethods = c->nmethods;
+	common_postorder = c->postorder;
 	c->nmethods = 1;
+	c->postorder = false;
 
 	/* calculate pattern of L in the given permuation */
 	L_F = cholmod_l_analyze_p(A_F, FPerm, NULL, -1, c);
@@ -349,10 +413,25 @@ recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
 
 	/* restore alternate orderings */
 	c->nmethods = common_nmethods;
-	
+	c->postorder = common_postorder;
+
+#ifndef NDEBUG
+	/* sanity check: did we get the permutation we asked for? */
+	long* L_FPerm = (long*)(L_F->Perm);
+	for (i = 0; i < nF; i++) assert( FPerm[i] == L_FPerm[i] );
+#endif
+
 	cholmod_l_factorize(A_F, L_F, c);
 
 	cholmod_l_free_sparse(&A_F, c);
+
+	/* We really, really, really don't want L in supernodal form. */
+	cholmod_l_change_factor(CHOLMOD_REAL, 
+	    false, /* to LL' */
+	    false, /* to supernodal */
+	    false, /* to packed */
+	    false, /* to monotonic */
+	    L_F, c);
 
 	/* 
 	 * XXX: swizzle the nonzero pattern of L to match
@@ -377,10 +456,11 @@ recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
 	 * of both L_F and L (currently identity), we can get 
 	 * the appropriate pointers to the numerical bits of both.
 	 */
-	Lp =   (long*)(L->p);
-	Lnz =  (long*)(L->nz);
-	Li =   (long*)(L->i);
-	Lx =   (double*)(L->x);
+	Lp =    (long*)(L->p);
+	Lnz =   (long*)(L->nz);
+	Li =    (long*)(L->i);
+	Lnext = (long*)(L->next);
+	Lx =    (double*)(L->x);
 	L_Fp =  (long*)(L_F->p);
 	L_Fnz = (long*)(L_F->nz);
 	L_Fi =  (long*)(L_F->i);
@@ -395,8 +475,19 @@ recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
 		 * NB: cholmod_factor is never explicitly packed
 		 * (unlike cholmod_sparse, L->nz is always meaningful).
 		 */
-		assert( Lp[Lrows[i]+1] - Lp[Lrows[i]] >= L_Fnz[i] );
-		for (j = 0; j < L_Fnz[i]; j++) {
+		if (L_Fnz) nz = L_Fnz[i];
+		else nz = L_Fp[i+1] - L_Fp[i];
+
+		if ( Lp[Lnext[Lrows[i]]] - Lp[Lrows[i]] < nz ) {
+			cholmod_l_reallocate_column(Lrows[i], nz, L, c);
+			printf("L->nz[%ld] <= %ld, L_F->nz[%d] = %ld\n", 
+		    	    Lrows[i], Lp[Lnext[Lrows[i]]] - Lp[Lrows[i]],
+			    i, L_Fnz[i]);
+		}
+
+		assert( Lp[Lnext[Lrows[i]]] - Lp[Lrows[i]] >= nz );
+
+		for (j = 0; j < nz; j++) {
 			/*
 			 * Adjust index of each row to match
 			 * its position in L.
@@ -408,7 +499,7 @@ recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
 			 */
 			Lx[Lp[Lrows[i]]+j] = L_Fx[L_Fp[i]+j];	
 		}
-		Lnz[Lrows[i]] = L_Fnz[i];	
+		Lnz[Lrows[i]] = nz;	
 	}
 
 	/* we're done with L_F */

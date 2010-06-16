@@ -257,12 +257,17 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 	    printf("Computing least square solution...\n");
 
 	if (monodim >= 0) {
+#if 0
 		coefficients = nnls_normal_block(fitmat, Rdens,
 		    verbose, c);
+#else
+		coefficients = nnls_normal_block_updown(fitmat, Rdens,
+		    verbose, c);
+#endif
 	} else {
 		/* XXX: clamped to one iteration */
 		coefficients = cholesky_solve(fitmat, Rdens, c,
-		    verbose, 3);
+		    verbose, 0);
 		/*
 		coefficients = SuiteSparseQR_C_backslash_default(fitmat,
 		    Rdens, c);
