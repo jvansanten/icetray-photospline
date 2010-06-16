@@ -1,4 +1,5 @@
 #include <suitesparse/cholmod.h>
+#include <math.h>
 
 #include "splineutil.h"
 #include "bspline.h"
