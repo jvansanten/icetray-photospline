@@ -43,8 +43,8 @@ def check_exists(outputfile):
             sys.exit()
 
 if len(args) < 2:
-    abs_outputfile = args[0]+"abs.pspl.fits"
-    prob_outputfile = args[0]+"prob.pspl.fits"
+    abs_outputfile = args[0]+".abs.pspl.fits"
+    prob_outputfile = args[0]+".prob.pspl.fits"
 else:
     abs_outputfile = args[1]+".abs.fits"
     prob_outputfile = args[1]+".prob.fits"
@@ -114,11 +114,13 @@ def spline_spec(ndim):
        order = [2,2,2]    # Quadric splines to get smooth derivatives
        penalties = {2:[smooth]*3}    # Penalize curvature 
        # XXX HACK: add more knots near the cascade
-       extras = numpy.logspace(-1,1,5)
-       zk = numpy.concatenate((zknots[abs(zknots) > 10], -extras, extras, [0]))
+       extras = numpy.logspace(-1,1,5)/axis_scale[2]
+       zk = numpy.concatenate((zknots[abs(zknots) > 10/axis_scale[2]],
+	     -extras, extras, [0]))
        zk.sort()
-       extras = numpy.logspace(-1,1,10)
-       rk = numpy.concatenate((rknots[(rknots > 10)|(rknots < 0)], extras))
+       extras = numpy.logspace(-1,1,10)/axis_scale[0]
+       rk = numpy.concatenate((rknots[(rknots > 10/axis_scale[0])|(rknots < 0)],
+	      extras))
        rk.sort()
        knots = [rk, thetaknots, zk]
    return order, penalties, knots
