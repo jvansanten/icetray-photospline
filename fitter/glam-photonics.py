@@ -15,8 +15,6 @@ import numpy
 
 usage = "usage: %prog [options] table.pt [output.fits]"
 optparser = OptionParser(usage=usage)
-optparser.add_option("-e", "--epsilon", dest="epsilon", type="float",
-             help="epsilon with which to replace table zeros")
 optparser.add_option("-r", "--rknots", dest="rknots", type="int",
              help="number of knots in radial dimension")
 optparser.add_option("-f", "--fknots", dest="fknots", type="int",
@@ -46,7 +44,7 @@ def check_exists(outputfile):
 
 if len(args) < 2:
     abs_outputfile = args[0]+"abs.pspl.fits"
-    prob_outfile = args[0]+"prob.pspl.fits"
+    prob_outputfile = args[0]+"prob.pspl.fits"
 else:
     abs_outputfile = args[1]+".abs.fits"
     prob_outputfile = args[1]+".prob.fits"
@@ -125,7 +123,6 @@ def spline_spec(ndim):
        knots = [rk, thetaknots, zk]
    return order, penalties, knots
 
-
 # Take cumulative sum to get the CDF, and adjust fit points to be
 # the right edges of the time bins, where the CDF is measured.
 table.values = numpy.cumsum(table.values, axis=3)
@@ -138,6 +135,17 @@ table.bin_centers[1][table.bin_centers[1].size - 1] = 180
 print "Loaded histogram with dimensions ", table.shape()
 
 norm = table.values[:,:,:,-1]
+
+# Rescale all axes to have a maximum value of ~ 10
+axis_scale = []
+knots = [rknots, thetaknots, zknots, tknots]
+for i in range(0,len(table.bin_centers)):
+	scale = 2**numpy.floor(numpy.log(numpy.max(table.bin_centers[i])/10.) /
+	    numpy.log(2))
+	axis_scale.append(scale)
+	table.bin_centers[i] /= scale
+	knots[i] /= scale
+	table.bin_widths[i] /= scale
 
 if opts.abs:
 	z = numpy.log(norm)
@@ -158,6 +166,8 @@ if opts.abs:
 	spline = glam.fit(z,w,table.bin_centers[:3],knots,order,smooth,penalties=penalties)
 
 	print "Saving table to %s..." % abs_outputfile
+	spline.knots = [spline.knots[i] * axis_scale[i] for i
+			    in range(0, len(spline.knots))]
 	splinefitstable.write(spline, abs_outputfile)
 
 if opts.prob:
@@ -171,6 +181,8 @@ if opts.prob:
 	spline = glam.fit(z,table.weights,table.bin_centers,knots,order,smooth,penalties=penalties,monodim=3)
 
 	print "Saving table to %s..." % prob_outputfile
+	spline.knots = [spline.knots[i] * axis_scale[i] for i
+			    in range(0, len(spline.knots))]
 	splinefitstable.write(spline, prob_outputfile)
 
 
