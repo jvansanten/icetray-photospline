@@ -249,7 +249,8 @@ nnls_normal_block_updown(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
    cholmod_common *c)
 {
 	int nvar = AtA->nrow;
-	long F[nvar], G[nvar], H1[nvar], H2[nvar];
+	//long F[nvar], G[nvar], H1[nvar], H2[nvar];
+	long *F, *G, *H1, *H2;
 	cholmod_dense *x, *y;
 	cholmod_factor *L;
 	long nF, nG, nH1, nH2, ninf;
@@ -261,6 +262,11 @@ nnls_normal_block_updown(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	trials = MAX_TRIALS;	/* Runs without progress before reverting
 				 * to a deterministic algorithm */
 	murty_steps = MAX_TRIALS;
+
+	F  = (long*)malloc(sizeof(long)*nvar);
+	G  = (long*)malloc(sizeof(long)*nvar);
+	H1 = (long*)malloc(sizeof(long)*nvar);
+	H2 = (long*)malloc(sizeof(long)*nvar);
 
 	x = cholmod_l_zeros(nvar, 1, CHOLMOD_REAL, c);
 	y = cholmod_l_allocate_dense(nvar, 1, nvar, CHOLMOD_REAL, c);
@@ -474,6 +480,11 @@ nnls_normal_block_updown(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 
 	cholmod_l_free_dense(&y, c);
 	cholmod_l_free_factor(&L, c);
+
+	free(F);
+	free(G);
+	free(H1);
+	free(H2);
 
 	return (x);
 }

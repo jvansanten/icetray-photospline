@@ -233,11 +233,10 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
     long *F, long *nF_, long *G, long *nG_, long *H1, long *nH1_,
     long *H2, long *nH2_, bool update, bool verbose, cholmod_common *c)
 {
-	long iPerm[L->n];
 	cholmod_sparse *col;
 	int i, j, k;
+	long *iPerm;
 	long nF, nG, nH1, nH2;
-	double changed;
 	clock_t t0, t1;
 	
 	nF = *nF_;
@@ -246,8 +245,8 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 	nH2 = *nH2_;
 
 	/* Compute the inverse of the fill-reducing permutation */
+	iPerm = (long*)malloc(sizeof(long)*L->n);
 	for (i = 0; i < L->n; i++)  iPerm[ ((long*)(L->Perm))[i] ] = i;
-
 
 	t0 = clock();
 
@@ -326,6 +325,8 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 	*nG_  = nG;
 	*nH1_ = nH1;
 	*nH2_ = nH2;
+
+	free(iPerm);
 	
 	return(L);	
 }
@@ -334,9 +335,7 @@ cholmod_factor*
 recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
     long *F, long nF, cholmod_common *c)
 {
-	long iF[L->n];
-	long FPerm[nF];
-	long Lrows[nF]; /* mapping from permuted Lprime to permuted L */
+	long *iF, *FPerm, *Lrows;
 	long *LPerm, *LColCount, *L_FColCount;
 	long *Li, *Lp, *Lnz, *Lnext, *L_Fi, *L_Fp, *L_Fnz;
 	double *Lx, *L_Fx;
@@ -360,11 +359,14 @@ recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
 	LColCount = (long*)(L->ColCount);
 
 	/* build an inverse mapping for F */
+	iF = (long*)malloc(sizeof(long)*L->n);
 	for (i = 0; i < L->n; i++) iF[i] = -1;
 	for (i = 0; i < nF; i++) iF[F[i]] = i;
 
 	/* Permute F to match L->Perm */
 	nFPerm = 0;
+	FPerm = (long*)malloc(sizeof(long)*nF);
+	Lrows = (long*)malloc(sizeof(long)*nF);
 	if (iPerm) {
 		/* calculate the permuation as it applies to subset F */
 		for (i = 0; i < L->n; i++) {
@@ -504,6 +506,9 @@ recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
 
 	/* we're done with L_F */
 	cholmod_l_free_factor(&L_F, c);
+	free(iF);
+	free(FPerm);
+	free(Lrows);
 
 	return(L);
 }
