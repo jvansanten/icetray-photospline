@@ -9,7 +9,7 @@
 #include "splineutil.h"
 #include "cholesky_solve.h"
 
-#define MAX_TRIALS 3
+#define MAX_TRIALS 5
 #define N_RESOLVES 0
 #define KKT_TOL 1e-6
 
@@ -336,8 +336,7 @@ nnls_normal_block_updown(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		 * revert to block switching.
 		 */
 		
-		if (ninf > murty_steps &&
-		    (nH2 + nH1 < ninf || trials < -murty_steps)) {
+		if (ninf > murty_steps && nH2 + nH1 < ninf) {
 			if (nH2 + nH1 <= ninf)
 			    murty_steps++;
 			ninf = nH2 + nH1;
