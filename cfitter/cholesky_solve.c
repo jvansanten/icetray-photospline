@@ -177,7 +177,7 @@ intcmp(const void *xa, const void *xb)
 cholmod_factor* 
 modify_factor(cholmod_sparse *A, cholmod_factor *L,
     long *F, long *nF_, long *G, long *nG_, long *H1, long *nH1_,
-    long *H2, long *nH2_, bool verbose, cholmod_common *c)
+    long *H2, long *nH2_, int verbose, cholmod_common *c)
 {
 	double changed;
 	bool update;
