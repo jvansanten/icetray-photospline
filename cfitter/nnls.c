@@ -248,9 +248,8 @@ nnls_normal_block_updown(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
    cholmod_common *c)
 {
 	int nvar = AtA->nrow;
-	//long F[nvar], G[nvar], H1[nvar], H2[nvar];
 	long *F, *G, *H1, *H2;
-	cholmod_dense *x, *y, *x_F, *Atb_F;
+	cholmod_dense *x, *y;
 	cholmod_factor *L;
 	long nF, nG, nH1, nH2, ninf;
 	int i, trials, murty_steps, iter;
@@ -268,7 +267,6 @@ nnls_normal_block_updown(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	H2 = (long*)malloc(sizeof(long)*nvar);
 
 	x = cholmod_l_zeros(nvar, 1, CHOLMOD_REAL, c);
-	x_F = NULL;
 	y = cholmod_l_allocate_dense(nvar, 1, nvar, CHOLMOD_REAL, c);
 
 	/*
@@ -293,12 +291,7 @@ nnls_normal_block_updown(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 
 	t0 = clock();
 
-	/*
-	 * Compute a permutation on AtA that approximately minimizes the number
-	 * of nonzero elements in its Cholesky decomposition. This permutation
-	 * will be used for the remainder of the problem.
-	 */
-	L = cholmod_l_analyze(AtA, c);
+	L = NULL;
 
 	if (verbose) {
 		t1 = clock();
@@ -416,9 +409,16 @@ nnls_normal_block_updown(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 			 * If L is only a subset of the full matrix, solve
 			 * only the passive set.
 			 */
+			cholmod_dense *Atb_F, *x_F;
+
 			Atb_F = cholmod_l_allocate_dense(nF, 1, nF,
 			    CHOLMOD_REAL, c);
+			for (i = 0; i < nF; i++)
+				((double*)(Atb_F->x))[i] =
+				    ((double*)(Atb->x))[F[i]];
+
 			x_F = cholmod_l_solve(CHOLMOD_A, L, Atb_F, c);
+
 			cholmod_l_free_dense(&Atb_F, c);
 			x = cholmod_l_allocate_dense(nvar, 1, nvar,
 			    CHOLMOD_REAL, c);

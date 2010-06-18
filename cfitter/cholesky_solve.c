@@ -259,7 +259,7 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
     long *H2, long *nH2_, bool update, bool verbose, cholmod_common *c)
 {
 	cholmod_sparse *col;
-	int i, j, k;
+	int i, j, k, update_ready;
 	long *iPerm;
 	long nF, nG, nH1, nH2;
 	clock_t t0, t1;
@@ -269,13 +269,15 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 	nH1 = *nH1_;
 	nH2 = *nH2_;
 
-#if 0
-	if (update && L
-#endif
+	iPerm = NULL;
+
+	update_ready = (L && (L->n == (nF + nG)));
 
 	/* Compute the inverse of the fill-reducing permutation */
-	iPerm = (long*)malloc(sizeof(long)*L->n);
-	for (i = 0; i < L->n; i++)  iPerm[ ((long*)(L->Perm))[i] ] = i;
+	if (L && L->Perm && (!iPerm)) {
+		iPerm = (long*)malloc(sizeof(long)*L->n);
+		for (i = 0; i < L->n; i++)  iPerm[ ((long*)(L->Perm))[i] ] = i;
+	}
 
 	t0 = clock();
 
@@ -290,13 +292,13 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 		for (k = j+i; k+1 < nF; k++)
 			F[k-i] = F[k-i+1];
 
-		if (update) {
+		if (update && update_ready) {
 			/* remove the row from the factorization */
 			/* XXX: pass non-zero pattern of row, instead of NULL */
 			cholmod_l_rowdel(iPerm[H1[i]], NULL, L, c);
 		}
 	}
-	if (verbose && update && (nH1 > 0)) {
+	if (verbose && (update && update_ready) && (nH1 > 0)) {
 		t1 = clock();
 		printf("\tDelete %ld rows: %.2f s\n",nH1,
 		    (double)(t1-t0)/(CLOCKS_PER_SEC));
@@ -313,7 +315,7 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 		for (k = j+i; k+1 < nG; k++)
 			G[k-i] = G[k-i+1];
 
-		if (update) {
+		if (update && update_ready) {
 			/* 
 			 * Extract column H2[i] from A, zeroing any
 			 * row not in F and permuting the rows to
@@ -325,7 +327,7 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 			cholmod_l_free_sparse(&col, c);
 		}
 	}
-	if (verbose && update && (nH2 > 0)) {
+	if (verbose && (update && update_ready) && (nH2 > 0)) {
 		t1 = clock();
 		printf("\tAdd %ld rows: %.2f s\n",nH2,
 		    (double)(t1-t0)/(CLOCKS_PER_SEC));
@@ -336,13 +338,48 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 	qsort(G, nG, sizeof(G[0]), intcmp);
 	qsort(F, nF, sizeof(F[0]), intcmp);
 
+	/* 
+	 * If an update was requested, but L was only computed for a submatrix,
+	 * then we have to compute it from scratch once in simplical form. This
+	 * is a huge waste for single-row updates, but will allow use of
+	 * rowadd/rowdel in the next iteration.
+	 */
+	if (update && (!update_ready)) {
+		t0 = clock();
+		cholmod_l_free_factor(&L, c);
+		L = cholmod_l_analyze(A, c);
+
+		if (iPerm) iPerm = (long*)realloc(iPerm, sizeof(long)*L->n);
+		else iPerm = (long*)malloc(sizeof(long)*L->n);
+		for (i = 0; i < L->n; i++)  iPerm[ ((long*)(L->Perm))[i] ] = i;
+
+		L = recompute_factor(A, L, iPerm, F, nF, c);
+		if (verbose) {
+			t1 = clock();
+			printf("\tFactorize[%ld]: %.2f s\n",nF,
+			    (double)(t1-t0)/(CLOCKS_PER_SEC));
+		}
+	}
+
 	/*
-	 * If no update was performed, recompute the
-	 * factorization of A[:,F][F,:] from scratch.
+	 * If no single-row updates were requested, recompute the
+	 * factorization of A[:,F][F,:] from scratch by the fastest and least
+	 * memory-hungy method available.
 	 */
 	if (!update) {
+		cholmod_sparse *A_F;
+
 		t0 = clock();
-		L = recompute_factor(A, L, iPerm, F, nF, c);
+		cholmod_l_free_factor(&L, c);
+		/* XXX: A must secretly be symmetric */
+		A->stype = 0;
+		A_F = cholmod_l_submatrix(A, F, nF, F, nF, 1, 1, c);
+		A->stype = 1;
+		A_F->stype = 1;
+		L = cholmod_l_analyze(A_F, c);
+		cholmod_l_factorize(A_F, L, c);
+		cholmod_l_free_sparse(&A_F, c);
+
 		if (verbose) {
 			t1 = clock();
 			printf("\tFactorize[%ld]: %.2f s\n",nF,
@@ -355,12 +392,12 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 	*nH1_ = nH1;
 	*nH2_ = nH2;
 
-	free(iPerm);
+	if (iPerm) free(iPerm);
 	
 	return(L);	
 }
 
-cholmod_factor* 
+cholmod_factor * 
 recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
     long *F, long nF, cholmod_common *c)
 {
