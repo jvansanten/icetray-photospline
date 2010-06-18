@@ -179,7 +179,7 @@ modify_factor(cholmod_sparse *A, cholmod_factor *L,
     long *F, long *nF_, long *G, long *nG_, long *H1, long *nH1_,
     long *H2, long *nH2_, int verbose, cholmod_common *c)
 {
-	double changed;
+	double flop_ratio;
 	bool update;
 	long nF, nG, nH1, nH2;
 
@@ -188,40 +188,65 @@ modify_factor(cholmod_sparse *A, cholmod_factor *L,
 	nH1 = *nH1_;
 	nH2 = *nH2_;
 
-	update = true;
-	changed = 1.0;
+	update = false;
+	flop_ratio = 0.0;
 	/*
 	 * If available, use the flop counts from the most recent call to
 	 * cholmod_analyze or cholmod_rowadd/rowdel to estimate the expense
 	 * of the job.
 	 *
 	 * XXX: assumptions here are:
-	 * 1. we can get ~ 8x speedup from 16 threads in GotoBLAS. 
+	 * 1. we can get ~ 16x speedup from 16 threads in GotoBLAS. 
 	 * 2. the size of F is roughly constant: the next factorization will
 	 *    be about as expensive as the previous one.
 	 */
-	if ((c->fl > 0) && (c->modfl > 0)) {
-		update = ((c->fl)/8.0 > ((double)(nH1 + nH2))*(c->modfl));
-		if (verbose)
-			printf("\tFactor flops: %.0lf Mod flops: %.0lf\n",
-			    c->fl, c->modfl);
-	} else {
+
+	/* 
+	 * The operations performed inside of GotoBLAS are ~ 9 times faster
+	 * than the plain-C operations in rowadd/rowdel, and we're running
+	 * with 16 threads, so we expect functions taking the same number of
+	 * flops to be ~144 times faster when using cholmod_factorize than
+	 * rowadd/rowdel. Twiddle as appropriate.
+	 */
+	#define GOTO_SPEEDUP 9.0
+	#define NUM_THREADS 16.0
+
+	if ((c->modfl <= 0) && (c->lnz > 0)) {
 		/* 
-	 	 * This is th Portugal/Judice/Vincente heuristic for updating
-		 * a QR factorization, and not necessarily related to the work
-		 * required by CHOLMOD.
-		 */
-		changed = ((double)(nH1 + nH2))/((double)(nF - nH1 + nH2));
-		if ((nF == 0) || (changed > 0.2)) update = false;
+		 * Rowadd/rowdel are inherently single-threaded and use scalar
+		 * arithmetic; switching modes too early in the problem can be
+		 * disastrously slow. Here, we compute a conservative upper 
+		 * bound on the work required for rowadd/rowdel, ~ O(|L|). 
+		 */ 
+		c->modfl = c->lnz;
 	}
+
+	if (nF == 0) {
+		/* First iteration, always do a full factorization */
+		update = false;
+	} else if ((c->fl > 0) && (c->modfl > 0)) {
+		/*
+		 * Estimate work based on previous iterations.
+		 */
+		flop_ratio = (c->fl) / ( GOTO_SPEEDUP * NUM_THREADS * 
+		    ((double)(nH1 + nH2))*(c->modfl) );
+		update = (flop_ratio > 1.0);
+	}
+
+	#undef GOTO_SPEEDUP
+	#undef NUM_THREADS 
+
+	if (verbose)
+		printf("\tFactor work: %.0lf Mod work: %.0lf\n",
+		    c->fl, c->modfl);
 
 	/* short-circuit for rank-1 updates */
 	if (nH1 + nH2 == 1) update = true;
 
 	if ((!update) && verbose)
 		printf("\tRecomputing factorization from scratch "
-		    "(F[%ld], G[%ld], H1[%ld], H2[%ld], changed=%.2lf)\n",
-		    nF, nG, nH1, nH2, changed);
+		    "(F[%ld], G[%ld], H1[%ld], H2[%ld], ratio=%.2lf)\n",
+		    nF, nG, nH1, nH2, flop_ratio);
 
 	return(modify_factor_p(A, L, F, nF_, G, nG_, H1, nH1_, H2, nH2_,
 	    update, verbose, c));
@@ -243,6 +268,10 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 	nG = *nG_;
 	nH1 = *nH1_;
 	nH2 = *nH2_;
+
+#if 0
+	if (update && L
+#endif
 
 	/* Compute the inverse of the fill-reducing permutation */
 	iPerm = (long*)malloc(sizeof(long)*L->n);
@@ -482,9 +511,11 @@ recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
 
 		if ( Lp[Lnext[Lrows[i]]] - Lp[Lrows[i]] < nz ) {
 			cholmod_l_reallocate_column(Lrows[i], nz, L, c);
+#if 0
 			printf("L->nz[%ld] <= %ld, L_F->nz[%d] = %ld\n", 
 		    	    Lrows[i], Lp[Lnext[Lrows[i]]] - Lp[Lrows[i]],
 			    i, L_Fnz[i]);
+#endif
 		}
 
 		assert( Lp[Lnext[Lrows[i]]] - Lp[Lrows[i]] >= nz );
@@ -511,5 +542,122 @@ recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
 	free(Lrows);
 
 	return(L);
+}
+
+cholmod_sparse *
+submatrix_symm(cholmod_sparse *A, long *rows, long nrows,
+    long *cols, long ncols, cholmod_common *c)
+{
+	cholmod_sparse *C;
+	int i, j, pend, pstart, last;
+	long *Ap, *Ai, *Anz, *Cp, *Ci, *Cnz;
+	double *Ax, *Cx;
+	long *cnz, *irows, *icols;
+	int *ccol_start, *ccol_stop;
+	bool csorted;
+	long nz;
+
+	assert( A->stype != 0 );
+	assert( A->nrow == A->ncol );
+	assert( A->sorted );
+
+	Ap = (long*)(A->p);
+	Ai = (long*)(A->i);
+	Anz = (long*)(A->nz);
+	Ax  = (double*)(A->x);
+
+	irows = (long*)malloc(sizeof(long)*A->nrow);
+	icols = (long*)malloc(sizeof(long)*A->ncol);
+	cnz   = (long*)malloc(sizeof(long)*ncols);
+	ccol_start = (int*)malloc(sizeof(int)*ncols);
+	ccol_stop  = (int*)malloc(sizeof(int)*ncols);
+
+	for (i = 0; i < A->nrow; i++) irows[i] = icols[i] = -1;
+	for (i = 0; i < nrows; i++) irows[rows[i]] = i;
+	for (i = 0; i < ncols; i++) {
+		icols[cols[i]] = i;
+		ccol_start[i] = ccol_stop[i] = -1;
+		cnz[i] = 0;
+	}
+
+	nz = 0;
+	csorted = true;
+	for (i = 0; i < A->ncol; i++) {
+		if (icols[i] < 0) continue;
+
+		pend = (A->packed) ? Ap[i+1] : Anz[i];
+		pstart = Ap[i];
+		j = 0;
+
+		/* find the diagonal entry in this column */
+		while ((Ai[pstart+j] < i) && (j < pend)) j++;
+
+		/* there's nothing below the diagonal */
+		if ((A->stype < 0) && (Ai[Ap[i]+j] < i)) continue;
+
+		/* set up bounds for the given symmetry */
+		pstart = (A->stype < 0) ? j : 0;
+		pend = (A->stype < 0) ? pend-Ap[i] : j+1;
+
+		j = pstart;
+		pstart = -1;
+		last = pstart;
+		for ( ; j < pend; j++) {
+			/* select rows in the set */
+			if (irows[Ai[Ap[i]+j]] < 0) continue;
+			if (pstart < 0) pstart = j;
+			nz += 1;
+			cnz[icols[i]] += 1;
+			/* check for out-of-order rows */	
+			if (j < last) csorted = false;
+			last = j;
+		}
+		pend = last+1;
+
+		/* set up the bounds for the next traversal */
+		if (cnz[icols[i]] > 0) {
+			ccol_start[icols[i]] = Ap[i]+pstart;
+			ccol_stop[icols[i]] = Ap[i]+pend;
+		}
+		
+	}
+
+	/* nrows-by-ncols, rows not sorted, packed, stype of input */
+	C = cholmod_l_allocate_sparse(nrows, ncols, nz, 
+	    csorted, true, A->stype, CHOLMOD_REAL, c);
+
+	Cp = (long*)(C->p);
+	Ci = (long*)(C->i);
+	Cnz = (long*)(C->nz);
+	Cx  = (double*)(C->x);
+
+	Cp[0] = 0;
+	int p;
+	for (i = 0; i < ncols; i++) {
+		if (cnz[i] == 0) {
+			Cp[i+1] = Cp[i];
+			continue;
+		}	
+		p = Cp[i];
+		for (j = ccol_start[i]; j < ccol_stop[i]; j++) {
+			/* is this row one we want? */
+			if (irows[Ai[j]] < 0) continue;
+			/* set row indices and copy values */
+			Ci[p] = irows[Ai[j]];
+			Cx[p] = Ax[j];
+			p++;
+		}
+		Cp[i+1] = p;
+	}
+
+	free(irows);
+	free(icols);
+	free(cnz);
+	free(ccol_start);
+	free(ccol_stop);
+
+	if (!csorted) cholmod_l_sort(C, c);
+
+	return(C);
 }
 

@@ -92,7 +92,6 @@ nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 
 		if (ninf <= murty_steps)
 			trials = -1;
-
 		/*
 		 * Check the status of the bulk set switching.
 		 * After MAX_TRIALS iterations of Murty's finite method,
@@ -251,7 +250,7 @@ nnls_normal_block_updown(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	int nvar = AtA->nrow;
 	//long F[nvar], G[nvar], H1[nvar], H2[nvar];
 	long *F, *G, *H1, *H2;
-	cholmod_dense *x, *y;
+	cholmod_dense *x, *y, *x_F, *Atb_F;
 	cholmod_factor *L;
 	long nF, nG, nH1, nH2, ninf;
 	int i, trials, murty_steps, iter;
@@ -269,6 +268,7 @@ nnls_normal_block_updown(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	H2 = (long*)malloc(sizeof(long)*nvar);
 
 	x = cholmod_l_zeros(nvar, 1, CHOLMOD_REAL, c);
+	x_F = NULL;
 	y = cholmod_l_allocate_dense(nvar, 1, nvar, CHOLMOD_REAL, c);
 
 	/*
@@ -282,14 +282,15 @@ nnls_normal_block_updown(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		G[i] = i;
 	ninf = nvar + 1;	/* Number of infeasible coefficients */
 
-	/* Drop small entries from the problem, replacing them with eels. */
-	//cholmod_l_drop(DBL_EPSILON, AtA, c);
+	/* Drop small entries from the problem, replacing them with eels. 
+	 * Also drops the lower half of AtA if AtA->stype is 1. */
+	cholmod_l_drop(DBL_EPSILON, AtA, c);
+	AtA->stype = 1;
 
 	/* Set up the dual vector */
 	for (i = 0; i < nvar; i++)
 		((double *)(y->x))[i] = -((double *)(Atb->x))[i];
 
-	AtA->stype = 1;
 	t0 = clock();
 
 	/*
@@ -326,7 +327,7 @@ nnls_normal_block_updown(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		if (nH1 == 0 && nH2 == 0)
 			break;
 
-		if (ninf <= murty_steps)
+		if ((ninf <= murty_steps) )
 			trials = -1;
 
 		/*
@@ -409,7 +410,24 @@ nnls_normal_block_updown(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		 * Solve the full system, but with the rows of L corresponding
 		 * to G set to identity. 
 		 */
-		x = cholmod_l_solve(CHOLMOD_A, L, Atb, c);
+		if (L->n == nvar) {
+			x = cholmod_l_solve(CHOLMOD_A, L, Atb, c);
+		} else {
+			/*
+			 * If L is only a subset of the full matrix, solve
+			 * only the passive set.
+			 */
+			Atb_F = cholmod_l_allocate_dense(nF, 1, nF,
+			    CHOLMOD_REAL, c);
+			x_F = cholmod_l_solve(CHOLMOD_A, L, Atb_F, c);
+			cholmod_l_free_dense(&Atb_F, c);
+			x = cholmod_l_allocate_dense(nvar, 1, nvar,
+			    CHOLMOD_REAL, c);
+			for (i = 0; i < nF; i++)
+				((double*)(x->x))[F[i]] =
+				    ((double*)(x_F->x))[i];
+			cholmod_l_free_dense(&x_F, c);
+		}
 
 		if (verbose) {
 			t1 = clock();
