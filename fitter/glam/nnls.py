@@ -244,6 +244,105 @@ def nnls_normal_block(AtA,Atb,verbose=True):
 	if iterations == maxiter:
 		print 'Hooo boy, this turned out badly'
 	return x
+	
+def nnls_normal_block4(AtA,Atb,verbose=True):
+	"""A mockup of a variant Adlers BLOCK4 algorithm for pre-formulated
+	normal equations (lower bounds at zero only). This algorithm always reduces
+	the magnitude of the residual, and is thus finite.
+
+	See:
+	http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.32.8173
+	"""
+	# let's have the proper shape
+	AtA = n.asarray(AtA)
+	Atb = n.asarray(Atb).reshape(Atb.size)
+	nvar = AtA.shape[0]
+	maxiter = 3*nvar
+
+	if verbose:
+		def log(mesg):
+			print mesg
+	else:
+		def log(mesg):
+			pass
+
+	# start at the unconstrained solution, orthogonally projected into the
+	# feasible space
+	x = cholsolve(AtA,Atb)
+	mask = x < 0
+	F = list(n.nonzero(n.logical_not(mask))) # passive set
+	G = list(n.nonzero(mask)) # active set
+	
+	x[G] = 0
+	y = n.zeros(nvar)
+	y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[:,G]
+	
+	ninf = nvar + 1 # number of infeasible coefficients
+	max_trials = 10 # number of block pivots to try before resorting to Murty's method
+
+	p = max_trials
+	iterations = 0
+
+	while iterations < maxiter:
+		iterations += 1
+		if (x[F] >= 0).all() and (y[G] >= 0).all():
+			log('All coefficients are positive, terminating after %d iterations' % iterations)
+			break
+		H1 = n.array(F)[x[F] < 0]
+		H2 = n.array(G)[y[G] < 0]
+		
+		# shuffle infeasible coefficients between sets
+		log('infeasibles: %d'%ninf)
+		for r in H1:
+			F.remove(r); G.append(r)
+		for r in H2:
+			G.remove(r); F.append(r)
+		F.sort(); G.sort()
+		AtA_F = AtA[:,F][F,:]
+		Atb_F = Atb[:,F]
+		log("Unconstrained solve for %d of %d coefficients" % (len(F),nvar))
+		x_F = cholsolve(AtA_F,Atb_F)
+		infeasible = x_F < 0
+		if not infeasible.any():
+			# the new solution doesn't violate any constraints
+			x[F] = x_F
+		else:
+			# the new solution violates at least one constraint => find the longest
+			# distance we can move toward the new solution without increasing the
+			# value of the objective function
+			
+			# the vector from the current solution to the minimum of ||AtA[F,:][:,F] - b[F]||
+			descent = x_F - x[F]
+			# Ideally, we'd like to scale the descent vector continuously and find the largest
+			# one that still reduces the magnitude of the residual, but that way lies madness.
+			# Instead, choose from amongst the set of descent scales that would make one of 
+			# the coefficients in F exactly zero.
+			alphas = (x[F]/(x[F]-x_F))[infeasible]
+			# sort the candidate descent scales in descending order,
+			# starting with 1 (a jump directly to the subspace minimum)
+			alphas = [1.0] + list(n.sort(alphas[alphas < 1])[::-1])
+			
+			def subresidual(x):
+				return n.dot(x[F].transpose(), n.dot(AtA_F, x[F])) + 2*n.dot(x[F].transpose(), Atb_F)
+			residual = subresidual(x)
+			for alpha in alphas:
+				x_candidate = x.copy()
+				x_candidate[F] += alpha*descent
+				# project canidate into feasible space
+				x_candidate[x_candidate < 0] = 0
+				candidate_residual = subresidual(x_candidate)
+				# find the largest step that reduces the residual in the overall problem
+				if candidate_residual <= residual:
+					log("alpha = %e, residual = %e" % (alpha,candidate_residual))
+					x[F] = x_candidate[F]
+					break
+		# update constrained part
+		x[G] = 0
+		y[F] = 0
+		y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[:,G]
+	if iterations == maxiter:
+		print 'Hooo boy, this turned out badly'
+	return x
 		   
 def test(size=5):
 	import pylab as p
@@ -251,7 +350,7 @@ def test(size=5):
 	A = n.eye(size)
 	x_true = n.random.uniform(size=size,low=-1,high=1)
 	b = n.dot(A,x_true)
-	x = nnls(A,b)
+	x = nnls_normal_block4(A,b)
 	p.figure()
 	p.plot(x_true,drawstyle='steps-post',label='true')
 	p.plot(x,drawstyle='steps-post',label='fit')
