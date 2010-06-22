@@ -281,6 +281,17 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 	lstsqs = 0
 	KKT_TOL = n.finfo(n.double).eps
 
+	def modify_factor(F,G,H1,H2):
+		"""In the C implementation, we would refactorize AtA here."""
+		for r in H1:
+			F.remove(r)
+			G.append(r)
+		for r in H2:
+			G.remove(r)
+			F.append(r)
+		F.sort()
+		G.sort()
+
 	while iterations < maxiter:
 		iterations += 1
 		# step 1
@@ -288,14 +299,13 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 			if len(G) == 0:
 				log("Active set empty, terminating after %d iterations (%d LU solves)" % (iterations,lstsqs+1))
 				break # the passive set is the whole set, we're done
+			H1 = []
 			H2 = n.array(G)[y[G] < -KKT_TOL]
 			if H2.size == 0:
 				log("Lagrange multipliers are all positive, terminating after %d iterations (%d factorizations)" % (iterations,lstsqs+1))
 				break # x is the optimal solution, we're done
 			log("\tFreeing %d coefficients (y_min = %e)" % (H2.size, y[H2].min()))
-			for r in H2:
-				G.remove(r); F.append(r)
-			F.sort()
+			modify_factor(F, G, H1, H2)
 		feasible = False
 		while not feasible:
 			AtA_F = AtA[:,F][F,:]
@@ -315,8 +325,9 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 				# the constraints.
 				# Pick an infeasible coefficient and constrain it.
 				r = n.array(F)[infeasible][-1]
-				F.remove(r)
-				G.append(r); G.sort()
+				H1 = [r]; H2 = []
+				modify_factor(F, G, H1, H2)
+
 				x[r] = 0
 				log("\tConstraining %d (descent at boundary)"%r)
 			else:
@@ -352,8 +363,8 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 							# we've encountered the worst case, in which no reduction of the objective function is possible.
 							# bound the first infeasible coefficient and try again.
 							r = n.array(F)[infeasible][-1]
-							F.remove(r)
-							G.append(r); G.sort()
+							H1 = [r]; H2 = [];
+							modify_factor(F, G, H1, H2)
 							x[r] = 0
 							log("\tConstraining %d (alpha = 0)"%r)
 						else:
@@ -361,10 +372,12 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 							# update the solution and zero newly-infeasible coefficients
 							log("\talpha = %- e, d_residual = %- e, residual = %- .20e" % (alpha,candidate_residual-residual,candidate_residual))
 							x[F] = x_candidate[F]
-							for r in H1:
-								F.remove(r)
-								G.append(r)
-							G.sort()
+							# XXX: have to keep two lists; one for updating y, one for 
+							# consolidating factor modifications (we twiddle F here, and G
+							# in the outer loop.
+							H2 = []
+							modify_factor(F, G, H1, H2)
+
 							x[G] = 0
 							feasible = True
 						break
