@@ -272,6 +272,13 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 	mask = x < 0
 	F = list(n.nonzero(n.logical_not(mask))[0]) # passive set
 	G = list(n.nonzero(mask)[0]) # active set
+	H1 = [] # coefficients to be constrained
+	H2 = [] # coefficients to be freed
+
+	# keep parallel passive and active sets that reflect the current
+	# state of the factorization
+	set_F = []
+	set_G = []
 	
 	x[G] = 0
 	y = n.zeros(nvar)
@@ -289,6 +296,8 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 		for r in H2:
 			G.remove(r)
 			F.append(r)
+		if len(H1) > 0: del H1[:]
+		if len(H2) > 0: del H2[:]
 		F.sort()
 		G.sort()
 
@@ -296,18 +305,24 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 		iterations += 1
 		# step 1
 		if iterations > 1:
-			if len(G) == 0:
+			# use set_G if the column partition is out of sync with the factorization
+			# state, otherwise G
+			G_ = set_G if len(set_G) > 0 else G
+			if len(G_) == 0:
 				log("Active set empty, terminating after %d iterations (%d LU solves)" % (iterations,lstsqs+1))
 				break # the passive set is the whole set, we're done
-			H1 = []
-			H2 = n.array(G)[y[G] < -KKT_TOL]
-			if H2.size == 0:
+			H2 = list(n.array(G_)[y[G_] < -KKT_TOL])
+			if len(H2) == 0:
 				log("Lagrange multipliers are all positive, terminating after %d iterations (%d factorizations)" % (iterations,lstsqs+1))
 				break # x is the optimal solution, we're done
-			log("\tFreeing %d coefficients (y_min = %e)" % (H2.size, y[H2].min()))
-			modify_factor(F, G, H1, H2)
+			log("\tFreeing %d coefficients (y_min = %e)" % (len(H2), y[H2].min()))
 		feasible = False
 		while not feasible:
+			# get ride of the temporary partitioning
+			if len(set_G) > 0: del set_G[:]
+			if len(set_F) > 0: del set_F[:]
+			# update factorization state (clearing H1 and H2)
+			modify_factor(F, G, H1, H2)
 			AtA_F = AtA[:,F][F,:]
 			Atb_F = Atb[:,F]
 			log("Unconstrained solve for %d of %d coefficients" % (len(F),nvar))
@@ -315,7 +330,8 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 			lstsqs += 1
 			infeasible = x_F < 0
 			if not infeasible.any():
-				# the new solution doesn't violate any constraints
+				# the new solution doesn't violate any constraints,
+				# so F doesn't change
 				x[F] = x_F
 				feasible = True
 				log("\tStep is entirely feasible")
@@ -324,9 +340,8 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 				# a boundary, so we can't improve the solution at all without modifying
 				# the constraints.
 				# Pick an infeasible coefficient and constrain it.
-				r = n.array(F)[infeasible][-1]
-				H1 = [r]; H2 = []
-				modify_factor(F, G, H1, H2)
+				r = n.array(F)[infeasible][0]
+				H1 += [r] 
 
 				x[r] = 0
 				log("\tConstraining %d (descent at boundary)"%r)
@@ -354,7 +369,7 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 					x_candidate = x.copy()
 					x_candidate[F] += alpha*descent
 					# project canidate into feasible space
-					H1 = n.array(F)[x_candidate[F] < 0]
+					candidate_infeasibles = list(n.array(F)[x_candidate[F] < 0])
 					x_candidate[x_candidate < 0] = 0
 					candidate_residual = subresidual(x_candidate)
 					# find the largest step that reduces the residual in the overall problem
@@ -362,9 +377,8 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 						if alpha == 0:
 							# we've encountered the worst case, in which no reduction of the objective function is possible.
 							# bound the first infeasible coefficient and try again.
-							r = n.array(F)[infeasible][-1]
-							H1 = [r]; H2 = [];
-							modify_factor(F, G, H1, H2)
+							r = n.array(F)[infeasible][0]
+							H1 += [r]
 							x[r] = 0
 							log("\tConstraining %d (alpha = 0)"%r)
 						else:
@@ -372,23 +386,170 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 							# update the solution and zero newly-infeasible coefficients
 							log("\talpha = %- e, d_residual = %- e, residual = %- .20e" % (alpha,candidate_residual-residual,candidate_residual))
 							x[F] = x_candidate[F]
-							# XXX: have to keep two lists; one for updating y, one for 
-							# consolidating factor modifications (we twiddle F here, and G
-							# in the outer loop.
-							H2 = []
-							modify_factor(F, G, H1, H2)
+							# XXX: the partition changes here. when to update F?
+							H1 += candidate_infeasibles
+							H1.sort()
 
 							x[G] = 0
 							feasible = True
 						break
 				
+		if len(H1) > 0:
+			# the state of the factorization and that of the set partition
+			# are temporarily out of sync. Move any negative coefficients to
+			# a temporary passive set for the calculation of the Lagrange
+			# multipliers.
+			set_F = list(F)
+			set_G = list(G)
+			for r in H1:
+				set_F.remove(r)
+				set_G.append(r)
+			set_G.sort()
+			F_ = set_F
+			G_ = set_G
+			log("\t\tSets out of sync (%d negatives in F)!"%(len(H1)))
+		else:
+			F_ = F
+			G_ = G
 		# now that we've made x[F] feasible, update constrained part
 		y[:] = 0
-		y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[:,G]
+		x[G_] = 0
+		y[G_] = n.dot(AtA[:,F_][G_,:],x[F_]) - Atb[:,G_]
 	if iterations == maxiter:
 		print 'Hooo boy, this turned out badly'
 	return x
 		   
+def nnls_normal_block4(AtA,Atb,verbose=True):
+	"""A mockup of a variant Adlers BLOCK4 algorithm for pre-formulated
+	normal equations (lower bounds at zero only). This algorithm always reduces
+	the magnitude of the residual, and is thus finite.
+	
+	CURRENTLY QUITE BROKEN.
+
+	See:
+	http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.32.8173
+	"""
+	# let's have the proper shape
+	AtA = n.asarray(AtA)
+	Atb = n.asarray(Atb).reshape(Atb.size)
+	nvar = AtA.shape[0]
+	maxiter = 3*nvar
+
+	if verbose:
+		def log(mesg):
+			print mesg
+	else:
+		def log(mesg):
+			pass
+
+	# start at the unconstrained solution, orthogonally projected into the
+	# feasible space
+	x = cholsolve(AtA,Atb)
+	mask = x < 0
+	F = list(n.nonzero(n.logical_not(mask))[0]) # passive set
+	G = list(n.nonzero(mask)[0]) # active set
+	
+	x[G] = 0
+	y = n.zeros(nvar)
+	y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[:,G]
+	
+	iterations = 0
+	lstsqs = 0
+	KKT_TOL = n.finfo(n.double).eps
+
+	def modify_factor(F,G,H1,H2):
+		"""In the C implementation, we would refactorize AtA here."""
+		for r in H1:
+			F.remove(r)
+			G.append(r)
+		for r in H2:
+			G.remove(r)
+			F.append(r)
+		F.sort()
+		G.sort()
+
+	while iterations < maxiter:
+		iterations += 1
+		# step 1
+		H1 = n.array(F)[x[F] < 0]
+		H2 = n.array(G)[y[G] < -KKT_TOL]
+		if (H1.size == 0 and H2.size == 0):
+			log("Optimal, terminating after %d iterations (%d solves)" % (iterations,lstsqs+1))
+			break
+
+		modify_factor(F, G, H1, H2)
+
+		AtA_F = AtA[:,F][F,:]
+		Atb_F = Atb[:,F]
+		log("Unconstrained solve for %d of %d coefficients" % (len(F),nvar))
+		x_F = cholsolve(AtA_F,Atb_F)
+		lstsqs += 1
+		infeasible = x_F < 0
+		feasible = False
+
+		if not infeasible.any():
+			x[F] = x_F
+			log("\tStep is entirely feasible")
+		elif (x[F][infeasible] == 0).all():
+			# In this case, any movement along the descent direction will encounter
+			# a boundary, so we can't improve the solution at all without modifying
+			# the constraints.
+			# Pick an infeasible coefficient and constrain it.
+			r = n.array(F)[infeasible][-1]
+			# XXX HACK: force this coefficient to go negative in the next iteration
+			x[r] = -KKT_TOL
+			log("\tConstraining %d (descent at boundary)"%r)
+		else:
+			# the new solution violates at least one constraint => find the longest
+			# distance we can move toward the new solution without increasing the
+			# value of the objective function
+			
+			# the vector from the current solution to the minimum of ||AtA[F,:][:,F] - b[F]||
+			descent = x_F - x[F]
+			# Ideally, we'd like to scale the descent vector continuously and find the largest
+			# one that still reduces the magnitude of the residual, but that way lies madness.
+			# Instead, choose from amongst the set of descent scales that would make one of 
+			# the coefficients in F exactly zero.
+			alphas = (x[F]/(x[F]-x_F))[infeasible]
+			# sort the candidate descent scales in descending order,
+			# starting with 1 (a jump directly to the subspace minimum)
+			alphas = [1.0] + list(n.sort(alphas[(alphas < 1)&(alphas > 1e-6)])[::-1]) + [0.0]
+			
+			def subresidual(x):
+				return n.dot(x[F].transpose(), n.dot(AtA_F, x[F])) - 2*n.dot(x[F].transpose(), Atb_F)
+			residual = subresidual(x)
+			gotcha = False
+			for alpha in alphas:
+				x_candidate = x.copy()
+				x_candidate[F] += alpha*descent
+				# project canidate into feasible space
+				H1 = n.array(F)[x_candidate[F] < 0]
+				x_candidate[x_candidate < 0] = 0
+				candidate_residual = subresidual(x_candidate)
+				# find the largest step that reduces the residual in the overall problem
+				if candidate_residual <= residual:
+					if alpha == 0:
+						# we've encountered the worst case, in which no reduction of the objective function is possible.
+						# bound the first infeasible coefficient and try again.
+						r = n.array(F)[infeasible][-1]
+						# XXX HACK: force this coefficient to go negative in the next iteration
+						x[r] = -KKT_TOL
+						log("\tConstraining %d (alpha = 0)"%r)
+					else:
+						# we can reduce the objective function by moving towards the subspace minimum
+						# update the solution and zero newly-infeasible coefficients
+						log("\talpha = %- e, d_residual = %- e, residual = %- .20e" % (alpha,candidate_residual-residual,candidate_residual))
+						x[F] = x_candidate[F]
+					break
+				
+		# now that we've made x[F] feasible, update constrained part
+		y[:] = 0
+		x[G] = 0
+		y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[:,G]
+	if iterations == maxiter:
+		print 'Hooo boy, this turned out badly'
+	return x
+
 def test(size=5):
 	import pylab as p
 	# A = n.random.uniform(size=size*size,low=-1,high=1).reshape((size,size))
