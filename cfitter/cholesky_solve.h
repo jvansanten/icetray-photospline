@@ -29,6 +29,10 @@ cholmod_factor *
 recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
     long *F, long nF, cholmod_common *c);
 
+double
+calc_residual(cholmod_sparse *AtA, cholmod_dense *Atb,
+    cholmod_dense *x, cholmod_common *c);
+
 #define FACTOR_INFO(L) printf(#L " is_ll: %d, is_super: %d, is_monotonic: %d, xtype: %d, ordering: %d\n",L->is_ll,L->is_super,L->is_monotonic,L->xtype,L->ordering)
 
 #define DPRINT(vec,size,format)\

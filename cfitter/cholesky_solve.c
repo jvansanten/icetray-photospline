@@ -698,3 +698,33 @@ submatrix_symm(cholmod_sparse *A, long *rows, long nrows,
 	return(C);
 }
 
+/*
+ * Calculate the 2-norm ||Ax - b|| to within an additive constant (b'b)
+ *
+ * ||Ax - b|| - b'b = x'A'Ax - 2x'A'b = x'(A'Ax - 2A'b)
+ */
+
+double
+calc_residual(cholmod_sparse *AtA, cholmod_dense *Atb,
+    cholmod_dense *x, cholmod_common *c)
+{
+	int i;
+	double result;
+	cholmod_dense *AtAx;
+	int nvar = x->nrow;
+	double ones[2]  = { 1., 0};
+	double mtwos[2] = {-2., 0};
+
+	/* AtAx = 0.5*A'Ax - A'b */
+	AtAx = cholmod_l_copy_dense(Atb, c);
+	cholmod_l_sdmult(AtA, 0, ones, mtwos, x, AtAx, c);
+	
+	/* XXX: hopefully vector optimizations will pick this up */
+	result = 0;
+	for (i = 0; i < nvar; i++)
+		result += ((double*)(x->x))[i] * ((double*)(AtAx->x))[i];
+
+	cholmod_l_free_dense(&AtAx, c);
+	
+	return(result);
+}
