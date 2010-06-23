@@ -286,7 +286,10 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 	
 	iterations = 0
 	lstsqs = 0
-	KKT_TOL = n.finfo(n.double).eps
+	residual_calcs = 0
+	# Heuristic numerical-instability-avoiding tolerance from Adlers' thesis
+	KKT_TOL = n.finfo(n.double).eps * nvar * 1e3
+	log("Stopping tolerance: %e" % KKT_TOL)
 
 	def modify_factor(F,G,H1,H2):
 		"""In the C implementation, we would refactorize AtA here."""
@@ -303,24 +306,22 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 
 	while iterations < maxiter:
 		iterations += 1
-		# step 1
-		if iterations > 1:
-			# use set_G if the column partition is out of sync with the factorization
-			# state, otherwise G
-			G_ = set_G if len(set_G) > 0 else G
-			if len(G_) == 0:
-				log("Active set empty, terminating after %d iterations (%d LU solves)" % (iterations,lstsqs+1))
-				break # the passive set is the whole set, we're done
-			H2 = list(n.array(G_)[y[G_] < -KKT_TOL])
-			if len(H2) == 0:
-				log("Lagrange multipliers are all positive, terminating after %d iterations (%d factorizations)" % (iterations,lstsqs+1))
-				break # x is the optimal solution, we're done
-			log("\tFreeing %d coefficients (y_min = %e)" % (len(H2), y[H2].min()))
+		# use set_G if the column partition is out of sync with the factorization
+		# state, otherwise G
+		G_ = set_G if len(set_G) > 0 else G
+		if len(G_) == 0:
+			log("Active set empty, terminating after %d iterations (%d factorizations, %d residual calculcations)" % (iterations,lstsqs+1,residual_calcs))
+			break # the passive set is the whole set, we're done
+		H2 = list(n.array(G_)[y[G_] < -KKT_TOL])
+		if len(H2) == 0:
+			log("Lagrange multipliers are all non-negative, terminating after %d iterations (%d factorizations, %d residual calculations)" % (iterations,lstsqs+1,residual_calcs))
+			break # x is the optimal solution, we're done
+		log("\tFreeing %d coefficients (y_min = %e)" % (len(H2), y[H2].min()))
+		# get ride of the temporary partitioning
+		if len(set_G) > 0: del set_G[:]
+		if len(set_F) > 0: del set_F[:]
 		feasible = False
 		while not feasible:
-			# get ride of the temporary partitioning
-			if len(set_G) > 0: del set_G[:]
-			if len(set_F) > 0: del set_F[:]
 			# update factorization state (clearing H1 and H2)
 			modify_factor(F, G, H1, H2)
 			AtA_F = AtA[:,F][F,:]
@@ -335,16 +336,13 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 				x[F] = x_F
 				feasible = True
 				log("\tStep is entirely feasible")
-			elif (x[F][infeasible] == 0).all():
-				# In this case, any movement along the descent direction will encounter
+			elif (x[F][infeasible] < KKT_TOL).all():
+				# In this case, any appreciable movement along the descent direction will encounter
 				# a boundary, so we can't improve the solution at all without modifying
-				# the constraints.
-				# Pick an infeasible coefficient and constrain it.
-				r = n.array(F)[infeasible][0]
-				H1 += [r] 
-
-				x[r] = 0
-				log("\tConstraining %d (descent at boundary)"%r)
+				# the constraints. Constrain any coefficients at the boundary.
+				H1 += list(n.array(F)[infeasible])
+				x[H1] = 0
+				log("\tConstraining %d/%d coefficients (descent at boundary)" % (infeasible.sum(), infeasible.size))
 			else:
 				# the new solution violates at least one constraint => find the longest
 				# distance we can move toward the new solution without increasing the
@@ -359,11 +357,13 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 				alphas = (x[F]/(x[F]-x_F))[infeasible]
 				# sort the candidate descent scales in descending order,
 				# starting with 1 (a jump directly to the subspace minimum)
-				alphas = [1.0] + list(n.sort(alphas[(alphas < 1)&(alphas > 1e-6)])[::-1]) + [0.0]
+				alphas = [1.0] + list(n.sort(alphas[(alphas < 1)&(alphas > KKT_TOL)])[::-1])
 				
 				def subresidual(x):
 					return n.dot(x[F].transpose(), n.dot(AtA_F, x[F])) - 2*n.dot(x[F].transpose(), Atb_F)
+				
 				residual = subresidual(x)
+				residual_calcs += 1
 				gotcha = False
 				for alpha in alphas:
 					x_candidate = x.copy()
@@ -372,27 +372,27 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 					candidate_infeasibles = list(n.array(F)[x_candidate[F] < 0])
 					x_candidate[x_candidate < 0] = 0
 					candidate_residual = subresidual(x_candidate)
+					residual_calcs += 1
 					# find the largest step that reduces the residual in the overall problem
 					if candidate_residual <= residual:
-						if alpha == 0:
-							# we've encountered the worst case, in which no reduction of the objective function is possible.
-							# bound the first infeasible coefficient and try again.
-							r = n.array(F)[infeasible][0]
-							H1 += [r]
-							x[r] = 0
-							log("\tConstraining %d (alpha = 0)"%r)
-						else:
-							# we can reduce the objective function by moving towards the subspace minimum
-							# update the solution and zero newly-infeasible coefficients
-							log("\talpha = %- e, d_residual = %- e, residual = %- .20e" % (alpha,candidate_residual-residual,candidate_residual))
-							x[F] = x_candidate[F]
-							# XXX: the partition changes here. when to update F?
-							H1 += candidate_infeasibles
-							H1.sort()
+						# we can reduce the objective function by moving towards the subspace minimum
+						# update the solution and zero newly-infeasible coefficients
+						log("\talpha = %- e, d_residual = %- e, residual = %- .20e" % (alpha,candidate_residual-residual,candidate_residual))
+						x[F] = x_candidate[F]
+						# XXX: the partition changes here. when to update F?
+						H1 += candidate_infeasibles
+						H1.sort()
 
-							x[G] = 0
-							feasible = True
+						x[G] = 0
+						feasible = True
+						gotcha = True
 						break
+				if not gotcha:
+					# we've encountered the worst case, in which no reduction of the objective function is possible.
+					# Constrain all the infeasible coefficients and try again.
+					H1 += list(n.array(F)[infeasible])
+					x[H1] = 0
+					log("\tConstraining %d/%d coefficients (alpha[%d] = 0)" % (infeasible.sum(), infeasible.size, len(alphas)-1))
 				
 		if len(H1) > 0:
 			# the state of the factorization and that of the set partition
