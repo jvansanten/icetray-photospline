@@ -547,13 +547,6 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	if (verbose)
 		printf("Stopping tolerance: %e\n",kkt_tolerance);
 
-	/*
-	 * The METIS graph-partitioning code tends to segfault. Don't use it.
-	 *
-	 * XXX: Perhaps try NESDIS, at least for the initial solve?
-	 */
-	c->nmethods = 2;
-
 	/* F and G track the state of the factorization */
 	F  = (long*)malloc(sizeof(long)*nvar);
 	G  = (long*)malloc(sizeof(long)*nvar);
@@ -579,6 +572,19 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	 * Also drops the lower half of AtA if AtA->stype is 1. */
 	cholmod_l_drop(DBL_EPSILON, AtA, c);
 	AtA->stype = 1;
+
+	/*
+	 * This algorithm is under a tremendous amount of memory pressure, 
+	 * especially in the initial solve, which operates on the full matrix.
+	 * NESDIS can sometimes find a much better ordering than AMD, but is 
+	 * ~ 5x slower. The extra time spend trying different orderings is 
+	 * well worth ~ 2x savings in memory.
+	 * 
+	 * XXX: METIS graph-partitioning is known to segfault on large
+	 * matrices, so we remove it from the list of orderings.
+	 */
+	c->method[2] = c->method[3]; /* NESDIS, default parameters */
+	c->nmethods = 3;
 
 	/* Initialize with the solution to the unconstrained problem. */
 	L = cholmod_l_analyze(AtA, c);
