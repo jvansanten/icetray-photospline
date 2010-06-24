@@ -4,6 +4,7 @@
 
 #include <time.h>
 #include <float.h>
+#include <assert.h>
 
 #include <suitesparse/cholmod.h>
 #include "splineutil.h"
@@ -529,13 +530,17 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	cholmod_factor *L;
 	long nF, nG, nH1, nH2, ninf;
 	long nFprime, nGprime, nF_, nG_;
-	int i, j, k, iter;
+	int i, j, k;
+	int iter, solves, residual_calcs;
 	int feasible;
 	clock_t t0, t1;
-	double kkt_tolerance;
+	double kkt_tolerance, y_min, residual;
 
 	/* XXX: make these settable? */
 	iter = 3*nvar;		/* Maximum number of iterations */
+	solves = 0;
+	residual_calcs = 0;
+	residual = DBL_MAX;
 
 	/* Heuristic stopping tolerance from Adlers' thesis */
 	kkt_tolerance = ((double)(nvar)) * DBL_EPSILON * 1e3;
@@ -544,6 +549,8 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 
 	/*
 	 * The METIS graph-partitioning code tends to segfault. Don't use it.
+	 *
+	 * XXX: Perhaps try NESDIS, at least for the initial solve?
 	 */
 	c->nmethods = 2;
 
@@ -577,6 +584,7 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	L = cholmod_l_analyze(AtA, c);
 	cholmod_l_factorize(AtA, L, c);
 	x = cholmod_l_solve(CHOLMOD_A, L, Atb, c);
+	++solves;
 	/* Place any negative coefficients in the actively constrained set */
 	for (i = 0; i < nvar; i++) {
 		if (((double*)(x->x))[i] >= 0)
@@ -664,8 +672,57 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		}
 
 		for (i = 0; i < nG_; i++)
-			if (((double *)(y->x))[G_[i]] < -kkt_tolerance)
+			if (((double *)(y->x))[G_[i]] < -kkt_tolerance) {
 				H2[nH2++] = G_[i];
+			}
+
+#ifndef NDEBUG
+		{
+		/* Paranoia: check for duplicate entries. */
+			int count;
+			for (i = 0; i < nH1; i++) {
+				count = 0;
+				for (j = 0; j < nH1; j++) {
+					if (H1[j] == H1[i]) count++;
+				}
+				assert(count == 1);
+			}
+			for (i = 0; i < nH2; i++) {
+				count = 0;
+				for (j = 0; j < nH2; j++) {
+					if (H2[j] == H2[i]) count++;
+				}
+				assert(count == 1);
+			}
+		}
+#endif
+
+		/*
+		 * If a coefficient was marked for constraint at the end of
+		 * the inner loop and then freed again here, H1 and H2 can
+		 * contain common elements. This is silly, since the change
+		 * is a no-op. Make the sets disjoint again.
+		 */
+		if (nH1 > 0)
+			for (i = 0, j = 0; i < nH2; ) {
+				while((H1[j] < H2[i]) && (j < nH1)) j++;
+				if ((j < nH1) && (H2[i] == H1[j])) {
+					/* Remove the element is from both */
+					for (k = j; k+1 < nH1; k++)
+						H1[k] = H1[k+1];
+					for (k = i; k+1 < nH2; k++)
+						H2[k] = H2[k+1];
+					--nH1;
+					--nH2;
+				} else {
+					++i;
+				}
+			}
+
+		y_min = 0;
+		for (i = 0; i < nH2; i++)
+			if ((((double *)(y->x))[H2[i]] < y_min))
+				y_min = ((double *)(y->x))[H2[i]];
 
 		/*
 		 * If we've satisfied the KKT conditions, we're done. 
@@ -676,8 +733,12 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		ninf = nH1 + nH2;
 
 		if (verbose)
-			printf("Iteration %d Infeasibles: %ld\n",
-			    iter, ninf);
+			printf("\tFreeing %ld coefficients (y_min = %e)\n",
+			    nH2, y_min);
+
+		if (verbose)
+			printf("Iteration %d Infeasibles: %ld Residual: %.20e\n",
+			    iter, ninf, residual);
 
 		nFprime = nGprime = -1;
 		feasible = false;
@@ -722,9 +783,10 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 					    ((double*)(Atb->x))[F[i]];
 	
 				x_F = cholmod_l_solve(CHOLMOD_A, L, Atb_F, c);
-	
-				//cholmod_l_free_dense(&Atb_F, c);
 			}
+
+			++solves;
+
 			if (verbose) {
 				t1 = clock();
 				printf("\tSolve[%d] (%ld free): %.2f s\n",
@@ -759,6 +821,11 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 					    ((double*)(x_F->x))[i];
 				cholmod_l_free_dense(&x_F, c);
 				feasible = true;
+
+				if (verbose)
+					printf("\tSolution entirely "
+					    "feasible\n");
+
 			} else if (nF_inf == nF_inf_boundary) {
 				/*
 				 * Part of the new solution is negative, but
@@ -778,6 +845,9 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 				}
 				cholmod_l_free_dense(&x_F, c);
 				feasible = false;
+
+				if (verbose)
+					printf("\tConstraining %ld coefficients"					    " (descent at boundary)\n", nH1);
 				
 			} else {
 				/*
@@ -794,6 +864,9 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 				 * residual with respect to the current
 				 * solution.
 				 */
+
+				assert( nH1 == 0 );
+				assert( nH2 == 0 );
 
 				double *alpha;
 				double res, res_c, *xptr;
@@ -830,6 +903,35 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 				qsort(alpha, n_alpha, sizeof(alpha[0]),
 				    double_rcmp);
 
+				/*
+				 * For large problems, alpha can be very long
+				 * and the residual computation can come to
+				 * dominate the run time of an iteration. Here,
+				 * we thin alpha out such that the steps are at
+				 * least 0.01 apart.
+				 */
+
+				/* 
+				 * XXX: this appears to allow the residual to
+				 * increase. WTF?
+				 */
+#if 0
+				if (n_alpha > 100) {
+					for (i = 1; i < n_alpha; ) {
+						if (alpha[i-1] - alpha[i] <
+						    1e-2) {
+							for (k = i;
+							    k+1 < n_alpha; ++k)
+								alpha[k] = 
+								    alpha[k+1];
+							--n_alpha;
+						} else {
+							++i;
+						}
+					}
+				}
+#endif
+
 				/* Prepare to calculate residuals. */
 				x_c = cholmod_l_allocate_dense(nF, 1, nF, 
 				    CHOLMOD_REAL, c);
@@ -854,6 +956,7 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 
 				/* Calculate the residual at the current x[F] */
 				res = calc_residual(AtA_F, Atb_F, x_c, c);
+				++residual_calcs;
 
 				/*
 				 * Find the furthest distance we can move along
@@ -877,7 +980,7 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 						 * coefficients become
 						 * constrained.
 						 */
-						if (*xptr < 0) {
+						if (*xptr < 0.) {
 							*xptr = 0.;
 							H1[nH1++] = F[j];
 						}
@@ -885,9 +988,11 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 					}
 					res_c = calc_residual(AtA_F, Atb_F,
 					    x_c, c);
+					++residual_calcs;
 					if (res_c <= res) {
 						success = true;
 						feasible = true;
+						residual = res_c;
 						/* 
 						 * NB: x_c is feasible by
 						 * construction.
@@ -901,7 +1006,7 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 							    "%.3f, d_res = "
 							    "%e\n", i, alpha[i],
 							    res_c - res);
-						    
+
 						break;
 					}
 					
@@ -917,8 +1022,8 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 				if (!success) {
 					nH1 = 0;
 					for (j = 0; j < nF; j++) {
-						if (((double*)(x_F->x))[i] 
-						    < 0) {
+						if (((double*)(x_F->x))[j] 
+						    < 0.) {
 							H1[nH1++] = F[j];
 						}
 					}
@@ -967,10 +1072,8 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 			 */
 			memcpy(Fprime, F, nF*sizeof(long));
 			memcpy(Gprime, G, nG*sizeof(long));
-			nFprime = nF;
-			nGprime = nG;
-			F_ = Fprime; nF_ = nFprime;
-			G_ = Gprime; nG_ = nGprime;
+			F_ = Fprime; nF_ = nF;
+			G_ = Gprime; nG_ = nG;
 			/* Move elements from F_ into G_ */
 			for (i = 0, j = 0; i < nH1; i++) {
 				G_[nG_++] = H1[i];
@@ -983,21 +1086,13 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 			 * to apply the changes to F before the next solve.
 			 */
 			nF_ -= nH1;
+			nFprime = nF_;
+			nGprime = nG_;
+
+			assert( nFprime + nGprime == nvar );
 		
 			qsort(G_, nG_, sizeof(G_[0]), intcmp);
 		}
-
-
-		/* Explicitly zero x[G] and y[F] */
-		for (i = 0; i < nG_; i++)
-			((double *)(x->x))[G_[i]] = 0;
-		for (i = 0; i < nF_; i++)
-			((double *)(y->x))[F_[i]] = 0;
-
-#if 0
-		DPRINT(F_, nF_, " %ld");
-		DPRINT(G_, nG_, " %ld");
-#endif
 
 		/* Update the constrained part */
 		{
@@ -1047,6 +1142,13 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 			AtA->stype = 1;
 			
 		}
+
+		/* Explicitly zero x[G] and y[F] */
+		for (i = 0; i < nG_; i++)
+			((double *)(x->x))[G_[i]] = 0;
+		for (i = 0; i < nF_; i++)
+			((double *)(y->x))[F_[i]] = 0;
+
 #if 0
 		double* x_full = (double*)(x->x);
 		double* y_full = (double*)(y->x);
@@ -1064,6 +1166,11 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	free(Gprime);
 	free(H1);
 	free(H2);
+
+	if (verbose) {
+		printf("Finished in %d iterations (%d factorizations, %d "
+		    "residual calculations).\n", iter+1,solves,residual_calcs);
+	}
 
 	return (x);
 }
