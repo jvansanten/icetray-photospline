@@ -774,7 +774,19 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 			 * corresponding to G set to identity. 
 			 */
 			if (L->n == nvar) {
-				x_F = cholmod_l_solve(CHOLMOD_A, L, Atb, c);
+				cholmod_dense *x_temp;
+
+				x_temp = cholmod_l_solve(CHOLMOD_A, L, Atb, c);
+				/*
+				 * NB: x_F must be the same length as F.
+				 * Extract the free set from the full solution.
+				 */
+				x_F = cholmod_l_allocate_dense(nF, 1, nF,
+				    CHOLMOD_REAL, c);
+				for (i = 0; i < nF; i++)
+					((double*)(x_F->x))[i] =
+					    ((double*)(x_temp->x))[F[i]];
+				cholmod_l_free_dense(&x_temp, c);
 			} else {
 				/*
 				 * If L is only a subset of the full matrix,
