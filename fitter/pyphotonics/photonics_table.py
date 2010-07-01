@@ -160,16 +160,71 @@ class photonics_table():
         print "Don't know how to convert table with level", self.level
         return 0
 
-    def mirror(self,rho=3,phi=3):
+    def mirror(self,n_rho=3,n_phi=3):
 	"""Extend table to rho < 0 and 180 < phi < 360. This may be useful for surpressing edge effects while fitting."""
-	# XXX only rho mirroring for now
-	# the mirror images of the radial slices are in reverse order
-	indices = numpy.arange(self.values.shape[1], -1, -1)
-	# first rho radial slices in descending radial order	
-	mirrorslice = [slice(None,rho,-1),indices] + [slice(None)]*self.values.ndim
-	mirror = table.values
-	# XXX not done yet...
+	## XXX only phi mirroring for now
+	new_shape = list(self.values.shape)
+	new_shape[1] += 2*n_phi
+
+	target_slice = [slice(None)]*self.values.ndim
+	source_slice = [slice(None)]*self.values.ndim
+	target_slice[1] = slice(n_phi, -n_phi)
+
+	# copy values into expanded array
+	new_values = numpy.empty(new_shape)
+	new_values[target_slice] = self.values
+
+	# replace old values with expanded version
+	del self.values
+	self.values = new_values
+
+	# copy weights into expanded array
+	new_weights = numpy.empty(new_shape)
+	new_weights[target_slice] = self.weights
+
+	# replace weights
+	del self.weights
+	self.weights = new_weights
+
+	# replace bin centers and widths
+	for lst in (self.bin_centers, self.bin_widths):
+		new = numpy.empty(new_shape[1])
+		new[target_slice[1]] = lst[1]
+		lst[1] = new
+
+	# mirror left edge
+	source_slice[1] = [2*n_phi - 1 - i for i in xrange(n_phi)]
+	target_slice[1] = range(n_phi)
+	for array in (self.values, self.weights):
+		array[target_slice] = array[source_slice]
+	for lst in (self.bin_centers, self.bin_widths):
+		lst[1][target_slice[1]] = -(lst[1][source_slice[1]])
+
+	# mirror right edge
+	source_slice[1] = [-(2*n_phi - i) for i in xrange(n_phi)]
+	target_slice[1] = [-(i+1) for i in xrange(n_phi)]
+	for array in (self.values, self.weights):
+		array[target_slice] = array[source_slice]
+	for lst in (self.bin_centers, self.bin_widths):
+		lst[1][target_slice[1]] = 360 - lst[1][source_slice[1]]
+	
 	return None
 
     #def __del__(self):
         #
+
+from numpy_extensions import *
+
+def mellonball(table, weights = None, radius = 1):
+	"""Set weights inside a given radius to zero."""
+	Rho, Z = numpy.meshgrid_nd(table.bin_centers[0], table.bin_centers[2], lex_order=True)
+	mask = Rho**2 + Z**2 < radius**2
+	if weights is None:
+		weights = table.weights
+	shape = weights.shape
+	for i in xrange(shape[1]):
+		if weights.ndim == 3:
+			weights[:,i,:][mask] = 0
+		else:
+			for j in xrange(shape[3]):
+				weights[:,i,:,j][mask] = 0
