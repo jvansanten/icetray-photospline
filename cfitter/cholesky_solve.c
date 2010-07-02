@@ -1,5 +1,5 @@
 #include <stdio.h>
-//#include <string.h>
+#include <unistd.h>
 #include <math.h>
 
 #include <time.h>
@@ -706,8 +706,8 @@ submatrix_symm(cholmod_sparse *A, long *rows, long nrows,
  */
 
 double
-calc_residual(const cholmod_sparse *AtA, const cholmod_dense *Atb,
-    cholmod_dense *x, cholmod_common *c)
+calc_residual(cholmod_sparse *AtA, cholmod_dense *Atb, cholmod_dense *x,
+    cholmod_common *c)
 {
 	int i;
 	double result;
@@ -736,7 +736,7 @@ evaluate_descent(void *trial_)
 	struct descent_trial *trial;
 	int i;
 	double *xptr;
-	const cholmod_dense *x, *x_F;
+	cholmod_dense *x, *x_F;
 	const long *F;
 	long nF;
 	
@@ -791,19 +791,25 @@ int
 get_nthreads(void)
 {
 	char* str;
-	int nthreads;
+	int nthreads = -1;
 
 	str = getenv("GOTO_NUM_THREADS");
 	if (!str)
 		str = getenv("OMP_NUM_THREADS");
 	if (!str)
-		return (1);
+		goto fail;
 
 	nthreads = atoi(str);
 
-	if (nthreads < 1)
-		return (1);
-	else
+	if (nthreads >= 1)
 		return (nthreads);
-		
+
+fail:
+	/* Use the number of CPUs in the system */
+	nthreads = sysconf(_SC_NPROCESSORS_ONLN);
+	if (nthreads < 1)
+		nthreads = 1;
+
+	return (nthreads);
 }
+

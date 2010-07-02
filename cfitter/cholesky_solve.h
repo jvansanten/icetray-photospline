@@ -30,8 +30,8 @@ recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
     long *F, long nF, cholmod_common *c);
 
 double
-calc_residual(const cholmod_sparse *AtA, const cholmod_dense *Atb,
-    cholmod_dense *x, cholmod_common *c);
+calc_residual(cholmod_sparse *AtA, cholmod_dense *Atb, cholmod_dense *x,
+    cholmod_common *c);
 
 #define FACTOR_INFO(L) printf(#L " is_ll: %d, is_super: %d, is_monotonic: %d, xtype: %d, ordering: %d\n",L->is_ll,L->is_super,L->is_monotonic,L->xtype,L->ordering)
 
@@ -52,11 +52,11 @@ get_nthreads(void);
 
 struct descent_trial {
 	
-	const cholmod_dense *x;   /* current solution */
-	const cholmod_dense *x_F; /* unconstrained local minimum */
+	cholmod_dense *x;   /* current solution */
+	cholmod_dense *x_F; /* unconstrained local minimum */
 
-	const cholmod_sparse *AtA_F;
-	const cholmod_dense *Atb_F;
+	cholmod_sparse *AtA_F;
+	cholmod_dense *Atb_F;
 	cholmod_common *c; /* Caution to the wind. */
 
 	const long *F;
