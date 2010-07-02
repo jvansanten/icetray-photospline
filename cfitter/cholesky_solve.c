@@ -794,15 +794,12 @@ get_nthreads(void)
 	int nthreads;
 
 	str = getenv("GOTO_NUM_THREADS");
-	if (!str || (strlen(str) == 0))
-		if (str) free(str);
+	if (!str)
 		str = getenv("OMP_NUM_THREADS");
-	if (!str || (strlen(str) == 0))
-		if (str) free(str);
+	if (!str)
 		return (1);
 
 	nthreads = atoi(str);
-	free(str);
 
 	if (nthreads < 1)
 		return (1);
