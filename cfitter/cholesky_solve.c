@@ -6,6 +6,7 @@
 #include <float.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <string.h>
 
 #include <suitesparse/cholmod.h>
 #include "splineutil.h"
@@ -182,6 +183,7 @@ modify_factor(cholmod_sparse *A, cholmod_factor *L,
 	double flop_ratio;
 	bool update;
 	long nF, nG, nH1, nH2;
+	int n_threads;
 
 	nF = *nF_;
 	nG = *nG_;
@@ -209,7 +211,7 @@ modify_factor(cholmod_sparse *A, cholmod_factor *L,
 	 * rowadd/rowdel. Twiddle as appropriate.
 	 */
 	#define GOTO_SPEEDUP 9.0
-	#define NUM_THREADS 16.0
+	n_threads = get_nthreads();
 
 	if ((c->modfl <= 0) && (c->lnz > 0)) {
 		/* 
@@ -228,13 +230,12 @@ modify_factor(cholmod_sparse *A, cholmod_factor *L,
 		/*
 		 * Estimate work based on previous iterations.
 		 */
-		flop_ratio = (c->fl) / ( GOTO_SPEEDUP * NUM_THREADS * 
+		flop_ratio = (c->fl) / ( GOTO_SPEEDUP * n_threads * 
 		    ((double)(nH1 + nH2))*(c->modfl) );
 		update = (flop_ratio > 1.0);
 	}
 
 	#undef GOTO_SPEEDUP
-	#undef NUM_THREADS 
 
 	if (verbose)
 		printf("\tFactor work: %.0lf Mod work: %.0lf\n",
@@ -705,7 +706,7 @@ submatrix_symm(cholmod_sparse *A, long *rows, long nrows,
  */
 
 double
-calc_residual(cholmod_sparse *AtA, cholmod_dense *Atb,
+calc_residual(const cholmod_sparse *AtA, const cholmod_dense *Atb,
     cholmod_dense *x, cholmod_common *c)
 {
 	int i;
@@ -727,4 +728,85 @@ calc_residual(cholmod_sparse *AtA, cholmod_dense *Atb,
 	cholmod_l_free_dense(&AtAx, c);
 	
 	return(result);
+}
+
+void
+evaluate_descent(void *trial_)
+{
+	struct descent_trial *trial;
+	int i;
+	double *xptr;
+	const cholmod_dense *x, *x_F;
+	const long *F;
+	long nF;
+	
+	trial = (struct descent_trial*)trial_;
+
+	F = trial->F;
+	nF = trial->nF;
+
+	x = trial->x;
+	x_F = trial->x_F;
+
+	/* Set up list of infeasibles if necessary */
+	if (!trial->H1)
+		trial->H1 = (long*)malloc((trial->nF)*sizeof(long));
+	else
+		trial->H1 = (long*)realloc(trial->H1, 
+		    (trial->nF)*sizeof(long));
+	trial->nH1 = 0;
+
+	/* Allocate trial descent if necessary */
+	if (!trial->x_c)
+		trial->x_c = cholmod_l_allocate_dense(nF, 1, nF,
+		    CHOLMOD_REAL, trial->c);
+	else 
+		assert(trial->x_c->nrow == trial->nF);
+
+	/* Calculate trial descent */
+	for (i = 0; i < trial->nF; i++) {
+		xptr = &((double*)(trial->x_c->x))[i];
+		*xptr = (1.0 - trial->alpha[0]) * 
+		    ((double*)(x->x))[F[i]] + trial->alpha[0] *
+		    ((double*)(x_F->x))[i];
+
+		/*
+		 * Project into feasible space, keeping track of which
+		 * coefficients become constrained.
+		 */
+
+		if (*xptr < 0.0) {
+			*xptr = 0.0;
+			trial->H1[trial->nH1++] = F[i];
+		}
+	}
+
+	/* Calculate residual for this descent */
+	trial->residual = calc_residual(trial->AtA_F, trial->Atb_F,
+	    trial->x_c, trial->c);
+
+}
+
+int
+get_nthreads(void)
+{
+	char* str;
+	int nthreads;
+
+	str = getenv("GOTO_NUM_THREADS");
+	if (!str || (strlen(str) == 0))
+		if (str) free(str);
+		str = getenv("OMP_NUM_THREADS");
+	if (!str || (strlen(str) == 0))
+		if (str) free(str);
+		return (1);
+
+	nthreads = atoi(str);
+	free(str);
+
+	if (nthreads < 1)
+		return (1);
+	else
+		return (nthreads);
+		
 }
