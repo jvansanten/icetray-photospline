@@ -5,6 +5,7 @@
 #include <time.h>
 #include <float.h>
 #include <assert.h>
+#include <pthread.h>
 
 #include <suitesparse/cholmod.h>
 #include "splineutil.h"
@@ -523,6 +524,7 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
    cholmod_common *c)
 {
 	int nvar = AtA->nrow;
+	int n_threads = get_nthreads();
 	long *F, *G, *H1, *H2;
 	long *F_, *G_, *Fprime, *Gprime;
 	cholmod_dense *x, *y, *x_F, *Atb_F;
@@ -886,10 +888,11 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 				assert( nH1 == 0 );
 				assert( nH2 == 0 );
 
-				double *alpha;
-				double res, res_c, *xptr;
+				double *alpha, res;
 				int n_alpha, success;
 				cholmod_dense *x_c;
+				pthread_t *threads;
+				descent_trial *descent_trials;
 				
 				if (verbose) t0 = clock();
 
@@ -935,6 +938,9 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 				 */
 #if 0
 				if (n_alpha > 100) {
+					if (verbose)
+						printf("\tThinning alpha[%d]..."
+						    , n_alpha);
 					for (i = 1; i < n_alpha; ) {
 						if (alpha[i-1] - alpha[i] <
 						    1e-2) {
@@ -947,6 +953,8 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 							++i;
 						}
 					}
+					if (verbose)
+					    printf("%d\n", n_alpha);
 				}
 #endif
 
@@ -976,59 +984,107 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 				res = calc_residual(AtA_F, Atb_F, x_c, c);
 				++residual_calcs;
 
+				/* Begin threadening */
+				threads = (pthread_t*)malloc(n_threads * 
+				    sizeof(pthread_t));
+
+				descent_trials = (descent_trial*)malloc(
+				    n_threads*sizeof(descent_trial));
+
+				/* Initialize argument structs for each thread */
+				for (i = 0; i < n_threads; i++) {
+					descent_trials[i].x        = x;
+					descent_trials[i].x_F      = x_F;
+					descent_trials[i].AtA_F    = AtA_F;
+					descent_trials[i].Atb_F    = Atb_F;
+					descent_trials[i].c        = c;
+					descent_trials[i].F        = F;
+					descent_trials[i].nF       = nF;
+					descent_trials[i].alpha    = NULL;
+					descent_trials[i].x_c      = NULL;
+					descent_trials[i].residual = 0;
+					descent_trials[i].H1       = NULL;
+					descent_trials[i].nH1      = 0;
+				}
+										
+				int n_blocks = (int)ceil(n_alpha /
+				    ((double)(n_threads)));
+
 				/*
 				 * Find the furthest distance we can move along
 				 * the descent vector while still reducing the
 				 * magnitude of the residual vector.
 				 */
 				success = false;
-				for (i = 0; i < n_alpha; i++) {
-					nH1 = 0;
-					/* x = x + alpha*(x_F - x) */
-					for (j = 0; j < nF; j++) {
-						xptr = &((double*)(x_c->x))[j];
-						*xptr = 
-						    (1.0 - alpha[i]) * 
-						    ((double*)(x->x))[F[j]]
-						    + alpha[i] * 
-						    ((double*)(x_F->x))[j];
-						/* 
-						 * Project into feasible space,
-						 * keeping track of which
-						 * coefficients become
-						 * constrained.
-						 */
-						if (*xptr < 0.) {
-							*xptr = 0.;
-							H1[nH1++] = F[j];
-						}
-						    
-					}
-					res_c = calc_residual(AtA_F, Atb_F,
-					    x_c, c);
-					++residual_calcs;
-					if (res_c <= res) {
-						success = true;
-						feasible = true;
-						residual = res_c;
-						/* 
-						 * NB: x_c is feasible by
-						 * construction.
-						 */
-						for (j = 0; j < nF; j++) 
-							((double*)(x->x))[F[j]]
-							    = ((double*)
-							    (x_c->x))[j];
-						if (verbose)
-							printf("\talpha[%d] = "
-							    "%.3f, d_res = "
-							    "%e\n", i, alpha[i],
-							    res_c - res);
-
+				for (i = 0; i < n_blocks; i++) {
+					if (success)
 						break;
+					for (j = 0; j < n_threads; j++) {
+						if (i*n_threads + j >= n_alpha)
+							break;
+						descent_trials[j].alpha =
+						    &alpha[i*n_threads + j];
+						pthread_create(&threads[j],
+						    NULL, (void*)(&evaluate_descent),
+						    (void*)(
+						    &descent_trials[j]));
+					} 
+					/* Wait for threads to complete */
+					for (j = 0; j < n_threads; j++) {
+						if (i*n_threads + j >= n_alpha)
+							break;
+						pthread_join(threads[j],
+						    NULL);
 					}
-					
+					residual_calcs += n_threads;
+
+					/*
+					 * See if we reduced the residual
+					 */
+					for (j = 0; j < n_threads; j++) {
+						if (i*n_threads + j >= n_alpha)
+							break;
+						if (descent_trials[j].residual
+						    < res) {
+							success = true;
+							feasible = true;
+							residual = 
+							    descent_trials[j]
+							    .residual;
+							/* 
+						 	 * NB: x_c is feasible 
+							 * by construction.
+						 	 */
+							for (k = 0; k < nF; k++) {
+								((double*)(x->x))[F[k]] =
+								    ((double*)(descent_trials[j].x_c->x))[k];
+							}
+							for (k = 0; k < descent_trials[j].nH1; k++) 
+								H1[nH1++] = descent_trials[j].H1[k];
+							
+							if (verbose)
+								printf("\talpha[%d] = "
+								    "%.3f, d_res = "
+								    "%e\n", i*n_threads + j, 
+								    alpha[i*n_threads + j],
+								    descent_trials[j].residual - res);
+							break;
+						}
+
+					}
 				}
+
+				/* Clean up threads */
+				for (i = 0; i < n_threads; i++) {
+					if (descent_trials[i].H1)
+						free(descent_trials[i].H1);
+					if (descent_trials[i].x_c)
+						cholmod_l_free_dense(
+						    &(descent_trials[i].x_c), c);
+				}
+
+				free(descent_trials);
+				free(threads);
 
 				/*
 				 * We've encountered the worst case, in which

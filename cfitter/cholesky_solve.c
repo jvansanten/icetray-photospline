@@ -733,15 +733,13 @@ calc_residual(cholmod_sparse *AtA, cholmod_dense *Atb, cholmod_dense *x,
 void
 evaluate_descent(void *trial_)
 {
-	struct descent_trial *trial;
+	descent_trial *trial = (descent_trial*)trial_;
 	int i;
 	double *xptr;
 	cholmod_dense *x, *x_F;
-	const long *F;
+	long *F;
 	long nF;
 	
-	trial = (struct descent_trial*)trial_;
-
 	F = trial->F;
 	nF = trial->nF;
 
@@ -749,7 +747,7 @@ evaluate_descent(void *trial_)
 	x_F = trial->x_F;
 
 	/* Set up list of infeasibles if necessary */
-	if (!trial->H1)
+	if (!(trial->H1))
 		trial->H1 = (long*)malloc((trial->nF)*sizeof(long));
 	else
 		trial->H1 = (long*)realloc(trial->H1, 
@@ -757,7 +755,7 @@ evaluate_descent(void *trial_)
 	trial->nH1 = 0;
 
 	/* Allocate trial descent if necessary */
-	if (!trial->x_c)
+	if (!(trial->x_c))
 		trial->x_c = cholmod_l_allocate_dense(nF, 1, nF,
 		    CHOLMOD_REAL, trial->c);
 	else 

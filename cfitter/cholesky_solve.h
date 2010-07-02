@@ -50,7 +50,7 @@ calc_residual(cholmod_sparse *AtA, cholmod_dense *Atb, cholmod_dense *x,
 int
 get_nthreads(void);
 
-struct descent_trial {
+typedef struct {
 	
 	cholmod_dense *x;   /* current solution */
 	cholmod_dense *x_F; /* unconstrained local minimum */
@@ -60,7 +60,7 @@ struct descent_trial {
 	cholmod_common *c; /* Caution to the wind. */
 
 	const long *F;
-	const long nF;
+	long nF;
 
 	const double *alpha;   /* Descent scale to use */
 
@@ -70,7 +70,10 @@ struct descent_trial {
 	long *H1; /* Infeasible coefficients for this scaled descent */
 	long nH1;
 
-};
+} descent_trial;
+
+void
+evaluate_descent(void *trial_);
 
 #endif /* CHOLESKY_SOLVE_H */
 
