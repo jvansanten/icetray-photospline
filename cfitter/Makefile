@@ -7,8 +7,8 @@ LIBDIRS = -L/usr/local/lib -L/usr/local/lib/gcc44
 #INCDIRS = -I/usr/local/include -I/usr/local/include/python2.6
 INCDIRS = -I/usr/local/include -I/usr/local/include/python2.6 -I/usr/local/lib/python2.6/site-packages/numpy/core/include
 
-SRC = glam.c nnls.c splineutil.c pyglam.c ../lib/bspline.c
-LIBS = -lm -l$(BLAS) -lcamd -lcolamd -lamd -lstdc++ -llapack -lccolamd -lmetis -lgfortran -lcholmod -lspqr
+SRC = glam.c cholesky_solve.c nnls.c splineutil.c pyglam.c ../lib/bspline.c
+LIBS = -lm -l$(BLAS) -lcamd -lcolamd -lamd -lccolamd -lmetis -lgfortran -lcholmod
 
 # -----
 

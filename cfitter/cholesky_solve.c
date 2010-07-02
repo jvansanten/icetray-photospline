@@ -806,7 +806,11 @@ get_nthreads(void)
 
 fail:
 	/* Use the number of CPUs in the system */
+#ifdef _SC_NPROCESSORS_ONLN
 	nthreads = sysconf(_SC_NPROCESSORS_ONLN);
+#else
+	#warn Don't know how to determine CPU count on this platform
+#endif
 	if (nthreads < 1)
 		nthreads = 1;
 
