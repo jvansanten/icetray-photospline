@@ -956,19 +956,9 @@ walk_descents(cholmod_sparse *AtA_F,
 				res = descent_trials[j].residual;
 			} else if ((descent_trials[j].residual < res) ||
 			    (i*n_threads + j == n_alpha-1)) {
-				/*
-				 * NB: if we've arrived at the last (smallest)
-				 * alpha, this is equivalent to the
-				 * Lawson-Hanson single-pivot step.
-				 */
 				success = true;
-				feasible = true;
-				*residual = 
-				    descent_trials[j]
-				    .residual;
 				/* 
-			 	 * NB: x_c is feasible 
-				 * by construction.
+			 	 * NB: x_c is feasible by construction.
 			 	 */
 				for (k = 0; k < nF; k++) {
 					((double*)(x->x))[F[k]] =
@@ -978,6 +968,20 @@ walk_descents(cholmod_sparse *AtA_F,
 				assert( nH1 == 0 );
 				for (k = 0; k < descent_trials[j].nH1; k++) 
 					H1[nH1++] = descent_trials[j].H1[k];
+				
+				/*
+				 * NB: if we've arrived at the last (smallest)
+				 * alpha and have not reduced the residual, we
+				 * bind the negative coefficients in the trial
+				 * solution and try again. This is equivalent 
+				 * to the Lawson-Hanson single-pivot 
+				 * interpolation step.
+				 */
+				if (descent_trials[j].residual < res) {
+					feasible = true;
+					*residual = descent_trials[j].residual;
+				} else
+					feasible = false;
 
 				if (verbose)
 					printf("\talpha[%d] = "

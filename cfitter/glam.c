@@ -261,7 +261,11 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 		coefficients = nnls_normal_block(fitmat, Rdens,
 		    verbose, c);
 #else
+		/*
 		coefficients = nnls_normal_block_updown(fitmat, Rdens,
+		    verbose, c);
+		*/
+		coefficients = nnls_normal_block3(fitmat, Rdens,
 		    verbose, c);
 #endif
 	} else {
