@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <string.h>
+#include <pthread.h>
 
 #include <suitesparse/cholmod.h>
 #include "splineutil.h"
@@ -737,7 +738,7 @@ evaluate_descent(void *trial_)
 	int i;
 	double *xptr;
 	cholmod_dense *x, *x_F;
-	long *F;
+	const long *F;
 	long nF;
 	
 	F = trial->F;
@@ -813,5 +814,204 @@ fail:
 		nthreads = 1;
 
 	return (nthreads);
+}
+
+/* Sort doubles in descending order */
+static int
+double_rcmp(const void *xa, const void *xb)
+{
+	const double *a, *b;
+	a = xa; b = xb;
+
+	if (*a < *b)
+		return (1);
+	else if (*a > *b)
+		return (-1);
+	else
+		return (0);
+}
+
+int
+walk_descents(cholmod_sparse *AtA_F, 
+    cholmod_dense *Atb_F, cholmod_dense *x, 
+    cholmod_dense *x_F, long *F, long *nF_, long *H1, long *nH1_,
+    double *residual, int *residual_calcs, int verbose, cholmod_common *c)
+{
+
+	long nF, nH1;
+	clock_t t0, t1;
+
+	double *alpha, res;
+	int n_alpha, n_threads, n_blocks, success, feasible;
+	int i, j, k;
+	pthread_t *threads;
+	descent_trial *descent_trials;
+				
+	nF = *nF_;
+	nH1 = *nH1_;
+
+	t0 = clock();
+
+	n_threads = get_nthreads();
+	feasible = false;
+
+	alpha = (double*)malloc((nF+2) 
+	    * sizeof(double));
+	alpha[0] = 0;
+	alpha[1] = 1;
+	n_alpha = 2;
+
+	/*
+	 * For each infeasible coordinate in x_F[i], 
+	 * alpha is the relative distance along the
+	 * descent vector between the current solution
+	 * and the origin in dimension F[i].
+	 */
+	for (i = 0; i < nF; i++) {
+		/* alpha = x[F]/(x[F]-x_F) */
+		if (((double*)(x_F->x))[i] < 0) {
+			alpha[n_alpha] = 
+			    ((double*)(x->x))[F[i]] /
+			    (((double*)(x->x))[F[i]]
+			    -((double*)(x_F->x))[i]);
+			if ((alpha[n_alpha] < 1) &&
+			    (alpha[n_alpha] > 
+			    0)) ++n_alpha;
+		}
+	}
+
+	/* Sort the scales (except 0 and 1) in descending order */
+	qsort(&alpha[2], n_alpha-2, sizeof(alpha[0]),
+	    double_rcmp);
+
+	/* Begin threadening */
+	threads = (pthread_t*)malloc(n_threads * 
+	    sizeof(pthread_t));
+
+	descent_trials = (descent_trial*)malloc(
+	    n_threads*sizeof(descent_trial));
+
+	/* Initialize argument structs for each thread */
+	descent_trials[0].x        = x;
+	descent_trials[0].x_F      = x_F;
+	descent_trials[0].AtA_F    = AtA_F;
+	descent_trials[0].Atb_F    = Atb_F;
+	descent_trials[0].c        = c;
+	descent_trials[0].F        = F;
+	descent_trials[0].nF       = nF;
+	descent_trials[0].alpha    = NULL;
+	descent_trials[0].x_c      = NULL;
+	descent_trials[0].residual = 0;
+	descent_trials[0].H1       = NULL;
+	descent_trials[0].nH1      = 0;
+	for (i = 1; i < n_threads; i++) 
+		memcpy(&descent_trials[i], &descent_trials[0],
+		    sizeof(descent_trial));
+							
+	n_blocks = (int)ceil(n_alpha/((double)(n_threads)));
+
+	/*
+	 * Find the furthest distance we can move along
+	 * the descent vector while still reducing the
+	 * magnitude of the residual vector.
+	 *
+	 * Calculate the residual in blocks of n_threads alphas each.
+	 */
+	success = false;
+	for (i = 0; i < n_blocks; i++) {
+		if (success)
+			break;
+		for (j = 0; j < n_threads; j++) {
+			if (i*n_threads + j >= n_alpha)
+				break;
+			descent_trials[j].alpha =
+			    &alpha[i*n_threads + j];
+			pthread_create(&threads[j],
+			    NULL, (void*)(&evaluate_descent),
+			    (void*)(
+			    &descent_trials[j]));
+		} 
+		/* Wait for threads to complete */
+		for (j = 0; j < n_threads; j++) {
+			if (i*n_threads + j >= n_alpha)
+				break;
+			pthread_join(threads[j],
+			    NULL);
+		}
+		(*residual_calcs) += n_threads;
+
+		/*
+		 * See if we reduced the residual
+		 */
+		for (j = 0; j < n_threads; j++) {
+			if (i*n_threads + j >= n_alpha)
+				break;
+			/* 
+			 * NB: the first alpha is zero, which gives us the
+			 * residual at the current solution. Use this for
+			 * comparisons.
+			 */
+			if ((i == 0) && (j == 0)) {
+				assert( descent_trials[j].alpha[0] == 0 );
+				res = descent_trials[j].residual;
+			} else if ((descent_trials[j].residual < res) ||
+			    (i*n_threads + j == n_alpha-1)) {
+				/*
+				 * NB: if we've arrived at the last (smallest)
+				 * alpha, this is equivalent to the
+				 * Lawson-Hanson single-pivot step.
+				 */
+				success = true;
+				feasible = true;
+				*residual = 
+				    descent_trials[j]
+				    .residual;
+				/* 
+			 	 * NB: x_c is feasible 
+				 * by construction.
+			 	 */
+				for (k = 0; k < nF; k++) {
+					((double*)(x->x))[F[k]] =
+					    ((double*)
+					    (descent_trials[j].x_c->x))[k];
+				}
+				assert( nH1 == 0 );
+				for (k = 0; k < descent_trials[j].nH1; k++) 
+					H1[nH1++] = descent_trials[j].H1[k];
+
+				if (verbose)
+					printf("\talpha[%d] = "
+					    "%.3e, d_res = "
+					    "%e\n", i*n_threads + j, 
+					    alpha[i*n_threads + j],
+					    descent_trials[j].residual - res);
+				break;
+			}
+
+		} /* for (n_threads) */
+	} /* for (n_blocks) */
+
+	/* Clean up threads */
+	for (k = 0; k < n_threads; k++) {
+		if (descent_trials[k].H1)
+			free(descent_trials[k].H1);
+		if (descent_trials[k].x_c)
+			cholmod_l_free_dense(
+			    &(descent_trials[k].x_c), c);
+	}
+
+	free(descent_trials);
+	free(threads);
+	free(alpha);
+
+	if (verbose) {
+		t1 = clock();
+		printf("\tCompare %d descents: "
+		    "%.2f s\n", i*n_threads + j-1, (double)(t1-t0) / 
+		    (CLOCKS_PER_SEC));
+	}
+
+	*nH1_ = nH1;
+	return (feasible);
 }
 

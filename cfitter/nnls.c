@@ -5,7 +5,6 @@
 #include <time.h>
 #include <float.h>
 #include <assert.h>
-#include <pthread.h>
 
 #include <suitesparse/cholmod.h>
 #include "splineutil.h"
@@ -16,7 +15,6 @@
 #define KKT_TOL 1e-6
 
 static int intcmp(const void *xa, const void *xb);
-static int double_rcmp(const void *xa, const void *xb);
 
 /*
  * An implementation of the Portugal/Judice/Vicente block-pivoting algorithm for
@@ -524,7 +522,6 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
    cholmod_common *c)
 {
 	int nvar = AtA->nrow;
-	int n_threads = get_nthreads();
 	long *F, *G, *H1, *H2;
 	long *F_, *G_, *Fprime, *Gprime;
 	cholmod_dense *x, *y, *x_F, *Atb_F;
@@ -867,7 +864,8 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 				feasible = false;
 
 				if (verbose)
-					printf("\tConstraining %ld coefficients"					    " (descent at boundary)\n", nH1);
+					printf("\tConstraining %ld coefficients"
+					    " (descent at boundary)\n", nH1);
 				
 			} else {
 				/*
@@ -888,89 +886,12 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 				assert( nH1 == 0 );
 				assert( nH2 == 0 );
 
-				double *alpha, res;
-				int n_alpha, success;
-				cholmod_dense *x_c;
-				pthread_t *threads;
-				descent_trial *descent_trials;
-				
-				if (verbose) t0 = clock();
-
-				alpha = (double*)malloc((nF_inf+1) 
-				    * sizeof(double));
-				alpha[0] = 1.;
-				n_alpha = 1;
-
-				/*
-				 * For each infeasible coordinate in x_F[i], 
-				 * alpha is the relative distance along the
-				 * descent vector between the current solution
-				 * and the origin in dimension F[i].
-				 */
-				for (i = 0; i < nF; i++) {
-					/* alpha = x[F]/(x[F]-x_F) */
-					if (((double*)(x_F->x))[i] < 0) {
-						alpha[n_alpha] = 
-						    ((double*)(x->x))[F[i]] /
-						    (((double*)(x->x))[F[i]]
-						    -((double*)(x_F->x))[i]);
-						if ((alpha[n_alpha] < 1) &&
-						    (alpha[n_alpha] > 
-						    kkt_tolerance)) ++n_alpha;
-					}
-				}
-
-				/* Sort the scales in descending order */
-				qsort(alpha, n_alpha, sizeof(alpha[0]),
-				    double_rcmp);
-
-				/*
-				 * For large problems, alpha can be very long
-				 * and the residual computation can come to
-				 * dominate the run time of an iteration. Here,
-				 * we thin alpha out such that the steps are at
-				 * least 0.01 apart.
-				 */
-
-				/* 
-				 * XXX: this appears to allow the residual to
-				 * increase. WTF?
-				 */
-#if 0
-				if (n_alpha > 100) {
-					if (verbose)
-						printf("\tThinning alpha[%d]..."
-						    , n_alpha);
-					for (i = 1; i < n_alpha; ) {
-						if (alpha[i-1] - alpha[i] <
-						    1e-2) {
-							for (k = i;
-							    k+1 < n_alpha; ++k)
-								alpha[k] = 
-								    alpha[k+1];
-							--n_alpha;
-						} else {
-							++i;
-						}
-					}
-					if (verbose)
-					    printf("%d\n", n_alpha);
-				}
-#endif
-
-				/* Prepare to calculate residuals. */
-				x_c = cholmod_l_allocate_dense(nF, 1, nF, 
-				    CHOLMOD_REAL, c);
 				/* AtA is symmetric, but stored in full form */
 				AtA->stype = 0;
+				/* FIXME: re-use AtA_F from modify call? */
 				AtA_F = cholmod_l_submatrix(AtA, F, nF, F, nF,
 				    1, 1, c);
 				AtA->stype = 1;
-				/* Initialize canidate vector with x[F]. */
-				for (i = 0; i < nF; i++) {
-					((double*)(x_c->x))[i] =
-				 	    ((double*)(x->x))[F[i]];
-				}
 
 				if (!Atb_F) {
 					Atb_F = cholmod_l_allocate_dense(nF, 1,
@@ -980,143 +901,9 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 						    ((double*)(Atb->x))[F[i]];
 				}
 
-				/* Calculate the residual at the current x[F] */
-				res = calc_residual(AtA_F, Atb_F, x_c, c);
-				++residual_calcs;
-
-				/* Begin threadening */
-				threads = (pthread_t*)malloc(n_threads * 
-				    sizeof(pthread_t));
-
-				descent_trials = (descent_trial*)malloc(
-				    n_threads*sizeof(descent_trial));
-
-				/* Initialize argument structs for each thread */
-				for (i = 0; i < n_threads; i++) {
-					descent_trials[i].x        = x;
-					descent_trials[i].x_F      = x_F;
-					descent_trials[i].AtA_F    = AtA_F;
-					descent_trials[i].Atb_F    = Atb_F;
-					descent_trials[i].c        = c;
-					descent_trials[i].F        = F;
-					descent_trials[i].nF       = nF;
-					descent_trials[i].alpha    = NULL;
-					descent_trials[i].x_c      = NULL;
-					descent_trials[i].residual = 0;
-					descent_trials[i].H1       = NULL;
-					descent_trials[i].nH1      = 0;
-				}
-										
-				int n_blocks = (int)ceil(n_alpha /
-				    ((double)(n_threads)));
-
-				/*
-				 * Find the furthest distance we can move along
-				 * the descent vector while still reducing the
-				 * magnitude of the residual vector.
-				 */
-				success = false;
-				for (i = 0; i < n_blocks; i++) {
-					if (success)
-						break;
-					for (j = 0; j < n_threads; j++) {
-						if (i*n_threads + j >= n_alpha)
-							break;
-						descent_trials[j].alpha =
-						    &alpha[i*n_threads + j];
-						pthread_create(&threads[j],
-						    NULL, (void*)(&evaluate_descent),
-						    (void*)(
-						    &descent_trials[j]));
-					} 
-					/* Wait for threads to complete */
-					for (j = 0; j < n_threads; j++) {
-						if (i*n_threads + j >= n_alpha)
-							break;
-						pthread_join(threads[j],
-						    NULL);
-					}
-					residual_calcs += n_threads;
-
-					/*
-					 * See if we reduced the residual
-					 */
-					for (j = 0; j < n_threads; j++) {
-						if (i*n_threads + j >= n_alpha)
-							break;
-						if (descent_trials[j].residual
-						    < res) {
-							success = true;
-							feasible = true;
-							residual = 
-							    descent_trials[j]
-							    .residual;
-							/* 
-						 	 * NB: x_c is feasible 
-							 * by construction.
-						 	 */
-							for (k = 0; k < nF; k++) {
-								((double*)(x->x))[F[k]] =
-								    ((double*)(descent_trials[j].x_c->x))[k];
-							}
-							for (k = 0; k < descent_trials[j].nH1; k++) 
-								H1[nH1++] = descent_trials[j].H1[k];
-							
-							if (verbose)
-								printf("\talpha[%d] = "
-								    "%.3f, d_res = "
-								    "%e\n", i*n_threads + j, 
-								    alpha[i*n_threads + j],
-								    descent_trials[j].residual - res);
-							break;
-						}
-
-					}
-				}
-
-				/* Clean up threads */
-				for (i = 0; i < n_threads; i++) {
-					if (descent_trials[i].H1)
-						free(descent_trials[i].H1);
-					if (descent_trials[i].x_c)
-						cholmod_l_free_dense(
-						    &(descent_trials[i].x_c), c);
-				}
-
-				free(descent_trials);
-				free(threads);
-
-				/*
-				 * We've encountered the worst case, in which
-				 * no reduction of the objective function is
-				 * possible with the current constraints.
-				 * Constrain the infeasible coefficients and
-				 * try again.
-				 */
-				if (!success) {
-					nH1 = 0;
-					for (j = 0; j < nF; j++) {
-						if (((double*)(x_F->x))[j] 
-						    < 0.) {
-							H1[nH1++] = F[j];
-						}
-					}
-					if (verbose)
-						printf("\tConstraining %ld "
-						    "coefficients (alpha[%d] "
-						    "= 0)\n", nH1, n_alpha);
-					feasible = false;
-				}
-
-				free(alpha);
-				cholmod_l_free_dense(&x_c, c);
-
-				if (verbose) {
-					t1 = clock();
-					printf("\tCompare %d descents: "
-					    "%.2f s\n", i+1, (double)(t1-t0) / 
-					    (CLOCKS_PER_SEC));
-				}
+				feasible = walk_descents(AtA_F, Atb_F, x, x_F,
+				    F, &nF, H1, &nH1, &residual,
+				    &residual_calcs, verbose, c);
 
 			} /* if (nF_inf == 0) */
 
@@ -1259,21 +1046,6 @@ intcmp(const void *xa, const void *xb)
 		return (-1);
 	else if (*a > *b)
 		return (1);
-	else
-		return (0);
-}
-
-/* Sort doubles in descending order */
-static int
-double_rcmp(const void *xa, const void *xb)
-{
-	const double *a, *b;
-	a = xa; b = xb;
-
-	if (*a < *b)
-		return (1);
-	else if (*a > *b)
-		return (-1);
 	else
 		return (0);
 }

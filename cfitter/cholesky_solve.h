@@ -75,5 +75,11 @@ typedef struct {
 void
 evaluate_descent(void *trial_);
 
+int
+walk_descents(cholmod_sparse *AtA_F, 
+    cholmod_dense *Atb_F, cholmod_dense *x, 
+    cholmod_dense *x_F, long *F, long *nF_, long *H1, long *nH1_,
+    double *residual, int *residual_calcs, int verbose, cholmod_common *c);
+
 #endif /* CHOLESKY_SOLVE_H */
 
