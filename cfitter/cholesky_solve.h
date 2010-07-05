@@ -3,6 +3,7 @@
 
 #include <suitesparse/cholmod.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 cholmod_dense *
 cholesky_solve(cholmod_sparse *AtA, cholmod_dense *Atb, cholmod_common *c, int verbose, int n_resolves);
@@ -70,7 +71,14 @@ typedef struct {
 	long *H1; /* Infeasible coefficients for this scaled descent */
 	long nH1;
 
+	pthread_cond_t *cv;
+	pthread_mutex_t *mutex;
+	int state;
+	int id;
+
 } descent_trial;
+
+enum { WAIT, RUN, TERMINATE } worker_thread_state;
 
 void
 evaluate_descent(void *trial_);

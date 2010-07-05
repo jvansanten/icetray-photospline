@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <string.h>
 #include <pthread.h>
+#include <sched.h>
 
 #include <suitesparse/cholmod.h>
 #include "splineutil.h"
@@ -740,50 +741,71 @@ evaluate_descent(void *trial_)
 	cholmod_dense *x, *x_F;
 	const long *F;
 	long nF;
-	
-	F = trial->F;
-	nF = trial->nF;
 
-	x = trial->x;
-	x_F = trial->x_F;
+	while (1) {
 
-	/* Set up list of infeasibles if necessary */
-	if (!(trial->H1))
-		trial->H1 = (long*)malloc((trial->nF)*sizeof(long));
-	else
-		trial->H1 = (long*)realloc(trial->H1, 
-		    (trial->nF)*sizeof(long));
-	trial->nH1 = 0;
+		/* Wait for instructions */
+		pthread_mutex_lock(trial->mutex);
+		while (trial->state == WAIT)
+			pthread_cond_wait(trial->cv, trial->mutex);
 
-	/* Allocate trial descent if necessary */
-	if (!(trial->x_c))
-		trial->x_c = cholmod_l_allocate_dense(nF, 1, nF,
-		    CHOLMOD_REAL, trial->c);
-	else 
-		assert(trial->x_c->nrow == trial->nF);
-
-	/* Calculate trial descent */
-	for (i = 0; i < trial->nF; i++) {
-		xptr = &((double*)(trial->x_c->x))[i];
-		*xptr = (1.0 - trial->alpha[0]) * 
-		    ((double*)(x->x))[F[i]] + trial->alpha[0] *
-		    ((double*)(x_F->x))[i];
-
-		/*
-		 * Project into feasible space, keeping track of which
-		 * coefficients become constrained.
-		 */
-
-		if (*xptr < 0.0) {
-			*xptr = 0.0;
-			trial->H1[trial->nH1++] = F[i];
+		if (trial->state == TERMINATE) {
+			pthread_mutex_unlock(trial->mutex);
+			pthread_exit(NULL);
+			break;
 		}
+
+		pthread_mutex_unlock(trial->mutex);
+
+		F = trial->F;
+		nF = trial->nF;
+
+		x = trial->x;
+		x_F = trial->x_F;
+
+		/* Set up list of infeasibles if necessary */
+		if (!(trial->H1))
+			trial->H1 = (long*)malloc((trial->nF)*sizeof(long));
+		else
+			trial->H1 = (long*)realloc(trial->H1, 
+			    (trial->nF)*sizeof(long));
+		trial->nH1 = 0;
+
+		/* Allocate trial descent if necessary */
+		if (!(trial->x_c))
+			trial->x_c = cholmod_l_allocate_dense(nF, 1, nF,
+			    CHOLMOD_REAL, trial->c);
+		else 
+			assert(trial->x_c->nrow == trial->nF);
+
+		/* Calculate trial descent */
+		for (i = 0; i < trial->nF; i++) {
+			xptr = &((double*)(trial->x_c->x))[i];
+			*xptr = (1.0 - trial->alpha[0]) * 
+			    ((double*)(x->x))[F[i]] + trial->alpha[0] *
+			    ((double*)(x_F->x))[i];
+
+			/*
+			 * Project into feasible space, keeping track of which
+			 * coefficients become constrained.
+			 */
+
+			if (*xptr < 0.0) {
+				*xptr = 0.0;
+				trial->H1[trial->nH1++] = F[i];
+			}
+		}
+
+		/* Calculate residual for this descent */
+		trial->residual = calc_residual(trial->AtA_F, trial->Atb_F,
+		    trial->x_c, trial->c);
+
+		/* Report back */
+		pthread_mutex_lock(trial->mutex);
+		trial->state = WAIT;
+		pthread_cond_broadcast(trial->cv);
+		pthread_mutex_unlock(trial->mutex);
 	}
-
-	/* Calculate residual for this descent */
-	trial->residual = calc_residual(trial->AtA_F, trial->Atb_F,
-	    trial->x_c, trial->c);
-
 }
 
 int
@@ -845,6 +867,8 @@ walk_descents(cholmod_sparse *AtA_F,
 	int n_alpha, n_threads, n_blocks, success, feasible;
 	int i, j, k;
 	pthread_t *threads;
+	pthread_attr_t thread_attr;
+	struct sched_param schedule;
 	descent_trial *descent_trials;
 				
 	nF = *nF_;
@@ -852,7 +876,6 @@ walk_descents(cholmod_sparse *AtA_F,
 
 	t0 = clock();
 
-	n_threads = get_nthreads();
 	feasible = false;
 
 	alpha = (double*)malloc((nF+2) 
@@ -885,11 +908,21 @@ walk_descents(cholmod_sparse *AtA_F,
 	    double_rcmp);
 
 	/* Begin threadening */
+	n_threads = get_nthreads();
 	threads = (pthread_t*)malloc(n_threads * 
 	    sizeof(pthread_t));
 
 	descent_trials = (descent_trial*)malloc(
 	    n_threads*sizeof(descent_trial));
+
+	/* Set up thread attributes */
+	pthread_attr_init(&thread_attr);
+	pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE);
+
+	pthread_mutex_t mutex;
+	pthread_cond_t cv;
+	pthread_mutex_init(&mutex, NULL);
+	pthread_cond_init(&cv, NULL);
 
 	/* Initialize argument structs for each thread */
 	descent_trials[0].x        = x;
@@ -904,11 +937,22 @@ walk_descents(cholmod_sparse *AtA_F,
 	descent_trials[0].residual = 0;
 	descent_trials[0].H1       = NULL;
 	descent_trials[0].nH1      = 0;
-	for (i = 1; i < n_threads; i++) 
+	descent_trials[0].state    = WAIT;
+	descent_trials[0].mutex    = &mutex;
+	descent_trials[0].cv       = &cv;
+	descent_trials[0].id       = 0;
+	for (i = 1; i < n_threads; i++) {
 		memcpy(&descent_trials[i], &descent_trials[0],
 		    sizeof(descent_trial));
+		descent_trials[i].id = i;
+	}
 							
 	n_blocks = (int)ceil(n_alpha/((double)(n_threads)));
+
+	/* Spawn worker threads */
+	for (i = 0; i < n_threads; i++)
+		pthread_create(&threads[i], &thread_attr, 
+		    (void*)(&evaluate_descent), (void*)(&descent_trials[i]));
 
 	/*
 	 * Find the furthest distance we can move along
@@ -921,23 +965,33 @@ walk_descents(cholmod_sparse *AtA_F,
 	for (i = 0; i < n_blocks; i++) {
 		if (success)
 			break;
+		/* Set alpha and start threads running */
+		pthread_mutex_lock(&mutex);
 		for (j = 0; j < n_threads; j++) {
 			if (i*n_threads + j >= n_alpha)
 				break;
 			descent_trials[j].alpha =
 			    &alpha[i*n_threads + j];
-			pthread_create(&threads[j],
-			    NULL, (void*)(&evaluate_descent),
-			    (void*)(
-			    &descent_trials[j]));
+			descent_trials[j].state = RUN;
 		} 
-		/* Wait for threads to complete */
-		for (j = 0; j < n_threads; j++) {
-			if (i*n_threads + j >= n_alpha)
-				break;
-			pthread_join(threads[j],
-			    NULL);
+		pthread_cond_broadcast(&cv);
+		pthread_mutex_unlock(&mutex);
+
+		/* Wait for threads to finish calculations */
+		int done = false;
+		pthread_mutex_lock(&mutex);
+		while (!done) {
+			pthread_cond_wait(&cv, &mutex);
+			done = true;
+			for (j = 0; j < n_threads; j++) {
+				if (i*n_threads + j >= n_alpha)
+					break;
+				if (descent_trials[j].state != WAIT)
+					done = false;
+			}
 		}
+		pthread_mutex_unlock(&mutex);
+
 		(*residual_calcs) += n_threads;
 
 		/*
@@ -995,7 +1049,18 @@ walk_descents(cholmod_sparse *AtA_F,
 		} /* for (n_threads) */
 	} /* for (n_blocks) */
 
-	/* Clean up threads */
+	/* Shut down worker threads */
+	pthread_mutex_lock(&mutex);
+	for (k = 0; k < n_threads; k++) 
+		descent_trials[k].state = TERMINATE;
+	pthread_cond_broadcast(&cv);
+	pthread_mutex_unlock(&mutex);
+
+	/* Wait for threads to exit */
+	for (k = 0; k < n_threads; k++) 
+		pthread_join(threads[k], NULL);
+
+	/* Clean up thread data */
 	for (k = 0; k < n_threads; k++) {
 		if (descent_trials[k].H1)
 			free(descent_trials[k].H1);
@@ -1004,6 +1069,10 @@ walk_descents(cholmod_sparse *AtA_F,
 			    &(descent_trials[k].x_c), c);
 	}
 
+	/* Clean up pthreads-related detritus */
+	pthread_cond_destroy(&cv);
+	pthread_mutex_destroy(&mutex);
+	pthread_attr_destroy(&thread_attr);
 	free(descent_trials);
 	free(threads);
 	free(alpha);
