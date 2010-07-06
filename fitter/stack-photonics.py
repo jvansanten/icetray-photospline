@@ -8,7 +8,7 @@ import copy
 
 from optparse import OptionParser
 
-def stack_tables(tablist):
+def stack_tables(tablist, order = 2):
 	# We expect an array of (splinetable, coordinate) tuples
 
 	bigtab = None
@@ -19,14 +19,14 @@ def stack_tables(tablist):
 
 		slice.coefficients = slice.coefficients.reshape( \
 		    slice.coefficients.shape + (1,))
-		#knotloc = position + 0.5*(slice.order - 1.0)
-		knotloc = position + 0.5*(slice.order[1] - 1.0)
+		knotloc = position + 0.5*(order - 1.0)
 		ndim = slice.coefficients.ndim
 
 		if bigtab is None:
 			bigtab = slice
 			bigtab.knots.append([knotloc])
 			bigtab.periods.append(0)
+			bigtab.order.append(order)
 		else:
 			bigtab.knots[ndim - 1].append(knotloc)
 			bigtab.coefficients = numpy.concatenate(
@@ -35,9 +35,9 @@ def stack_tables(tablist):
 
 	# Shift the knots (see bsplineinterp.py)
 	baseknots = bigtab.knots[ndim - 1]
-	baseknots = baseknots + (numpy.max(baseknots)-numpy.min(baseknots))/(2.0*len(baseknots))*(bigtab.order[1]-1)
+	baseknots = baseknots + (numpy.max(baseknots)-numpy.min(baseknots))/(2.0*len(baseknots))*(order-1)
 	interpknots = []
-	for i in range (bigtab.order[1],0,-1):
+	for i in range (order,0,-1):
 		interpknots.append(baseknots[0] - i*(baseknots[1] - baseknots[0]))
 	interpknots.extend(baseknots)
 	interpknots.append(interpknots[len(interpknots)-1] + (interpknots[len(interpknots)-1] - interpknots[len(interpknots)-2]))
