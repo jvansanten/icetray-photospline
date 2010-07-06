@@ -13,10 +13,11 @@ class TableSlice(object):
 	spline_cdf = None
 	edges = None
 	centers = None
-	def __init__(self, table, spline, slices):
+	def __init__(self, table, spline, slices, density = 1):
 		self.table = table
 		self.spline = spline
-		self.slices = slices
+		self.slices = slices[:table.values.ndim]
+		self.density = density
 		self.make_grid()
 		if len(spline.knots) == 4:
 			norm = True
@@ -55,11 +56,11 @@ class TableSlice(object):
 		for i,sl in enumerate(slices):
 			if isinstance(sl,int):
 				centers[i] = numpy.array([centers[i]])
-			elif density > 1: # add extra grid points in between the bin centers
+			elif self.density > 1: # add extra grid points in between the bin centers
 				gaps = numpy.diff(centers[i])
 				extras = []
-				for j in xrange(1,opts.density):
-					scale = j/float(density)
+				for j in xrange(1,self.density):
+					scale = j/float(self.density)
 					extras.append(centers[i][:-1]+scale*gaps)
 				centers[i] = numpy.concatenate(tuple([centers[i]] + extras))
 				centers[i].sort()
@@ -69,9 +70,18 @@ class TableSlice(object):
 		for i,sl in enumerate(slices):
 			if isinstance(sl,int):
 				widths[i] = numpy.array([widths[i]])
+			elif self.density > 1:
+				# subdividing the widths is much easier!
+				rep = self.density*numpy.ones(widths[i].size, dtype=int)
+				rep[-1] = 1
+				widths[i] = (widths[i]/self.density).repeat(rep)
 		edges = [c - w/2.0 for c,w in zip(centers,widths)]
 		edges = [numpy.append(e, c[-1]+w[-1]/2.0) for e,c,w in zip(edges,centers,widths)]
 		self.edges = edges
+
+		if len(self.spline.knots) == 4:
+			# XXX: evaluate CDF at right edge of the time bin
+			self.centers[3] = self.edges[3][1:]
 
 	def slice(self, is_log = False, norm = True):
 		timing = len(self.spline.knots) == 4
@@ -79,7 +89,23 @@ class TableSlice(object):
 		table_cdf = None
 		slices = self.slices
 		table = self.table
-		if timing and self.slices[-1] == slice(None): # we're slicing in time, compute CDF for slice
+		if self.table.normed and self.slices[-1] == slice(None): # already normed
+			table_cdf = self.table.values[slices].copy()
+			if timing:
+				print table_cdf.shape, table.bin_widths[-1].size
+				table_pdf = numpy.append([0],
+				    numpy.diff(table_cdf, axis=-1))/table.bin_widths[-1]
+		elif self.table.normed:
+			# already normed, but we're slicing perpendicular to time.
+			# skip the PDF.
+			table_cdf = self.table.values[slices].copy()
+		elif len(self.spline.knots) == 3:
+			# abs spline, just sum amplitudes
+			tslices = list(self.slices)[:3]
+			tslices += [slice(None)]
+			bigslice = self.table.values[tslices]
+			table_cdf = numpy.sum(bigslice, axis=-1)
+		elif timing and self.slices[-1] == slice(None): # we're slicing in time, compute CDF for slice
 			table_slice = self.table.values[slices]
 			#table_cdf = numpy.cumsum(table_slice*table.bin_widths[3], axis=-1)
 			table_cdf = numpy.cumsum(table_slice, axis=-1)
@@ -101,6 +127,7 @@ class TableSlice(object):
 				tslices[-1] = slice(None)
 			else:
 				tslices += [slice(None)]
+			print tslices
 			bigslice = self.table.values[tslices]
 			table_cdf = numpy.cumsum(bigslice, axis=-1)
 			# remove integer indexes, since those dimensions are already gone
@@ -119,6 +146,17 @@ class TableSlice(object):
 			if norm:
 				table_cdf /= normval
 				table_pdf /= normval
+
+		if self.density > 1: # insert zeros into table values
+			expanded_shape = tuple([s + (self.density-1)*(s-1) for s in table_cdf.shape])
+			insert_slices = [slice(None,None,self.density)]*len(table_cdf.shape)
+			t_cdf = numpy.zeros(expanded_shape)
+			t_cdf[insert_slices] = table_cdf
+			table_cdf = t_cdf
+			if timing:
+				t_pdf = numpy.zeros(expanded_shape)
+				t_pdf[insert_slices] = table_pdf
+				table_pdf = t_pdf
 		self.table_cdf = table_cdf
 		self.table_pdf = table_pdf
 		

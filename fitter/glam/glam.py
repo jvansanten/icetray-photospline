@@ -33,7 +33,7 @@ def rho(A,B,p):
 	return C
 
 def fit(z,w,coords,knots,order,smooth,
-		periods=None,penalties={2:None},bases=None,iterations=1,monodim=None):
+		periods=None,penalties={2:None},bases=None,iterations=1,monodim=None,dump=False):
 	ndim=z.ndim
 
 	table = splinetable.SplineTable()
@@ -169,6 +169,10 @@ def fit(z,w,coords,knots,order,smooth,
 		F = F + P
 		
 		print "Computing iteration %d least squares solution..." % n
+		
+		if dump:
+			numpy.save('AtA',F)
+			numpy.save('Atb',r)
 
 		if n > 1:
 			# fit for residual on further iterations
@@ -187,6 +191,8 @@ def fit(z,w,coords,knots,order,smooth,
 			# result = (nnls_mockup.nnls(F,r),)
 			# result = (nnls_mockup.nnls_normal(F,r),)
 			result = (nnls_mockup.nnls_normal_block(F,r),)
+			#result = (nnls_mockup.nnls_normal_block3(F,r),)
+			# result = (nnls_mockup.nnls_normal_block4(F,r),)
 		
 		coefficients = numpy.reshape(result[0],nsplines)
 		

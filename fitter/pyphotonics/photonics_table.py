@@ -51,10 +51,12 @@ class photonics_table():
         return 1
         
     # Returns number of dimensions in table.
+    @property
     def ndim(self):
-        return len(self.shape())
+        return len(self.shape)
     
     # Returns shape of table.
+    @property
     def shape(self):
         if not self.table_shape_consistent():
             raise Exception('Shape consistency check failed')
@@ -69,7 +71,20 @@ class photonics_table():
         if dovalues:
             self.values [numpy.logical_not(numpy.isfinite(self.values))] = 0
 
+    @property
+    def normed(self):
+        """Has this table been normalized?"""
+        if self.values.ndim == 4:
+            normval = self.values[:,:,:,-1]
+	    if (normval[(normval > 0) & numpy.isfinite(normval)] == 1).all():
+                return True
+            else:
+                return False
+        else:
+            return True
+
     def open_file(self, filename, convert=True):
+	self.filename = filename
         try:
             table = photo2numpy.readl1(filename)
             self.level = 1
@@ -100,7 +115,7 @@ class photonics_table():
             self.bin_widths  = self.bin_widths [0:self.values.ndim]
             
         # Check consistency of table shapes and derive type
-        ndim = self.ndim()
+        ndim = self.ndim
         if ndim == 3:
             self.is_integral = True;
         
@@ -160,14 +175,24 @@ class photonics_table():
         print "Don't know how to convert table with level", self.level
         return 0
 
-    def mirror(self,n_rho=3,n_phi=3):
+    def mirror(self,n_rho=0,n_phi=0):
 	"""Extend table to rho < 0 and 180 < phi < 360. This may be useful for surpressing edge effects while fitting."""
+
+	if n_rho == 0 and n_phi == 0:
+		return None
+
+	if abs(self.bin_widths[1].sum() - 180) > 1e-12:
+		raise ValueError, "Only half-cylindrical tables can be mirrored. \
+		    Perhaps mirror() has already been called?"
+
 	## XXX only phi mirroring for now
 	new_shape = list(self.values.shape)
+	new_shape[0] += n_rho
 	new_shape[1] += 2*n_phi
 
 	target_slice = [slice(None)]*self.values.ndim
 	source_slice = [slice(None)]*self.values.ndim
+	target_slice[0] = slice(n_rho, None)
 	target_slice[1] = slice(n_phi, -n_phi)
 
 	# copy values into expanded array
@@ -188,12 +213,14 @@ class photonics_table():
 
 	# replace bin centers and widths
 	for lst in (self.bin_centers, self.bin_widths):
-		new = numpy.empty(new_shape[1])
-		new[target_slice[1]] = lst[1]
-		lst[1] = new
+		for i in (0,1):
+			new = numpy.empty(new_shape[i])
+			new[target_slice[i]] = lst[i]
+			lst[i] = new
 
 	# mirror left edge
 	source_slice[1] = [2*n_phi - 1 - i for i in xrange(n_phi)]
+	target_slice[0] = slice(None)
 	target_slice[1] = range(n_phi)
 	for array in (self.values, self.weights):
 		array[target_slice] = array[source_slice]
@@ -207,6 +234,25 @@ class photonics_table():
 		array[target_slice] = array[source_slice]
 	for lst in (self.bin_centers, self.bin_widths):
 		lst[1][target_slice[1]] = 360 - lst[1][source_slice[1]]
+
+	# mirror radial slices
+	# negative radii are mirrored, so in reverse order
+	source_slice[0] = range(2*n_rho - 1, n_rho - 1, -1)
+	target_slice[0] = range(n_rho)
+	for lst in (self.bin_centers, self.bin_widths):
+		lst[0][target_slice[0]] = -(lst[0][source_slice[0]])
+
+	# mirror the radial slice at each azimuth to negative radii
+	for i in xrange(self.bin_centers[1].size):
+		# find the opposite slice
+		opposite = 180 + self.bin_centers[1][i]
+		if opposite > 180: opposite -= 2*(180 - opposite)
+		elif opposite < 0: opposite *= -1
+		mcenter = abs(opposite - self.bin_centers[1]).argmin()
+		source_slice[1] = mcenter
+		target_slice[1] = i
+		for array in (self.values, self.weights):
+			array[target_slice] = array[source_slice]
 	
 	return None
 

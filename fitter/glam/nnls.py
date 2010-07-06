@@ -313,6 +313,17 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 			log("Active set empty, terminating after %d iterations (%d factorizations, %d residual calculcations)" % (iterations,lstsqs+1,residual_calcs))
 			break # the passive set is the whole set, we're done
 		H2 = list(n.array(G_)[y[G_] < -KKT_TOL])
+		# H1 and H2 must be disjoint, so we have some extremely silly
+		# conflict resolution to do here. A coefficient could have been
+		# marked for constraint at the end of the inner loop and then freed
+		# for having a large Lagrange multiplier here. In this case, the modification
+		# is a no-op and the index should be removed from both H1 and H2.
+		if (len(H1) > 0):
+			# copy list to avoid b0rking iterators
+			for r in list(H2):
+				if r in H1:
+					H1.remove(r)
+					H2.remove(r)
 		if len(H2) == 0:
 			log("Lagrange multipliers are all non-negative, terminating after %d iterations (%d factorizations, %d residual calculations)" % (iterations,lstsqs+1,residual_calcs))
 			break # x is the optimal solution, we're done
@@ -322,11 +333,16 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 		if len(set_F) > 0: del set_F[:]
 		feasible = False
 		while not feasible:
+			log("Unconstrained solve for %d of %d coefficients" % (len(F),nvar))
+			log("\tRecomputing factorization from scratch (F[%d], G[%d], H1[%d], H2[%d)"%(len(F), len(G), len(H1), len(H2)))
 			# update factorization state (clearing H1 and H2)
+			print 'F',F
+			print 'G',G
+			print 'H1',H1
+			print 'H2',H2
 			modify_factor(F, G, H1, H2)
 			AtA_F = AtA[:,F][F,:]
 			Atb_F = Atb[:,F]
-			log("Unconstrained solve for %d of %d coefficients" % (len(F),nvar))
 			x_F = cholsolve(AtA_F,Atb_F)
 			lstsqs += 1
 			infeasible = x_F < 0
@@ -379,8 +395,10 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 						# update the solution and zero newly-infeasible coefficients
 						log("\talpha = %- e, d_residual = %- e, residual = %- .20e" % (alpha,candidate_residual-residual,candidate_residual))
 						x[F] = x_candidate[F]
+						#print "xcand: " + " ".join(["%- .1e"%f for f in x_candidate[F]])
 						# XXX: the partition changes here. when to update F?
 						H1 += candidate_infeasibles
+						#print 'H1:',H1
 						H1.sort()
 
 						x[G] = 0
@@ -412,9 +430,14 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 			F_ = F
 			G_ = G
 		# now that we've made x[F] feasible, update constrained part
+		#print 'H1',H1
+		#print 'F_',F_
+		#print 'G_',G_
 		y[:] = 0
 		x[G_] = 0
 		y[G_] = n.dot(AtA[:,F_][G_,:],x[F_]) - Atb[:,G_]
+		#print "x_full: " + " ".join(["%- .1e"%f for f in x])
+		#print "y_full: " + " ".join(["%- .1e"%f for f in y])
 	if iterations == maxiter:
 		print 'Hooo boy, this turned out badly'
 	return x
