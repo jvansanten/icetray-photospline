@@ -1,3 +1,6 @@
+/* Use non-portable extensions */
+#define _GNU_SOURCE 1
+
 #include <stdio.h>
 #include <unistd.h>
 #include <math.h>
@@ -741,6 +744,15 @@ evaluate_descent(void *trial_)
 	cholmod_dense *x, *x_F;
 	const long *F;
 	long nF;
+
+	/* Bind to the CPU corresponding to the thread id */
+	cpu_set_t cpus;
+	CPU_ZERO(&cpus);
+	CPU_SET(trial->id, &cpus);
+	int err = sched_setaffinity(0, sizeof(cpus), &cpus);
+	if (err)
+		printf("\tsched_setaffinity failed! cpu: %d status: %d\n",
+		    trial->id, err);
 
 	while (1) {
 

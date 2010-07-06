@@ -530,19 +530,19 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	long nF, nG, nH1, nH2, ninf;
 	long nFprime, nGprime, nF_, nG_;
 	int i, j, k;
-	int iter, solves, residual_calcs;
+	int iter, max_iter, solves, residual_calcs;
 	int feasible;
 	clock_t t0, t1;
 	double kkt_tolerance, y_min, residual;
 
 	/* XXX: make these settable? */
-	iter = 3*nvar;		/* Maximum number of iterations */
+	max_iter = 120;		/* Maximum number of iterations */
 	solves = 0;
 	residual_calcs = 0;
 	residual = DBL_MAX;
 
-	/* Heuristic stopping tolerance from Adlers' thesis */
-	kkt_tolerance = ((double)(nvar)) * DBL_EPSILON * 1e3;
+	/* Heuristic stopping tolerance inspired from Adlers' thesis */
+	kkt_tolerance = ((double)(nvar)) * DBL_EPSILON * 1e5;
 	if (verbose)
 		printf("Stopping tolerance: %e\n",kkt_tolerance);
 
@@ -590,6 +590,12 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	cholmod_l_factorize(AtA, L, c);
 	x = cholmod_l_solve(CHOLMOD_A, L, Atb, c);
 	++solves;
+
+	/* Be a dear and tell us whether this is going to blow the hell up. */
+	if (verbose)
+		printf("Reciprocal condition number =~ %e\n",
+		    cholmod_l_rcond(L, c));
+
 	/* Place any negative coefficients in the actively constrained set */
 	for (i = 0; i < nvar; i++) {
 		if (((double*)(x->x))[i] >= 0)
@@ -655,7 +661,7 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		
 	}
 
-	for (iter = 0; iter < 3*nvar; iter++) {
+	for (iter = 0; iter < max_iter; iter++) {
 
 		nH2 = 0;
 		/*
@@ -1029,7 +1035,11 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	free(H2);
 
 	if (verbose) {
-		printf("Finished in %d iterations (%d factorizations, %d "
+		if (iter == max_iter)
+			printf("VARNING! Failed to converge after ");
+		else
+			printf("Finished in ");
+		printf("%d iterations (%d factorizations, %d "
 		    "residual calculations).\n", iter+1,solves,residual_calcs);
 	}
 
