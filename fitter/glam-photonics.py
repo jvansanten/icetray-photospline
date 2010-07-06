@@ -24,7 +24,7 @@ optparser.add_option("-z", "--zknots", dest="zknots", type="int",
 optparser.add_option("-t", "--tknots", dest="tknots", type="int",
              help="number of knots in time dimension")
 optparser.add_option("-s", "--smooth", dest="smooth", type="float",
-             help="smoothness coefficient", default=10.0)
+             help="smoothness coefficient", default=1e-6)
 optparser.add_option("--prob", dest="prob", action="store_true",
              help="Fit only the normalized CDFs", default=False)
 optparser.add_option("--abs", dest="abs", action="store_true",
@@ -67,9 +67,9 @@ if (Efficiency.DIFFERENTIAL & table.header['efficiency']):
 if (not Efficiency.N_PHOTON & table.header['efficiency']):
 	raise ValueError, "This table does not appear to be normalized."
 
-nknots = [17, 6, 12]
+nknots = [15, 6, 25]
 if table.ndim() > 3:
-    nknots.append(25) # [t]
+    nknots.append(20) # [t]
 
 if opts.rknots:
     nknots[0] = opts.rknots
@@ -86,8 +86,23 @@ print "Core knots:", nknots
 #    central knots.
 
 radial_extent = 600
+length_extent = 500
 
 coreknots = [table.bin_centers[i][numpy.unique(numpy.int32(numpy.linspace(0,len(table.bin_centers[i])-1,nknots[i])))] for i in range(0,table.ndim())]
+
+# optimized knots for some dimensions ----------------------------------------
+
+# space 1/3 of the knots quadratically behind the source, 
+# where everything is diffuse, and the remainder in front
+# with logarithmic spacing
+backerds = int(nknots[2]/3.0)
+coreknots[2] = numpy.concatenate((
+    -(numpy.linspace(1, numpy.sqrt(length_extent), backerds)**2)[::-1],
+    numpy.logspace(0, numpy.log10(length_extent), nknots[2]-backerds)
+    ))
+
+# pure log-spacing in cylinder radius
+coreknots[0] = numpy.logspace(0, numpy.log10(radial_extent),nknots[0])
 
 # Now append the extra knots off both ends of the axis in order to provide
 # full support at the boundaries
@@ -99,10 +114,19 @@ thetaknots = numpy.append(numpy.append([-1, -0.5, -0.1], coreknots[1]),
 zknots     = numpy.append(numpy.append([-800, -700, -600], coreknots[2]),
                           [600,700,800,900,1000])
 
-# use quadratic spacing in time
-coreknots[3] = numpy.linspace(0,7000**(0.5),nknots[3])**2
-endgap = coreknots[3][-1] - coreknots[3][-2]
-tknots = numpy.concatenate(([-10,-5,-3,-1], coreknots[3], 7000 + endgap*numpy.arange(1,8)))
+early = nknots[3]/2
+# use hybrid log/quadratic spacing in time:
+# space half the knots logarithmically between 1 and 100 ns,
+# the remainder quadratically from 150 to 7000 ns.
+tknots = numpy.concatenate(([-5,-2,-1,0], numpy.logspace(0, 2, early), 
+    numpy.linspace(150**0.5, 7000**0.5, nknots[3]-early)**2,
+    7000 + 100*numpy.arange(1,8)))
+
+print 'knots:'
+print rknots
+print thetaknots
+print zknots
+print tknots
 
 def spline_spec(ndim):
    if ndim > 3:
@@ -113,26 +137,13 @@ def spline_spec(ndim):
    else:
        order = [2,2,2]    # Quadric splines to get smooth derivatives
        penalties = {2:[smooth]*3}    # Penalize curvature 
-       # XXX HACK: add more knots near the cascade
-       extras = numpy.logspace(-1,1,5)/axis_scale[2]
-       zk = numpy.concatenate((zknots[abs(zknots) > 10/axis_scale[2]],
-	     -extras, extras, [0]))
-       zk.sort()
-       extras = numpy.logspace(-1,1,10)/axis_scale[0]
-       rk = numpy.concatenate((rknots[(rknots > 10/axis_scale[0])|(rknots < 0)],
-	      extras))
-       rk.sort()
-       knots = [rk, thetaknots, zk]
+       knots = [rknots, thetaknots, zknots]
    return order, penalties, knots
 
 # Take cumulative sum to get the CDF, and adjust fit points to be
 # the right edges of the time bins, where the CDF is measured.
 table.values = numpy.cumsum(table.values, axis=3)
 table.bin_centers[3] += table.bin_widths[3]/2.
-
-# HACK: Move first and last angular bins to 0 and 180
-table.bin_centers[1][0] = 0
-table.bin_centers[1][table.bin_centers[1].size - 1] = 180
 
 print "Loaded histogram with dimensions ", table.shape()
 
@@ -152,14 +163,13 @@ for i in range(0,len(table.bin_centers)):
 if opts.abs:
 	z = numpy.log(norm)
 
-	# remove NaNs and infinites from the fit
-	w = numpy.ones(norm.shape)
-	#w = numpy.sum(table.weights, axis=-1)
+	# add some numerical stability sauce
+	w = 1000*numpy.ones(norm.shape)
 	w[numpy.logical_not(numpy.isfinite(z))] = 0
 	z[numpy.logical_not(numpy.isfinite(z))] = 0
 
-	# XXX HACK: de-weight the first radial bin everywhere
-	#w[:3,:,:] = 0 
+	# XXX HACK: don't believe anything in the first 3 radial bins
+	w[:3,:,:] = 0
 
 	order, penalties, knots = spline_spec(3)
 
@@ -172,20 +182,36 @@ if opts.abs:
 			    in range(0, len(spline.knots))]
 	splinefitstable.write(spline, abs_outputfile)
 
+	# clean up
+	del(w,z,order,penalties,knots,spline)
+
 if opts.prob:
 	z = table.values / norm.reshape(norm.shape + (1,))
 	# XXX HACK: ignore weights for normalized timing
-	w = numpy.ones(table.weights.shape)
+	w = 1000*numpy.ones(table.weights.shape)
 	order, penalties, knots = spline_spec(4)
+
+	centers = table.bin_centers
+
+	# XXX HACK: dont' believe anything that happens inside of a meter
+	#mellonball(table, w, radius=1)
+	# XXX HACK: also, don't believe anything in the first 3 radial bins
+	w[:3,:,:,:] = 0
+
+	# go ahead and remove the table from memory
+	del(table, norm)
 
 	print 'Number of knots used: ',[len(a) for a in knots]
 	print "Beginning spline fit for timing table..."
-	spline = glam.fit(z,table.weights,table.bin_centers,knots,order,smooth,penalties=penalties,monodim=3)
+	spline = glam.fit(z,w,centers,knots,order,smooth,penalties=penalties,monodim=3)
 
 	print "Saving table to %s..." % prob_outputfile
 	spline.knots = [spline.knots[i] * axis_scale[i] for i
 			    in range(0, len(spline.knots))]
 	splinefitstable.write(spline, prob_outputfile)
+
+	# clean up
+	del(w,z,order,penalties,knots,spline)
 
 
 # smoothed = glam.grideval(spline, table.bin_centers)
