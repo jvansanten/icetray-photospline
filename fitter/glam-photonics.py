@@ -68,7 +68,7 @@ if (not Efficiency.N_PHOTON & table.header['efficiency']):
 	raise ValueError, "This table does not appear to be normalized."
 
 nknots = [15, 6, 25]
-if table.ndim() > 3:
+if table.ndim > 3:
     nknots.append(20) # [t]
 
 if opts.rknots:
@@ -77,7 +77,7 @@ if opts.fknots:
     nknots[1] = opts.fknots
 if opts.zknots:
     nknots[2] = opts.zknots
-if opts.tknots and table.ndim() > 3:
+if opts.tknots and table.ndim > 3:
     nknots[3] = opts.tknots
 
 print "Core knots:", nknots
@@ -88,7 +88,7 @@ print "Core knots:", nknots
 radial_extent = 600
 length_extent = 500
 
-coreknots = [table.bin_centers[i][numpy.unique(numpy.int32(numpy.linspace(0,len(table.bin_centers[i])-1,nknots[i])))] for i in range(0,table.ndim())]
+coreknots = [table.bin_centers[i][numpy.unique(numpy.int32(numpy.linspace(0,len(table.bin_centers[i])-1,nknots[i])))] for i in range(0,table.ndim)]
 
 # optimized knots for some dimensions ----------------------------------------
 
@@ -145,7 +145,7 @@ def spline_spec(ndim):
 table.values = numpy.cumsum(table.values, axis=3)
 table.bin_centers[3] += table.bin_widths[3]/2.
 
-print "Loaded histogram with dimensions ", table.shape()
+print "Loaded histogram with dimensions ", table.shape
 
 norm = table.values[:,:,:,-1]
 
