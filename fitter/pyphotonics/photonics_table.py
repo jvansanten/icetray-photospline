@@ -15,6 +15,10 @@ class Efficiency:
 	USER_DEFINED = 0x80
 	DIFFERENTIAL = 0x100
 
+class Geometry:
+	SPHERICAL   = 1
+	CYLINDRICAL = 2
+	CUBIC       = 3
 
 # Class for reading IceCube photonics tables
 class photonics_table():

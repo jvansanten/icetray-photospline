@@ -74,8 +74,12 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 	}
 
 	header_dict = PyDict_New();
-	PyDict_SetItemString(header_dict, "n_photon",  PyInt_FromLong(io.h->n_photon));
-	PyDict_SetItemString(header_dict, "efficiency", PyInt_FromLong((long)(io.h->efficiency)));
+	PyDict_SetItemString(header_dict, "n_photon",
+	    PyInt_FromLong(io.h->n_photon));
+	PyDict_SetItemString(header_dict, "efficiency",
+	    PyInt_FromLong((long)(io.h->efficiency)));
+	PyDict_SetItemString(header_dict, "geometry",
+	    PyInt_FromLong((long)(io.h->geo)));
 
 	#ifdef SUPPORT_BIGENDIAN
 		if(!isLittleEndian() && checkMetaHeadLittle(&(io.h->MetaHead)))
