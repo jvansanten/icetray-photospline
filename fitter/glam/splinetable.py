@@ -10,3 +10,6 @@ class SplineTable:
 	# logarithmic bias
 	bias = 0
 
+	# geometry type
+	geometry = 2
+

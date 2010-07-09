@@ -16,6 +16,7 @@ def write(table,path):
 		data.header.update('PERIOD%d' % i,table.periods[i])
 
 	data.header.update('BIAS',table.bias)
+	data.header.update('GEOMETRY',table.geometry)
 
 	hdulist = pyfits.HDUList([data])
 
@@ -46,6 +47,10 @@ def read(path):
 
 	try:
 		table.bias = data.header['BIAS']
+	except:
+		pass
+	try:
+		table.geometry = data.header['GEOMETRY']
 	except:
 		pass
 
