@@ -20,7 +20,7 @@ optparser.add_option("-r", "--rknots", dest="rknots", type="int",
 optparser.add_option("-f", "--fknots", dest="fknots", type="int",
              help="number of knots in angular dimension")
 optparser.add_option("-z", "--zknots", dest="zknots", type="int",
-             help="number of knots in longitudinal dimension")
+             help="number of knots in cos(zenith)")
 optparser.add_option("-t", "--tknots", dest="tknots", type="int",
              help="number of knots in time dimension")
 optparser.add_option("-s", "--smooth", dest="smooth", type="float",
