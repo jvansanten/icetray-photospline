@@ -35,6 +35,8 @@ optparser.add_option("--start",dest="start",type="int",default=0,
 		help='Start iterating at this bin number')
 optparser.add_option("--density",dest="density",type="int",default=1,
 		help="Points to plot per table bin")
+optparser.add_option("--dump",dest="dump",action="store_true",default=False,
+		help="Iterate over dimension, dumping each plot to an EPS file.")
 (opts, args) = optparser.parse_args()
 
 # Load oroginal table
@@ -179,14 +181,16 @@ for i,icenter in enumerate(table.bin_centers[idim]):
             gp('set style arrow 2 nohead ls 9')
             for k in spline.knots[xdim]:
                 gp('set arrow from %e,%e to %e,%e as 2'%(k,ymin,k,ymax))
-            ##gp.set(y2label='log PDF')
-            #gp.set(yrange=(0,1.2))
-            #gp.set_boolean('grid',True)
             gp.plot(*plots)
 
 	printdiffstats(sample[::opts.density,ndim], sample[::opts.density,ndim+offset])
-	gp.interact()
-	#gp.hardcopy('cdf_slice_%s_%.3d_%s_%f.eps'%(axis_vars[idim], i, axis_vars[d], table.bin_centers[d][bin]),eps=True,color=True)
+	if opts.dump:
+		if not three_d:
+            		gp.set(yrange=(0,1.2))
+			gp.set_boolean('grid',True)
+		gp.hardcopy('cdf_slice_%s_%.3d_%s_%f.eps'%(axis_vars[idim], i, axis_vars[d], table.bin_centers[d][bin]),eps=True,color=True)
+	else:
+		gp.interact()
         #raw_input('Press Enter to continue')
     except AssertionError:
         print 'Skipping   slice at  (no raw data)' % i
