@@ -1,6 +1,6 @@
 from distutils.core import setup, Extension
 from numpy.distutils.system_info import get_info
-import os
+import sys, os
 
 import ConfigParser
 cp = ConfigParser.ConfigParser()
@@ -16,9 +16,11 @@ inc_dirs = []
 from numpy.distutils.misc_util import get_numpy_include_dirs
 inc_dirs.extend(get_numpy_include_dirs())
 
+expand = lambda path: os.path.expanduser(os.path.expandvars(path))
+
 def setup_extensions():
 	if cp.has_option('photonics','path'):
-		photonics_dir = cp.get('photonics','path')
+		photonics_dir = expand(cp.get('photonics','path'))
 		photo2numpy = Extension("photo2numpy", sources=["photo2numpy/photo2numpy.c"],
 							include_dirs  = inc_dirs + [photonics_dir+'/lib',
 											 photonics_dir+'/level2'],
@@ -32,7 +34,8 @@ def setup_extensions():
 	
 	spglam = Extension("spglam", sources = ["cfitter/glam.c","cfitter/nnls.c","cfitter/cholesky_solve.c","cfitter/splineutil.c","cfitter/pyglam.c","lib/bspline.c"],
 						include_dirs = inc_dirs + ['lib'],
-						libraries = ['m','cholmod','ccolamd','colamd','amd','spqr','gfortran','stdc++'] + lapack_libs,
+						libraries = ['m','cholmod','ccolamd','colamd','amd','camd','metis','spqr','gfortran','stdc++'] + lapack_libs,
+						undef_macros = ['NDEBUG'],
 						)
 	
 	if photo2numpy is not None:
