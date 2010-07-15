@@ -23,11 +23,42 @@ readsplinefitstable(const char *path, struct splinetable *table)
 	return (error);
 }
 
+static void
+splinetable_free_aux(struct splinetable *table)
+{
+	int i;
+
+	for (i = 0; i < table->naux; i++) {
+		free(table->aux[i][0]);
+		free(table->aux[i][1]);
+		free(table->aux[i]);
+	}
+
+	free(table->aux);
+	table->naux = 0;
+	table->aux = NULL;
+}
+
+void splinetable_free(struct splinetable *table)
+{
+	int i;
+
+	splinetable_free_aux(table);
+	for (i = 0; i < table->ndim; i++)
+		free(table->knots[i]);
+	free(table->knots);
+	free(table->nknots);
+	free(table->naxes);
+	free(table->coefficients);
+	free(table->periods);
+	free(table->strides);
+}
+
 static int
 parsefitstable(fitsfile *fits, struct splinetable *table)
 {
 	int error = 0;
-	int hdus, type, i;
+	int hdus, type, i, nkeys;
 	size_t arraysize;
 	long *fpixel;
 
@@ -46,6 +77,45 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 	fits_get_img_dim(fits, &table->ndim, &error);
 	if (error != 0)
 		return (error);
+
+	/*
+	 * Read in any auxiliary keywords.
+	 */
+	nkeys = 0;
+	fits_get_hdrspace(fits, &nkeys, NULL, &error);
+	if (nkeys > 0) {
+		char key[FLEN_KEYWORD], value[FLEN_VALUE];
+		int keylen, valuelen;
+		table->aux = calloc(sizeof(char**), nkeys);
+		i = 0;
+		int j = 1;
+		for ( ; (i < nkeys) && (j-1 < nkeys); j++) {
+			error = 0;
+			fits_read_keyn(fits, j, key, value, NULL, &error);
+			if (error != 0)
+				continue;
+			if (strncmp("TYPE", key, 4) == 0 ||
+			    strncmp("ORDER", key, 5) == 0 || 
+			    strncmp("NAXIS", key, 5) == 0 ||
+			    strncmp("PERIOD", key, 6) == 0 ||
+			    strncmp("EXTEND", key, 6) == 0)
+				continue;
+
+			keylen = strlen(key) + 1;
+			valuelen = strlen(value) + 1;
+			table->aux[i] = calloc(sizeof(char*), 2);
+			table->aux[i][0] = calloc(sizeof(char), keylen);
+			table->aux[i][1] = calloc(sizeof(char), valuelen);
+			memcpy(table->aux[i][0], key, keylen);
+			memcpy(table->aux[i][1], value, valuelen);
+			i++;
+		}
+		table->aux = realloc(table->aux, i*sizeof(char**));
+		table->naux = i;
+	} else {
+		table->aux = NULL;
+		table->naux = 0;
+	}
 
 	table->order = malloc(sizeof(table->order[i])*table->ndim);
 	fits_read_key(fits, TINT, "ORDER", &table->order[0], NULL, &error);
@@ -113,8 +183,7 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 	free(fpixel);
 
 	if (error != 0) {
-		free(table->naxes);
-		free(table->coefficients);
+		splinetable_free(table);
 		return (error);
 	}
 
@@ -144,3 +213,45 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 	return (error);
 }
 
+const char *
+splinetable_get_key(struct splinetable *table, const char *key)
+{
+	int i = 0;
+	char *value = NULL;
+	
+	for ( ; i < table->naux; i++) {
+		if (strcmp(key, table->aux[i][0]) == 0) {
+			value = table->aux[i][1];
+		}
+	}
+
+	return (value);
+}
+
+int
+splinetable_read_key(struct splinetable *table, splinetable_dtype type,
+    const char *key, void *result)
+{
+	int error = 0;
+	const char *value = splinetable_get_key(table, key);
+
+	if (!value)
+		return (0);
+
+	switch (type) {
+		case SPLINETABLE_INT:
+			ffc2i(value, (int*)result, &error);
+			break;
+		case SPLINETABLE_DOUBLE:
+			ffc2d(value, (double*)result, &error);
+			break;
+		default:
+			error = BAD_DATATYPE;
+	}
+
+	if (error != 0)
+		return (-1);
+	else
+		return (0);
+	
+}
