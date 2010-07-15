@@ -2,7 +2,7 @@
 #include <errno.h>
 #include <fitsio.h>
 
-#include "splinetable.h"
+#include "photospline/splinetable.h"
 
 static int parsefitstable(fitsfile *fits, struct splinetable *table);
 

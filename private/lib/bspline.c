@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "bspline.h"
+#include "photospline/bspline.h"
 
 /*
  * FASTANDLOOSE mode avoids some expensive malloc() calls

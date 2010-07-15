@@ -5,6 +5,6 @@
 i3_project(photospline)
 
 i3_add_library(photospline
-	lib/*.c
-	USE_TOOLS cfitsio
+	private/lib/*.c
+	USE_TOOLS cfitsio gsl python
 )

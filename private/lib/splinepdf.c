@@ -1,9 +1,9 @@
 #include <math.h>
 #include <gsl/gsl_rng.h>
 
-#include "splinetable.h"
-#include "bspline.h"
-#include "splinepdf.h"
+#include "photospline/splinetable.h"
+#include "photospline/bspline.h"
+#include "photospline/splinepdf.h"
 
 void logsplinepdf_n_sample(double *result, int results, int burnin,
     double *coords, int dim, struct splinetable *table, int derivatives,
