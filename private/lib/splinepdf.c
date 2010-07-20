@@ -7,8 +7,8 @@
 
 void logsplinepdf_n_sample(double *result, int results, int burnin,
     double *coords, int dim, struct splinetable *table, int derivatives,
-    double (* proposal)(void), double (* proposal_pdf)(double, double),
-    gsl_rng *rng)
+    double (* proposal)(void*), double (* proposal_pdf)(double, double, void*),
+    void* proposal_info, gsl_rng *rng)
 {
 	int i, accepted;
 	int centers[table->ndim];
@@ -30,9 +30,9 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 		 * to avoid numerical problems.
 		 */
 
-		coords[dim] = lastval = (*proposal)();
+		coords[dim] = lastval = (*proposal)(proposal_info);
 
-		lastproppdf = (*proposal_pdf)(lastval,lastval);
+		lastproppdf = (*proposal_pdf)(lastval,lastval,proposal_info);
 		tablesearchcenters(table, coords, centers);
 		lastlogpdf = ndsplineeval(table, coords, centers, 0);
 		if (derivatives)
@@ -42,7 +42,7 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 	} while (!isfinite(lastlogpdf) || lastval < mint || lastval > maxt);
 
 	for (i = -burnin; i < results; i++) {
-		coords[dim] = val = (*proposal)();
+		coords[dim] = val = (*proposal)(proposal_info);
 
 		/*
 		 * If we ended up outside the table, reject the sample
@@ -56,7 +56,7 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 		if (derivatives)
 			logpdf += log(ndsplineeval(table, coords, centers,
 			    derivatives));
-		proppdf = (*proposal_pdf)(val,lastval);
+		proppdf = (*proposal_pdf)(val,lastval,proposal_info);
 		odds = exp(logpdf - lastlogpdf);
 		odds *= lastproppdf/proppdf;
 
@@ -89,8 +89,8 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 
 void splinepdf_n_sample(double *result, int results, int burnin,
     double *coords, int dim, struct splinetable *table, int derivatives,
-    double (* proposal)(void), double (* proposal_pdf)(double, double),
-    gsl_rng *rng)
+    double (* proposal)(void*), double (* proposal_pdf)(double, double, void*),
+    void *proposal_info, gsl_rng *rng)
 {
 	int i, accepted;
 	int centers[table->ndim];
@@ -112,16 +112,16 @@ void splinepdf_n_sample(double *result, int results, int burnin,
 		 * to avoid numerical problems.
 		 */
 
-		coords[dim] = lastval = (*proposal)();
+		coords[dim] = lastval = (*proposal)(proposal_info);
 
-		lastproppdf = (*proposal_pdf)(lastval,lastval);
+		lastproppdf = (*proposal_pdf)(lastval,lastval,proposal_info);
 		tablesearchcenters(table, coords, centers);
 		lastpdf = ndsplineeval(table, coords, centers, derivatives);
 		accepted = 0;
 	} while (lastval < mint || lastval > maxt);
 
 	for (i = -burnin; i < results; i++) {
-		coords[dim] = val = (*proposal)();
+		coords[dim] = val = (*proposal)(proposal_info);
 
 		/*
 		 * If we ended up outside the table, reject the sample
@@ -132,7 +132,7 @@ void splinepdf_n_sample(double *result, int results, int burnin,
 			goto reject;
 			
 		pdf = ndsplineeval(table, coords, centers, derivatives);
-		proppdf = (*proposal_pdf)(val,lastval);
+		proppdf = (*proposal_pdf)(val,lastval,proposal_info);
 		odds = pdf/lastpdf;
 		odds *= lastproppdf/proppdf;
 
