@@ -6,7 +6,7 @@
 
 #include "cholesky_solve.h"
 #include "splineutil.h"
-#include "splinetable.h"
+#include "photospline/splinetable.h"
 #include "glam.h"
 
 static cholmod_sparse *flatten_ndarray_to_sparse(struct ndsparse *array,

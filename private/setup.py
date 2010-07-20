@@ -33,7 +33,7 @@ def setup_extensions():
 		photo2numpy = None
 	
 	spglam = Extension("spglam", sources = ["cfitter/glam.c","cfitter/nnls.c","cfitter/cholesky_solve.c","cfitter/splineutil.c","cfitter/pyglam.c","lib/bspline.c"],
-						include_dirs = inc_dirs + ['lib'],
+						include_dirs = inc_dirs + ['../public'],
 						libraries = ['m','cholmod','ccolamd','colamd','amd','camd','metis','spqr','gfortran','stdc++'] + lapack_libs,
 						undef_macros = ['NDEBUG'],
 						)

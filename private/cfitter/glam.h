@@ -3,7 +3,7 @@
 
 #include <suitesparse/cholmod.h>
 
-#include "splinetable.h"
+#include "photospline/splinetable.h"
 #include "splineutil.h"
 
 void glamfit(struct ndsparse *data, double *weights, double **coords,

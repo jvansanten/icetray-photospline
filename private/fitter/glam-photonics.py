@@ -82,16 +82,18 @@ if opts.tknots and table.ndim > 3:
 
 print "Core knots:", nknots
 
-# Compute knot locations using a sparsified version of the bin centers as
-#    central knots.
-
 radial_extent = 600
 length_extent = 500
 
-coreknots = [table.bin_centers[i][numpy.unique(numpy.int32(numpy.linspace(0,len(table.bin_centers[i])-1,nknots[i])))] for i in range(0,table.ndim)]
+coreknots = [None]*4
 
-# optimized knots for some dimensions ----------------------------------------
-
+# It's tempting to use some version of the bin centers as knot positions,
+# but this should be avoided. Data points exactly at the knot locations are 
+# not fully supported, leading to genuine wierdness in the fit.
+coreknots[0] = numpy.linspace(0, radial_extent**(1./2), nknots[0])**2
+coreknots[0] = numpy.concatenate([0], numpy.logspace(-1,
+    numpy.log10(radial_extent), nknots[0]-1)
+coreknots[1] = numpy.linspace(0, 180, nknots[1])
 # space 1/3 of the knots quadratically behind the source, 
 # where everything is diffuse, and the remainder in front
 # with logarithmic spacing
@@ -101,26 +103,27 @@ coreknots[2] = numpy.concatenate((
     numpy.logspace(0, numpy.log10(length_extent), nknots[2]-backerds)
     ))
 
-# pure log-spacing in cylinder radius
-coreknots[0] = numpy.logspace(0, numpy.log10(radial_extent),nknots[0])
+# We're fitting the CDF in time, so we need tightly-spaced knots at
+# early times to be able to represent the potentially steep slope.
+coreknots[3] = numpy.logspace(-1, numpy.log10(7000), nknots[3])
+coreknots[3] = numpy.concatenate(([0], coreknots[3]))
 
 # Now append the extra knots off both ends of the axis in order to provide
 # full support at the boundaries
 
 rknots     = numpy.append(numpy.append([-1, -0.5, -0.1], coreknots[0]),
-                          numpy.asarray([100, 200, 300, 400, 500]) + radial_extent)
-thetaknots = numpy.append(numpy.append([-1, -0.5, -0.1], coreknots[1]),
-                          [180.1,180.2,180.3,180.4,180.5])
-zknots     = numpy.append(numpy.append([-800, -700, -600], coreknots[2]),
-                          [600,700,800,900,1000])
+                          100*numpy.arange(1,3) + radial_extent)
+endgap = [coreknots[1][1]-coreknots[1][0], coreknots[1][-1]-coreknots[1][-2]]
+thetaknots = numpy.concatenate((coreknots[1][0] - endgap[0]*n.arange(2,0,-1),
+    coreknots[1], coreknots[1][-1] + endgap[1]*n.arange(1,3)))
+# NB: we want -1 and 1 to be fully supported.
+endgap = [coreknots[2][1]-coreknots[2][0], coreknots[2][-1]-coreknots[2][-2]]
+zknots = numpy.concatenate((coreknots[2][0] - endgap[0]*n.arange(2,0,-1),
+    coreknots[2], coreknots[2][-1] + endgap[1]*n.arange(1,3)))
 
-early = nknots[3]/2
-# use hybrid log/quadratic spacing in time:
-# space half the knots logarithmically between 1 and 100 ns,
-# the remainder quadratically from 150 to 7000 ns.
-tknots = numpy.concatenate(([-5,-2,-1,0], numpy.logspace(0, 2, early), 
-    numpy.linspace(150**0.5, 7000**0.5, nknots[3]-early)**2,
-    7000 + 100*numpy.arange(1,8)))
+# NB: we can get away with partial support in time, since we know that
+# F(0) is identically zero.
+tknots = numpy.concatenate((coreknots[3], 7000 + 100*numpy.arange(1,4)))
 
 print 'knots:'
 print rknots

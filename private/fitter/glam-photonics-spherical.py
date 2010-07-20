@@ -42,12 +42,14 @@ def check_exists(outputfile):
         else:
             sys.exit()
 
+def default_path(input):
+	pth = os.path.basename(input)
+	return pth+'.abs.pspl.fits',pth+'.prob.pspl.fits'
+
 if len(args) < 2:
-    abs_outputfile = args[0]+".abs.pspl.fits"
-    prob_outputfile = args[0]+".prob.pspl.fits"
+    abs_outputfile, prob_outputfile = default_path(args[0])
 else:
-    abs_outputfile = args[1]+".abs.fits"
-    prob_outputfile = args[1]+".prob.fits"
+    abs_outputfile, prob_outputfile = default_path(args[1])
 
 if opts.prob: check_exists(prob_outputfile)
 if opts.abs: check_exists(abs_outputfile)
@@ -62,10 +64,13 @@ table = photonics_table(args[0])
 table.convert_to_level1()
 
 # check for a sane normalization
-if (Efficiency.DIFFERENTIAL & table.header['efficiency']):
-	raise ValueError, "This appears to be a dP/dt table. Don't do that, okay?"
-if (not Efficiency.N_PHOTON & table.header['efficiency']):
-	raise ValueError, "This table does not appear to be normalized."
+eff = Efficiency.RECEIVER | Efficiency.WAVELENGTH | Efficiency.N_PHOTON
+int2bin = lambda num, count: "".join([str((num >> y) & 1) for y in range(count-1, -1, -1)])
+if (table.header['efficiency'] != eff):
+	err = "Unknown normalization %s (expected %s)" % (
+	    int2bin(table.header['efficiency'], 9), int2bin(eff, 9))
+	raise ValueError, err
+
 if (table.header['geometry'] is not Geometry.SPHERICAL):
 	raise ValueError, "This table does not have spherical geometry"
 
@@ -110,7 +115,7 @@ thetaknots = numpy.concatenate((coreknots[1][0] - endgap[0]*n.arange(2,0,-1),
 # NB: we want -1 and 1 to be fully supported.
 endgap = [coreknots[2][1]-coreknots[2][0], coreknots[2][-1]-coreknots[2][-2]]
 zknots = numpy.concatenate((coreknots[2][0] - endgap[0]*n.arange(2,0,-1),
-    coreknots[2], coreknots[2][-1] + endgap[1]*n.arange(1,5)))
+    coreknots[2], coreknots[2][-1] + endgap[1]*n.arange(1,3)))
 
 # NB: we can get away with partial support in time, since we know that
 # F(0) is identically zero.

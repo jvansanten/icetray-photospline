@@ -35,9 +35,12 @@ class photonics_table():
     filename    = None
     
     # Contructor. Creates instance and optionally opens pt file.
-    def __init__(self, filename=None):
+    def __init__(self, filename=None, normalize=True):
         if filename is not None:
             self.open_file(filename)
+        if normalize:
+            self.normalize()
+	    
 
     # Checks consistency of loaded tables.
     # For now, only checks shapes of various arrays.
@@ -53,6 +56,26 @@ class photonics_table():
             return 0
             
         return 1
+
+    # Normalize to absolute bin amplitudes
+    def normalize(self):
+	eff = self.header['efficiency']
+	if not (eff & Efficiency.N_PHOTON):
+		# This table still contains raw weights from photomc
+		self.values /= self.header['n_photon']
+		self.weights /= self.header['n_photon']
+		eff = eff | Efficiency.N_PHOTON
+	if (eff & Efficiency.DIFFERENTIAL):
+		# Someone has made this a dP/dt table. Undo their fine work.
+		if table.values.ndim != 4:
+			raise ValueError, "This table is wierd, man."
+		shape = [1]*len(self.values.shape)
+		shape[-1] = self.values.shape[-1]
+		dt = self.bin_widths[-1].reshape(shape)
+		self.values *= dt
+		eff = eff & ~Efficiency.DIFFERENTIAL
+
+	self.header['efficiency'] = eff
         
     # Returns number of dimensions in table.
     @property

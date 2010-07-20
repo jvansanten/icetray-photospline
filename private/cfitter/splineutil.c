@@ -2,7 +2,7 @@
 #include <math.h>
 
 #include "splineutil.h"
-#include "bspline.h"
+#include "photospline/bspline.h"
 
 cholmod_sparse *
 cholmod_tril(int dim, cholmod_common *c)
