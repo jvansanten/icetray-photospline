@@ -67,7 +67,7 @@ class photonics_table():
 		eff = eff | Efficiency.N_PHOTON
 	if (eff & Efficiency.DIFFERENTIAL):
 		# Someone has made this a dP/dt table. Undo their fine work.
-		if table.values.ndim != 4:
+		if self.values.ndim != 4:
 			raise ValueError, "This table is wierd, man."
 		shape = [1]*len(self.values.shape)
 		shape[-1] = self.values.shape[-1]
