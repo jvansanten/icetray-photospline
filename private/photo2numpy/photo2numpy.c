@@ -3,26 +3,34 @@
 #include <stdio.h>
 #include <limits.h>
 #include <photonics.h>
+#ifndef SKIP_LEVEL2
 #include <level2_reader.h>
+#endif
 
 #define L1_MAXDIM 6
 #define L2_MAXDIM 4
 #define TABLE_CHUNKSIZE 1024
 
 static PyObject *photol1_chunks_to_numpy(Header_type *photoheader, FILE *table);
+#ifndef SKIP_LEVEL2
 static PyObject *photol2_chunks_to_numpy(Level2_header_type *photoheader,
     FILE *table);
+#endif
 
 #define min(x,y) (((x) < (y)) ? (x) : (y))
 
 /* Raw Photonics table Python interface */
 
 static PyObject *readl1table(PyObject *self, PyObject *args);
+#ifndef SKIP_LEVEL2
 static PyObject *readl2table(PyObject *self, PyObject *args);
+#endif
 
 static PyMethodDef methods[] = {
 	{ "readl1", readl1table, METH_VARARGS },
+#ifndef SKIP_LEVEL2
 	{ "readl2", readl2table, METH_VARARGS },
+#endif
 	{ NULL, NULL }
 };
 
@@ -255,6 +263,7 @@ static PyObject *photol1_chunks_to_numpy(Header_type *photoheader,
 	return ((PyObject *)result);
 }
 
+#ifndef SKIP_LEVEL2
 static PyObject *readl2table(PyObject *self, PyObject *args)
 {
 	const char *path;
@@ -455,6 +464,7 @@ static PyObject *photol2_chunks_to_numpy(Level2_header_type *photoheader,
 
 	return ((PyObject *)result);
 }
+#endif
 
 
 
