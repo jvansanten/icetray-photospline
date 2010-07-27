@@ -45,6 +45,22 @@ def stack_tables(tablist, order = 2):
 
 	return bigtab
 
+def unique(seq, idfun=None):  
+	"""Order-preserving uniquification, cribbed from http://www.peterbe.com/plog/uniqifiers-benchmark"""
+	if idfun is None: 
+		def idfun(x): return x 
+	seen = {} 
+	result = []
+	for item in seq: 
+       		marker = idfun(item) 
+		# in old Python versions: 
+		# if seen.has_key(marker) 
+		# but in new ones: 
+		if marker in seen: continue 
+		seen[marker] = 1 
+		result.append(item)
+	return result
+
 if __name__ == "__main__":
 	# Parse command line options
 	parser = OptionParser(usage="%prog [options] [source dir] [fits output]")
@@ -97,6 +113,15 @@ if __name__ == "__main__":
 	print 'Table list acquired, reading in tables...',
 	tables = [(splinefitstable.read(i[0]), i[1]) for i in tables]
 	print 'done'
+
+	# XXX HACK: provide full support above and below by cloning the end tables
+	depths = unique([tab[1][0] for tab in tables])
+	print "HACK: cloning tables at %.2f and %.2f" % (depths[0], depths[-1])
+	gap = depths[0] - depths[1]
+	bottom = [(copy.deepcopy(tab[0]), (tab[1][0] + gap, tab[1][1])) for tab in tables if tab[1][0] == tables[0][1][0]]
+	gap = depths[-1] - depths[-2]
+	top = [(copy.deepcopy(tab[0]), (tab[1][0] + gap, tab[1][1])) for tab in tables if tab[1][0] == tables[-1][1][0]]
+	tables = bottom + tables + top
 
 	zpos = numpy.unique([i[1][0] for i in tables])
 	if options.zstep:

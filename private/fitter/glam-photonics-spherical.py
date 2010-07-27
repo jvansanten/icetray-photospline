@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from glam import splinefitstable
 from optparse import OptionParser
 
@@ -29,6 +31,8 @@ optparser.add_option("--prob", dest="prob", action="store_true",
              help="Fit only the normalized CDFs", default=False)
 optparser.add_option("--abs", dest="abs", action="store_true",
              help="Fit only the total amplitude in each cell", default=False)
+optparser.add_option("--force", dest="force", action="store_true",
+             help="Overwrite existing fits files", default=False)
 (opts, args) = optparser.parse_args()
 
 # by default, do both fits
@@ -37,7 +41,7 @@ if not opts.prob and not opts.abs:
 
 def check_exists(outputfile):
     if os.path.exists(outputfile):
-        if raw_input("File %s exists. Overwrite? (y/n)" % outputfile) == 'y':
+        if opts.force or raw_input("File %s exists. Overwrite? (y/n)" % outputfile) == 'y':
             os.unlink(outputfile)
         else:
             sys.exit()
@@ -73,6 +77,8 @@ if (table.header['efficiency'] != eff):
 
 if (table.header['geometry'] is not Geometry.SPHERICAL):
 	raise ValueError, "This table does not have spherical geometry"
+
+extents = [(0.0, 600.0), (0.0, 180.0), (-1.0, 1.0), (0.0, 7000.)] 
 
 def construct_knots(nknots = None):
 	if nknots is None:
@@ -186,6 +192,7 @@ if opts.abs:
 	print "Beginning spline fit for abs table..."
 	spline = glam.fit(z,w,bin_centers,knots,order,smooth,penalties=penalties)
 	spline.geometry = Geometry.SPHERICAL
+	spline.extents = extents[:3]
 
 	print "Saving table to %s..." % abs_outputfile
 	spline.knots = [spline.knots[i] * axis_scale[i] for i
@@ -212,6 +219,7 @@ if opts.prob:
 	print "Beginning spline fit for timing table..."
 	spline = glam.fit(z,w,bin_centers,knots,order,smooth,penalties=penalties,monodim=3)
 	spline.geometry = Geometry.SPHERICAL
+	spline.extents = extents
 
 	print "Saving table to %s..." % prob_outputfile
 	spline.knots = [spline.knots[i] * axis_scale[i] for i

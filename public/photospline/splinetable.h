@@ -8,6 +8,8 @@ struct splinetable {
 	double **knots;
 	long *nknots;
 
+	double **extents;
+
 	double *periods;
 
 	double *coefficients;

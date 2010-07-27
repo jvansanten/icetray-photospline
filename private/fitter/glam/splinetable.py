@@ -10,6 +10,9 @@ class SplineTable:
 	# logarithmic bias
 	bias = 0
 
+	# extent of supported region
+	extents = []
+
 	# geometry type
 	geometry = 2
 

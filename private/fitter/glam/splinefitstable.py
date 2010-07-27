@@ -1,5 +1,6 @@
 import splinetable
 import pyfits
+import numpy
 
 def write(table,path):
 	data = pyfits.PrimaryHDU(table.coefficients)
@@ -23,6 +24,21 @@ def write(table,path):
 	for i in range(0,len(table.knots)):
 		knothdu = pyfits.ImageHDU(table.knots[i],name='KNOTS%d' % i)
 		hdulist.append(knothdu)
+	
+	extents = []
+	for i in range(0,len(table.knots)):
+		if getattr(table.order,'__iter__',False):
+			order = table.order[i]
+		else:
+			order = table.order
+
+		if i < len(table.extents):
+			ext = list(table.extents[i])
+		else:
+			ext = [table.knots[i][order], table.knots[i][-order-1]]
+		extents += ext
+	extenthdu = pyfits.ImageHDU(numpy.array(extents, dtype=float), name='EXTENTS')
+	hdulist.append(extenthdu)
 
 	hdulist.writeto(path)
 
@@ -38,12 +54,27 @@ def read(path):
 		table.periods.append(data.header['PERIOD%d' % i])
 		table.knots.append(file['KNOTS%d' % i].data)
 
+
 	try:
 		table.order = data.header['ORDER']
+		order = [table.order]*table.coefficients.ndim
 	except:
 		table.order = []
 		for i in range(0,table.coefficients.ndim):
 			table.order.append(data.header['ORDER%d' % i])
+		order = table.order
+
+	try:
+		extents = file['EXTENTS'].data
+	except:
+		extents = []
+	
+	if len(extents) != 2*table.coefficients.ndim:
+		extents = []
+		for i in range(0,table.coefficients.ndim):
+			extents += [table.knots[i][order[i]], table.knots[i][-order[i]-1]]
+
+	table.extents = zip(extents[:-1:2], extents[1::2])
 
 	try:
 		table.bias = data.header['BIAS']

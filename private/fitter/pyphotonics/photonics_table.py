@@ -1,6 +1,7 @@
 
 import numpy
 import photo2numpy
+import warnings
 
 class Efficiency:
 	"""Normalization types from photonics.h"""

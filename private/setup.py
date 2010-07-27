@@ -62,7 +62,7 @@ def setup_extensions():
 	        "cfitter/pyglam.c","lib/bspline.c"],
 	    include_dirs=inc_dirs + ['../public'],
 	    libraries = ['m', 'cholmod', 'ccolamd', 'colamd', 'amd', 'camd', 
-	        'spqr','gfortran','stdc++'] + lapack_libs,
+	        'metis', 'spqr','gfortran','stdc++'] + lapack_libs,
 	    undef_macros = ['NDEBUG'] )
 	
 	if photo2numpy is not None:
