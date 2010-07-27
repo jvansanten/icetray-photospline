@@ -20,8 +20,8 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 
 	/* Find the boundaries by choosing the first and last points
 	 * with full support */
-	mint = table->knots[dim][table->order[dim]];
-	maxt = table->knots[dim][table->nknots[dim] - table->order[dim] - 3];
+	mint = table->extents[dim][0];
+	maxt = table->extents[dim][1];
 
 	do {
 		/*
@@ -102,8 +102,8 @@ void splinepdf_n_sample(double *result, int results, int burnin,
 
 	/* Find the boundaries by choosing the first and last points
 	 * with full support */
-	mint = table->knots[dim][table->order[dim]];
-	maxt = table->knots[dim][table->nknots[dim] - table->order[dim] - 3];
+	mint = table->extents[dim][0];
+	maxt = table->extents[dim][1];
 
 	do {
 		/*

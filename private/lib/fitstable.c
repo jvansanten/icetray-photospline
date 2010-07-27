@@ -47,8 +47,9 @@ void splinetable_free(struct splinetable *table)
 	splinetable_free_aux(table);
 	for (i = 0; i < table->ndim; i++)
 		free(table->knots[i]);
-	free(table->extents[0]);
 	free(table->knots);
+	free(table->extents[0]);
+	free(table->extents);
 	free(table->nknots);
 	free(table->naxes);
 	free(table->coefficients);
@@ -215,27 +216,31 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 	/*
 	 * Read the axes extents, stored in a single extension HDU.
 	 */
-	double *extents = malloc(sizeof(double) * 2 * table->ndim);
-	int n_extents = 0;
-	int ext_error = 0;
+
+	table->extents = malloc(sizeof(double*) * table->ndim);
+	table->extents[0] = malloc(sizeof(double) * 2 * table->ndim);
+
+	for (i = 1; i < table->ndim; i++) {
+		table->extents[i] = &table->extents[0][2*i];
+	}
+
+	long n_extents = 0;
 	long fpix = 1;
-	const char *hduname = "EXTENTS";
-	fits_movnam_hdu(fits, IMAGE_HDU, hduname, 0, &ext_error);
+	int ext_error = 0;
+	fits_movnam_hdu(fits, IMAGE_HDU, "EXTENTS", 0, &ext_error);
 	fits_get_img_size(fits, 1, &n_extents, &ext_error);
 	if (n_extents != 2*table->ndim)
 		ext_error = 1;
+
 	if (ext_error != 0) { /* No extents. Make up some reasonable ones. */
 		for (i = 0; i < table->ndim; i++) {
-			extents[2*i] = table->knots[i][table->order[i]];
-			extents[2*i+1] = table->knots[i][table->nknots[i] - table->order[i] - 1];
+			table->extents[i][0] = table->knots[i][table->order[i]];
+			table->extents[i][1] = table->knots[i][table->nknots[i]
+			    - table->order[i] - 1];
 		}
 	} else {
 		fits_read_pix(fits, TDOUBLE, &fpix, n_extents, NULL,
-		     &extents, NULL, &ext_error);
-	}
-
-	for (i = 0; i < table->ndim; i++) {
-		table->extents[i] = &extents[2*i];
+		     table->extents[0], NULL, &ext_error);
 	}
 
 	return (error);
