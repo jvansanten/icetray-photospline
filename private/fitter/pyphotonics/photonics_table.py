@@ -35,9 +35,9 @@ class photonics_table():
     filename    = None
     
     # Contructor. Creates instance and optionally opens pt file.
-    def __init__(self, filename=None, normalize=True):
+    def __init__(self, filename=None, normalize=True, mmap=False):
         if filename is not None:
-            self.open_file(filename)
+            self.open_file(filename, mmap=mmap)
         if normalize:
             self.normalize()
 	    
@@ -110,10 +110,12 @@ class photonics_table():
         else:
             return True
 
-    def open_file(self, filename, convert=True):
+    def open_file(self, filename, convert=True, mmap=False):
+        if mmap:
+            warnings.warn("Memory-mapped tables are single-precision. You have been warned.");
 	self.filename = filename
         try:
-            table = photo2numpy.readl1(filename)
+            table = photo2numpy.readl1(filename, mmap)
             self.level = 1
         except ValueError, inst:
             try:

@@ -6,12 +6,14 @@
 #ifndef SKIP_LEVEL2
 #include <level2_reader.h>
 #endif
+#include "hobo_mmap.h"
 
 #define L1_MAXDIM 6
 #define L2_MAXDIM 4
 #define TABLE_CHUNKSIZE 1024
 
 static PyObject *photol1_chunks_to_numpy(Header_type *photoheader, FILE *table);
+static PyObject *photol1_map_to_numpy(Header_type *photoheader, FILE *table);
 #ifndef SKIP_LEVEL2
 static PyObject *photol2_chunks_to_numpy(Level2_header_type *photoheader,
     FILE *table);
@@ -34,8 +36,10 @@ static PyMethodDef methods[] = {
 	{ NULL, NULL }
 };
 
-void initphoto2numpy()
+void initphoto2numpy(void)
 {
+	PyType_Ready(&mmap_wrapper_type);
+
 	import_array();
 	Py_InitModule("photo2numpy", methods);
 }
@@ -48,9 +52,10 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 	PyObject *binwidths[L1_MAXDIM], *binwidths_tuple;
 	PyObject *header_dict;
 	PyObject *result;
+	PyObject *py_do_map;
 	char coordstr[L1_MAXDIM+1];
 	FILE *table;
-	int i, j, ndim;
+	int i, j, ndim, do_map;
 
 	/* Glue variables for Photonics */
 	Io_type io={0,{0,0,0,0,0,0},0,NULL};
@@ -58,9 +63,12 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 	Geo_type geo;
 
 	result = NULL;
+	py_do_map = Py_False;
 
-	if (!PyArg_ParseTuple(args, "s", &path))
+	if (!PyArg_ParseTuple(args, "sO:readl1", &path, &py_do_map))
 		return NULL;
+
+	do_map = PyObject_IsTrue(py_do_map);
 
 	printf("Opening photon table: %s\n",path);
 
@@ -117,14 +125,21 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 
 	/* Read out the main part of the table */
 
-	main_array = (PyObject *)photol1_chunks_to_numpy(&photoheader, table);
+	if (do_map)
+		main_array = photol1_map_to_numpy(&photoheader, table);
+	else
+		main_array = photol1_chunks_to_numpy(&photoheader, table);
 
 	/* Check for statistics */
-	if (photoheader.record_errors)
-		stats_array = (PyObject *)photol1_chunks_to_numpy(
-		    &photoheader, table);
-	else
+	if (photoheader.record_errors) {
+		if (do_map)
+			stats_array = photol1_map_to_numpy(&photoheader, table);
+		else
+			stats_array = photol1_chunks_to_numpy(&photoheader,
+			    table);
+	} else {
 		stats_array = Py_None;
+	}
 
 	/* Build up a tuple of the bin coordinates on each axis */
 	ndim = 0;
@@ -256,6 +271,54 @@ static PyObject *photol1_chunks_to_numpy(Header_type *photoheader,
 	/* All done */
     exit:
 	free(array);
+
+	if (result == NULL)
+		return (Py_None);
+
+	return ((PyObject *)result);
+}
+
+static PyObject *photol1_map_to_numpy(Header_type *photoheader,
+    FILE *table)
+{
+	PyArrayObject *result;
+	PyObject *mmap;
+	npy_intp dimensions[L1_MAXDIM];
+	size_t table_size;
+	off_t pos;
+	int i, ndim;
+	void *data;
+
+	/* Set up numpy array */
+	ndim = 0;
+	table_size = 1;
+	for (i = 0; i < L1_MAXDIM; i++) {
+		/* Don't include dimensions that have only one element */
+		if(photoheader->n[i] > 1) {
+			dimensions[ndim] = photoheader->n[i];
+			table_size *= photoheader->n[i];
+			ndim++;
+		}
+	}
+
+	result = NULL;
+	pos = ftello(table);
+
+	mmap = (PyObject*)mmap_wrapper_new(fileno(table), pos,
+	    table_size * sizeof(float), &data);
+
+	if (!mmap) goto exit;
+
+	result = (PyArrayObject*)PyArray_SimpleNewFromData(ndim, dimensions,
+	    PyArray_FLOAT, data);
+
+	if (!result) goto exit;
+
+	Py_INCREF(mmap);
+	result->base = mmap;
+
+	/* All done */
+    exit:
 
 	if (result == NULL)
 		return (Py_None);
