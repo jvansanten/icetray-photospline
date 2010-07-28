@@ -27,9 +27,9 @@ typedef enum {
 
 int readsplinefitstable(const char *path, struct splinetable *table);
 void splinetable_free(struct splinetable *table);
-const char * splinetable_get_key(struct splinetable *table, const char *key);
+char * splinetable_get_key(struct splinetable *table, const char *key);
 int splinetable_read_key(struct splinetable *table, splinetable_dtype type,
-    const char *key, void *result);
+    char *key, void *result);
 
 
 #endif /* _SPLINE_TABLE_H */

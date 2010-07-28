@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <string.h>
 #include <fitsio.h>
+#include <fitsio2.h>
 
 #include "photospline/splinetable.h"
 
@@ -246,7 +247,7 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 	return (error);
 }
 
-const char *
+char *
 splinetable_get_key(struct splinetable *table, const char *key)
 {
 	int i = 0;
@@ -263,17 +264,17 @@ splinetable_get_key(struct splinetable *table, const char *key)
 
 int
 splinetable_read_key(struct splinetable *table, splinetable_dtype type,
-    const char *key, void *result)
+    char *key, void *result)
 {
 	int error = 0;
-	const char *value = splinetable_get_key(table, key);
+	char *value = splinetable_get_key(table, key);
 
 	if (!value)
 		return (0);
 
 	switch (type) {
 		case SPLINETABLE_INT:
-			ffc2i(value, (int*)result, &error);
+			ffc2i(value, (long*)result, &error);
 			break;
 		case SPLINETABLE_DOUBLE:
 			ffc2d(value, (double*)result, &error);
