@@ -1,7 +1,8 @@
 import numpy as n
 import pylab as p
+import copy
 
-from glam import bspline
+from glam import bspline, glam
 
 def divdiff(x, y):
 	if len(y) == 1:
@@ -43,6 +44,27 @@ def cbar_simple(x, y, z, bags):
 		fun_y[mask] = det[mask]
 		fun_x[i] = divdiff(y, fun_y)
 	return divdiff(x, fun_x)
+
+def convolution_row(x, xorder, y, yorder, rho, i):
+	k = xorder + 1
+	q = yorder + 1
+	
+	nsplines = len(x) - xorder - 1
+	
+	bundle = rho[i:i+k+q+1]
+	bags =  bundle[1:-1]
+	
+	blossoms = n.array([cbar_simple(x[j:j+k+1], y, bundle[0], bags) for j in xrange(nsplines)])
+	if k % 2 != 0:
+		blossoms *= -1
+	
+	# integral of a De Boor-normalized spline
+	norm = (rho[i+k+q] - rho[i])/(k+q)
+	# Bits of Stroem Eq (12) that depend on the choice of arguments
+	scale = (bundle[-1] - bundle[0])/norm
+	
+	return scale*blossoms
+
 	
 def convolved_coefficient(x, xorder, y, yorder, rho, i):
 	k = xorder + 1
@@ -50,41 +72,193 @@ def convolved_coefficient(x, xorder, y, yorder, rho, i):
 	
 	ndeg = k + q - 1
 	
-	bundle = rho[i:i+ndeg+2]
+	bundle = rho[i:i+k+q+1]
+	# xknots = x[i:i+k+1]
 	xknots = x
 	yknots = y
 	
-	scale = (factorial(k)*factorial(q)/factorial(k+q-1))*(bundle[-1] - bundle[0])/(ndeg + 1)
+	# scale = (factorial(k)*factorial(q)/factorial(k+q-1))*(bundle[-1] - bundle[0])/(k+q)
 	bags =  bundle[1:-1]
-	cbar = cbar_simple(xknots, yknots, bundle[0], bags)
+	cbar = 0
+	
+	nsplines = len(x) - xorder - 1
+	
+	cbar_vec = n.array([cbar_simple(xknots[j:j+k+1], yknots, bundle[0], bags) for j in xrange(nsplines)])
+	# print cbar_vec.shape
+	# cbar = n.dot(xcoefficients.flatten(), cbar_vec)
+
 	if k % 2 != 0:
-		cbar *= -1
+		cbar_vec *= -1
 	
 	# integral of a De Boor-normalized spline
-	norm = (rho[i+ndeg+1] - rho[i])/(ndeg + 1)
+	norm = (rho[i+k+q] - rho[i])/(k+q)
 	
-	return scale*cbar/norm
+	scale = (bundle[-1] - bundle[0])/norm
+	# return scale*cbar/norm
+	return scale*cbar_vec
+	# return scale*cbar
+	
 	
 def blossom(x, y, z, bags):
 	pass
+
+from scipy.stats import gamma
+
+def pandel(t,distance=50):
+	lam = 71.; # meter
+	tau = 671.; # ns
+	x0 = 154.; # meter
+	c = 0.2998; # meter/ns
+	ng = 1.34;
+	
+	shape = distance/lam
+	scale = 1./(1./tau + c/ng/x0)
+		
+	pdf = gamma.pdf(t,shape,scale=scale)
+	return pdf
+
+def pseudogauss_knots(order, sigma):
+	if order == 0:
+		return n.sqrt(3)*sigma*n.array([-1, 1])
+	elif order == 1:
+		return 2*sigma*n.array([-1, 0, 1])
+	else:
+		raise ValueError, "I don't know how to construct an order-%d spline with variance %f" % (order, sigma)
+
+def twiddle(spline, dim = -1, approx_order = 0, sigma = 100):
+	
+	newspline = copy.deepcopy(spline)
+	x = spline.knots[dim]
+	
+	y = pseudogauss_knots(approx_order, sigma)
+	# y = spread*n.array([-1, 0, 1])
+	
+	nsplines = spline.coefficients.shape[dim]
+	order = spline.order[dim]	
+	
+	rho = n.unique(n.array([xi + yi for xi in x for yi in y]))
+	rho.sort()
+	
+	k = spline.order[0] + 1
+	q = len(y) - 1
+	
+	convorder = k + q - 1
+	print 'order %d * order %d -> order %d' % (k-1, q-1, convorder)
+ 	
+	# prefactor from Stroem Eq (13) 
+	scale = (factorial(k)*factorial(q)/factorial(k+q-1))/(k+q)
+	# conversion factor from unit spline to de Boor (partition of unity) spline
+	norm = (x[order+1:] - x[:nsplines])/(order + 1)
+	
+	matrix = []
+	print rho.size - convorder - 1,'splines'
+	for i in xrange(rho.size - convorder - 1):
+		matrix.append(convolution_row(x, k-1, y, q-1, rho, i))
+	matrix = scale*norm.reshape((1,norm.size))*n.array(matrix)
+	
+	shape = list(spline.coefficients.shape)
+	shape[dim] = rho.size - convorder - 1
+	newspline.coefficients = n.zeros(tuple(shape))	
+	
+	def slice_axis(a, callback, slices=None, axis=0, current=0):
+		"""Call callback with arbitrary 1-d slices of an array"""
+		if slices is None:
+			slices = [slice(None)]*a.ndim
+		# a = n.asarray(a)
+		if current == a.ndim - 1:
+			if current == axis:
+				callback(a, slices)
+			else:
+				for i in xrange(a.shape[current]):
+					myslice = list(slices)
+					myslice[current] = i
+					callback(a, myslice)
+		elif current == axis:
+			iterslice(a, callback, slices, axis, current+1)
+		else:
+			for i in xrange(a.shape[current]):
+				myslice = list(slices)
+				myslice[current] = i
+				iterslice(a, callback, myslice, axis, current+1)
+	
+	# XXX: FIXME: need to multiply in normalization factors for each tensor-product spline
+	def convert(coefficients, slice_):
+		out = n.dot(matrix, coefficients[slice_])
+		# print out.shape, newspline.coefficients[slice_].shape
+		newspline.coefficients[slice_] = out
+	
+	if dim < 0:
+		axis = spline.coefficients.ndim + dim
+	else:
+		axis = dim
+	
+	slice_axis(spline.coefficients, convert, axis=axis)
+	
+	newspline.order[dim] = convorder
+	newspline.knots[dim] = rho
+	
+	return newspline
+
+def test_2d():
+	def funci(x, y):
+		(x-1)**2
+
+def test_pandel():
+	spline = makeyfakey()
+	
+	t = n.linspace(-500,2000, 500)
+	delay = glam.grideval(spline, [t])
+	
+	p.figure()
+	p.plot(t, delay, label='Raw spline (fit to Pandel)')
+	
+	convo = twiddle(spline, approx_order = 1, sigma = 100)
+	convo_delay = glam.grideval(convo, [t])
+	
+	p.plot(t, convo_delay, label='Convoluted spline')
+	
+	p.legend()
+	
+def makeyfakey():
+	
+	knots = [n.concatenate(([-5, -1, -0.5], n.linspace(0, n.sqrt(2000), 15)**2, [2100,2200,2300,2400]))]
+	t = n.linspace(0, n.sqrt(7000), 106)**2
+	t = 0.5*(t[1:]+t[:-1])
+	centers = [t]
+	z = pandel(t,75)
+	w = n.ones(z.shape)
+	order = [2]
+	smooth = 1e-4
+	penalties = {2:[smooth]}
+	spline = glam.fit(z, w, centers, knots, order, smooth, penalties = penalties)
+	
+	return spline
 
 def test():
 	
 	k = 3
 	
-	x = n.logspace(-1,n.log10(k),k+1)
+	nspl = 7
+	
+	x = n.logspace(-1,n.log10(k),k+nspl)
+	
+	x_coeffs = n.ones(nspl)
+	xnorm = (x[k:] - x[:nspl])/(k)
+	
+	# convert to coefficients in unit-spline basis
+	x_coeffs *= xnorm
 	
 	# x = n.arange(k+1, dtype=float)
-	y = 0.8*n.array([-2,-1, 0, 1, 2])[1:-1]
+	y = 0.5*n.array([-2,-1, 0, 1, 2])[1:-1]
 	# y = n.arange(-q/2,q/2 + 1, dtype=float)
 	
 	rho = n.unique(n.array([xi + yi for xi in x for yi in y]))
 	rho.sort()	
 	
-	k = len(x)-1
+	# k = len(x)-1
 	q = len(y)-1
 	
-	z = n.linspace(min(x.min(),y.min()), max(x.max(),y.max()), 500)
+	z = n.linspace(min(x.min(),y.min()), max(x.max(),y.max())+1, 500)
 	
 	convorder = k + q - 1
 	print 'order %d * order %d -> order %d' % (k-1, q-1, convorder)
@@ -92,11 +266,19 @@ def test():
 	nsplines = rho.size - convorder - 1
 	print nsplines,'splines'
 	coeffs = []
+	
+	scale = (factorial(k)*factorial(q)/factorial(k+q-1))/(k+q)
+	matty = []
 	for i in xrange(nsplines):
-		coeff = convolved_coefficient(x, k-1, y, q-1, rho, i)
-		coeffs.append(coeff)
-	coeffs = n.array(coeffs)
-	print coeffs
+		matty.append(convolved_coefficient(x, k-1, y, q-1, rho, i))
+		# coeffs.append(coeff)
+	matty = scale*n.array(matty)
+	# coeffs = n.array(coeffs)
+	# print coeffs
+	coeffs = n.dot(matty, x_coeffs)
+	
+	xbasis = n.asarray(bspline.splinebasis(x, k-1, z))
+	ybasis = n.asarray(bspline.splinebasis(y, q-1, z))
 	
 	basis = n.asarray(bspline.splinebasis(rho, convorder, z))
 	
@@ -116,11 +298,22 @@ def test():
 		evaluate[i] = (factorial(k)*factorial(q)/factorial(k+q-1))*operated
 	
 	p.figure()
-	p.plot(z, make_a_spline(x, k-1, z), label='f')
-	p.plot(z, make_a_spline(y, q-1, z), label='g')
-		
+	# p.plot(z, make_a_spline(x, k-1, z), label='f')
+	p.plot(z, xbasis.sum(axis=1), label='f')
+	# 
+	# for i in xrange(xbasis.shape[1]):
+	# 	p.plot(z, xbasis[:,i], label='f [%d]'%i)
+	# p.plot(z, make_a_spline(y, q-1, z), label='g')
+	p.plot(z, ybasis.flatten(), label='g')
+	
 	spliff = n.dot(coeffs, basis.transpose())
 		
 	p.plot(z, spliff, label='f*g, spline expansion')
+	
+	fint = (xbasis.sum(axis=1)[1:]*n.diff(z)).sum()
+	spliffint = (spliff.flatten()[1:]*n.diff(z)).sum()
+	
+	print "integral %f -> %f" % (fint, spliffint)
+	
 
 	p.legend()	
