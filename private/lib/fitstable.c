@@ -14,6 +14,8 @@ readsplinefitstable(const char *path, struct splinetable *table)
 	fitsfile *fits;
 	int error = 0;
 
+	memset(table, 0, sizeof(struct splinetable));
+
 	fits_open_file(&fits,path,READONLY, &error);
 	if (error != 0)
 		return (error);
@@ -49,13 +51,16 @@ void splinetable_free(struct splinetable *table)
 	for (i = 0; i < table->ndim; i++)
 		free(table->knots[i]);
 	free(table->knots);
-	free(table->extents[0]);
-	free(table->extents);
 	free(table->nknots);
 	free(table->naxes);
 	free(table->coefficients);
 	free(table->periods);
 	free(table->strides);
+	
+	if (table->extents) {
+		free(table->extents[0]);
+		free(table->extents);
+	}
 }
 
 static int
