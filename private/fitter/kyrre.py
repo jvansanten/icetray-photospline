@@ -39,8 +39,11 @@ Equation 13 and Lemma 9).
 
 This version is adapted for de Boor normalization.
 	"""
-	
-	scale = (x[-1] - x[0])*(y[-1] - y[0])
+
+	# NB: we're convolving a de-Boor spline with a unit-norm spline,
+	# hence (x[-1] - x[0]) rather than (x[-1] - x[0])*(y[-1] - y[0])
+	# (as for two de-Boor splines)	
+	scale = (x[-1] - x[0])
 	fun_x = n.zeros(x.shape)
 	for i, xi in enumerate(x):
 		fun_y = n.zeros(y.shape)
@@ -50,7 +53,7 @@ This version is adapted for de Boor normalization.
 			det *= (xi + y - bag)
 		fun_y[mask] = det[mask]
 		fun_x[i] = divdiff(y, fun_y)
-	return divdiff(x, fun_x)
+	return divdiff(x, fun_x)*scale
 
 def convolution_row(x, xorder, y, yorder, rho, i):
 	"""
@@ -58,8 +61,8 @@ The coefficient of a spline in the convolved basis is a linear combination of th
 of each spline in the un-convolved basis convolved with the kernel spline. Here we just store
 the raw blossoms and multiply by the coefficients of each un-convolved spline later.
 	"""
-	k = xorder + 1
-	q = yorder + 1
+	k = xorder + 1 # degree of de-Boor basis spline
+	q = yorder + 1 # degree of kernel spline
 	
 	nsplines = len(x) - xorder - 1
 	
@@ -70,12 +73,11 @@ the raw blossoms and multiply by the coefficients of each un-convolved spline la
 	if k % 2 != 0:
 		blossoms *= -1
 	
-	# integral of a De Boor-normalized spline
-	norm = (rho[i+k+q] - rho[i])/(k+q)
-	# Bits of Stroem Eq (12) that depend on the choice of arguments
-	scale = (bundle[-1] - bundle[0])/norm
+	# NB: we're convolving a de-Boor spline with a unit-norm spline,
+	# hence q!(k-1)! rather than (q-1)!(k-1)! (as for two de-Boor splines)
+	facties = (factorial(q)*factorial(k-1))/factorial(k+q-1)
 	
-	return scale*blossoms
+	return facties*blossoms
 
 	
 def convolved_coefficient(x, xorder, y, yorder, rho, i):
@@ -156,30 +158,14 @@ def twiddle(spline, dim = -1, approx_order = 0, sigma = 100):
 	
 	convorder = k + q - 1
 	print 'order %d * order %d -> order %d' % (k-1, q-1, convorder)
- 	
-	# prefactor from Stroem Eq (13) 
-	scale = (factorial(k)*factorial(q)/factorial(k+q-1))/(k+q)
-	# conversion factor from unit spline to de Boor (partition of unity) spline
-	norm = (x[order+1:] - x[:nsplines])/(order + 1)
 	
 	matrix = []
 	print rho.size - convorder - 1,'splines'
 	for i in xrange(rho.size - convorder - 1):
 		matrix.append(convolution_row(x, k-1, y, q-1, rho, i))
 	# matrix = scale*norm.reshape((1,norm.size))*n.array(matrix)
-	matrix = scale*n.array(matrix)
-	
-	# first, convert a copy from de Boor normalization to unit normalization
-	coeff = spline.coefficients.copy()
-	ndim = coeff.ndim
-	for axis in xrange(ndim):
-		shape = [1]*ndim
-		x = spline.knots[axis]
-		order = spline.order[axis]
-		nsplines = x.size - order - 1
-		norm = (x[order+1:] - x[:nsplines])/(order + 1)
-		shape[axis] = norm.size
-		coeff *= norm.reshape(shape)
+	matrix = n.array(matrix)
+
 	
 	shape = list(spline.coefficients.shape)
 	shape[dim] = rho.size - convorder - 1
@@ -213,15 +199,11 @@ def twiddle(spline, dim = -1, approx_order = 0, sigma = 100):
 	
 	# XXX: FIXME: need to multiply in normalization factors for each tensor-product spline
 	def convert(coefficients, slice_):
-		# conversion factor from unit spline to de Boor (partition of unity) spline
-		norm = (x[order+1:] - x[:nsplines])/(order + 1)
 		out = n.dot(matrix, coefficients[slice_])
 		# print out.shape, newspline.coefficients[slice_].shape
 		newspline.coefficients[slice_] = out
 	
-	slice_axis(coeff, convert, axis=axis)
-	
-
+	slice_axis(spline.coefficients, convert, axis=axis)
 	
 	newspline.order[dim] = convorder
 	newspline.knots[dim] = rho
@@ -276,6 +258,8 @@ def test_pandel():
 	
 	p.plot(t, convo_delay, label='Convoluted spline')
 	
+	print "Norm: %e -> %e" % ((delay[1:]*n.diff(t)).sum(), (convo_delay[1:]*n.diff(t)).sum())
+	
 	p.legend()
 	
 def makeyfakey():
@@ -295,20 +279,16 @@ def makeyfakey():
 
 def test():
 	
-	k = 3
+	k = 2
 	
 	nspl = 7
 	
 	x = n.logspace(-1,n.log10(k),k+nspl)
 	
 	x_coeffs = n.ones(nspl)
-	xnorm = (x[k:] - x[:nspl])/(k)
-	
-	# convert to coefficients in unit-spline basis
-	x_coeffs *= xnorm
 	
 	# x = n.arange(k+1, dtype=float)
-	y = 0.5*n.array([-2,-1, 0, 1, 2])[1:-1]
+	y = 0.1*n.array([-2,-1, 0, 1, 2])[1:-1]
 	# y = n.arange(-q/2,q/2 + 1, dtype=float)
 	
 	rho = n.unique(n.array([xi + yi for xi in x for yi in y]))
@@ -326,12 +306,12 @@ def test():
 	print nsplines,'splines'
 	coeffs = []
 	
-	scale = (factorial(k)*factorial(q)/factorial(k+q-1))/(k+q)
+	# scale = (factorial(k)*factorial(q)/factorial(k+q-1))/(k+q)
 	matty = []
 	for i in xrange(nsplines):
-		matty.append(convolved_coefficient(x, k-1, y, q-1, rho, i))
+		matty.append(convolution_row(x, k-1, y, q-1, rho, i))
 		# coeffs.append(coeff)
-	matty = scale*n.array(matty)
+	matty = n.array(matty)
 	# coeffs = n.array(coeffs)
 	# print coeffs
 	coeffs = n.dot(matty, x_coeffs)
