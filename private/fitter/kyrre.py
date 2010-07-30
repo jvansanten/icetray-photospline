@@ -32,8 +32,15 @@ def make_a_spline(knots, order, z):
 	return vals
 
 def cbar_simple(x, y, z, bags):
-	"""A literal implementation of the local blossom of the convolution"""
+	"""
+The local blossom of the convolution of the splines defined on knots x and y
+can be evaluated at point z via iterated divided differences (see Stroem,
+Equation 13 and Lemma 9).
+
+This version is adapted for de Boor normalization.
+	"""
 	
+	scale = (x[-1] - x[0])*(y[-1] - y[0])
 	fun_x = n.zeros(x.shape)
 	for i, xi in enumerate(x):
 		fun_y = n.zeros(y.shape)
@@ -46,6 +53,11 @@ def cbar_simple(x, y, z, bags):
 	return divdiff(x, fun_x)
 
 def convolution_row(x, xorder, y, yorder, rho, i):
+	"""
+The coefficient of a spline in the convolved basis is a linear combination of the blossoms
+of each spline in the un-convolved basis convolved with the kernel spline. Here we just store
+the raw blossoms and multiply by the coefficients of each un-convolved spline later.
+	"""
 	k = xorder + 1
 	q = yorder + 1
 	
@@ -154,7 +166,20 @@ def twiddle(spline, dim = -1, approx_order = 0, sigma = 100):
 	print rho.size - convorder - 1,'splines'
 	for i in xrange(rho.size - convorder - 1):
 		matrix.append(convolution_row(x, k-1, y, q-1, rho, i))
-	matrix = scale*norm.reshape((1,norm.size))*n.array(matrix)
+	# matrix = scale*norm.reshape((1,norm.size))*n.array(matrix)
+	matrix = scale*n.array(matrix)
+	
+	# first, convert a copy from de Boor normalization to unit normalization
+	coeff = spline.coefficients.copy()
+	ndim = coeff.ndim
+	for axis in xrange(ndim):
+		shape = [1]*ndim
+		x = spline.knots[axis]
+		order = spline.order[axis]
+		nsplines = x.size - order - 1
+		norm = (x[order+1:] - x[:nsplines])/(order + 1)
+		shape[axis] = norm.size
+		coeff *= norm.reshape(shape)
 	
 	shape = list(spline.coefficients.shape)
 	shape[dim] = rho.size - convorder - 1
@@ -174,25 +199,29 @@ def twiddle(spline, dim = -1, approx_order = 0, sigma = 100):
 					myslice[current] = i
 					callback(a, myslice)
 		elif current == axis:
-			iterslice(a, callback, slices, axis, current+1)
+			slice_axis(a, callback, slices, axis, current+1)
 		else:
 			for i in xrange(a.shape[current]):
 				myslice = list(slices)
 				myslice[current] = i
-				iterslice(a, callback, myslice, axis, current+1)
-	
-	# XXX: FIXME: need to multiply in normalization factors for each tensor-product spline
-	def convert(coefficients, slice_):
-		out = n.dot(matrix, coefficients[slice_])
-		# print out.shape, newspline.coefficients[slice_].shape
-		newspline.coefficients[slice_] = out
-	
+				slice_axis(a, callback, myslice, axis, current+1)
+
 	if dim < 0:
 		axis = spline.coefficients.ndim + dim
 	else:
 		axis = dim
 	
-	slice_axis(spline.coefficients, convert, axis=axis)
+	# XXX: FIXME: need to multiply in normalization factors for each tensor-product spline
+	def convert(coefficients, slice_):
+		# conversion factor from unit spline to de Boor (partition of unity) spline
+		norm = (x[order+1:] - x[:nsplines])/(order + 1)
+		out = n.dot(matrix, coefficients[slice_])
+		# print out.shape, newspline.coefficients[slice_].shape
+		newspline.coefficients[slice_] = out
+	
+	slice_axis(coeff, convert, axis=axis)
+	
+
 	
 	newspline.order[dim] = convorder
 	newspline.knots[dim] = rho
@@ -200,8 +229,38 @@ def twiddle(spline, dim = -1, approx_order = 0, sigma = 100):
 	return newspline
 
 def test_2d():
-	def funci(x, y):
-		(x-1)**2
+	def funky(x, y):
+		return (x-1)**2 + abs(y-1)
+		
+	xgrid = n.linspace(0, 2, 20)
+	ygrid = n.linspace(0, 2, 20)
+	X, Y = n.meshgrid(xgrid, ygrid)
+	
+	z = funky(X, Y)
+	w = n.ones(z.shape)
+	
+	xknots = n.concatenate(([-2, -1, -0.5], n.linspace(0, n.sqrt(2), 10)**2, [2.1, 2.2, 2.3, 2.4]))
+	yknots = n.concatenate(([-2, -1, -0.5, 0], n.logspace(-2, n.log10(2), 10), [2.1, 2.2, 2.3, 2.4]))
+	
+	smooth = 1e-4
+	
+	spline = glam.fit(z, w, [xgrid, ygrid], [xknots, yknots], [2, 2], smooth, penalties = {2:[smooth]})
+
+	raw = glam.grideval(spline, [xgrid, ygrid])
+
+	newspline = twiddle(spline, dim = 1, approx_order = 1, sigma = 1)
+	
+	smoothed = glam.grideval(newspline, [xgrid, ygrid])
+	
+	import mpl_toolkits.mplot3d.axes3d as p3
+	fig = p.figure()
+	ax = p3.Axes3D(fig)
+	
+	ax.plot_wireframe(X, Y, raw, color='b', label='raw')
+	ax.plot_wireframe(X, Y, smoothed, color='r', label='smoothed')
+	ax.set_xlabel('x')
+	ax.set_ylabel('y')
+	
 
 def test_pandel():
 	spline = makeyfakey()
