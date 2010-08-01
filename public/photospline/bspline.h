@@ -36,5 +36,15 @@ int tablesearchcenters(struct splinetable *table, double *x, int *centers);
 double ndsplineeval(struct splinetable *table, const double *x, 
     const int *centers, int derivatives);
 
+/*
+ * Convolve a table with the spline defined on a set of knots along a given 
+ * dimension and store the spline expansion of the convolved surface in the
+ * table. This will raise the order of the splines in the given dimension by
+ * (n_knots - 1), i.e. convolving with an order-0 spline (a box function, 
+ * defined on two knots) will raise the order of the spline surface by 1.
+ */
+int splinetable_convolve(struct splinetable *table, const int dim,
+    double *knots, size_t n_knots);
+
 
 #endif /* _BSPLINE_H */
