@@ -39,7 +39,7 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 			lastlogpdf += log(ndsplineeval(table, coords, centers,
 			    derivatives));
 		accepted = 0;
-	} while (!isfinite(lastlogpdf) || lastval < mint || lastval > maxt);
+	} while (isnan(lastlogpdf) || lastval < mint || lastval > maxt);
 
 	for (i = -burnin; i < results; i++) {
 		coords[dim] = val = (*proposal)(proposal_info);
