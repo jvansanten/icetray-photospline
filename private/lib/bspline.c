@@ -128,7 +128,7 @@ tablesearchcenters(struct splinetable *table, double *x, int *centers)
 	return (0);
 }
 
-inline int
+static int
 maxorder(int *order, int ndim)
 {
 	int i, max = 0;
