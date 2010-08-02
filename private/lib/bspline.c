@@ -5,15 +5,6 @@
 #include "photospline/bspline.h"
 
 /*
- * FASTANDLOOSE mode avoids some expensive malloc() calls
- * at the price of loss of generality (tables with more than
- * MAXORDER dimensions cannot be processed in this mode).
- */
-
-#define	FASTANDLOOSE	1
-#define	MAXORDER	5
-
-/*
  * Compute the value of the ith nth-order basis spline of a set
  * defined by knots at the point x.
  *
@@ -136,15 +127,24 @@ tablesearchcenters(struct splinetable *table, double *x, int *centers)
 
 	return (0);
 }
+
+inline int
+maxorder(int *order, int ndim)
+{
+	int i, max = 0;
+	
+	for (i = 0; i < ndim; i++)
+		if (order[i] > max)
+			max = order[i];
+	
+	return (max);
+}
    
 static double
 localbasis_sub(const double *weights, const int *centers, int ndim,
     int *order, int n, const long *naxes, const unsigned long *strides,
-#if FASTANDLOOSE
-    int pos[ndim], unsigned long stride, double localbasis[ndim][MAXORDER])
-#else
-    int pos[ndim], unsigned long stride, double *localbasis[ndim])
-#endif
+    int pos[ndim], unsigned long stride, int maxdegree,
+    double localbasis[ndim][maxdegree])
 {
 	double acc = 0.0;
 	int k;
@@ -174,7 +174,7 @@ localbasis_sub(const double *weights, const int *centers, int ndim,
 			pos[n] = centers[n] + k;
 			acc += localbasis_sub(weights, centers, ndim, order,
 			    n+1, naxes, strides, pos,
-			    stride + pos[n]*strides[n], localbasis)
+			    stride + pos[n]*strides[n], maxdegree, localbasis)
 			    * localbasis[n][k+order[n]];
 		}
 	}
@@ -197,27 +197,12 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
     int derivatives)
 {
 	int n, offset;
+	int maxdegree = maxorder(table->order, table->ndim) + 1; 
 	int pos[table->ndim];
 	double result;
-	#if FASTANDLOOSE
-	double localbasis[table->ndim][MAXORDER];
-	#else
-	double *localbasis[table->ndim];
-	#endif
+	double localbasis[table->ndim][maxdegree];
 
 	for (n = 0; n < table->ndim; n++) {
-		#if FASTANDLOOSE
-		   if (table->order[n] > MAXORDER) {
-			fprintf(stderr, "B-spline FASTANDLOOSE mode is on "
-			    "and the table order along dimension %d (%d) is "
-			    "larger than MAXORDER (%d). Either disable FASTAND"
-			    "LOOSE mode or adjust MAXORDER in bspline.c.\n",
-			    n, table->order[n], MAXORDER);
-			abort();
-		   }
-		#else
-		   localbasis[n] = calloc(table->order[n] + 1, sizeof(double));
-		#endif
 		if (derivatives & (1 << n)) {
 			for (offset = -table->order[n]; offset <= 0; offset++) {
 				localbasis[n][offset+table->order[n]] =
@@ -234,12 +219,8 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 	}
 
 	result = localbasis_sub(table->coefficients, centers, table->ndim,
-	    table->order, 0, table->naxes, table->strides, pos, 0, localbasis);
-
-	#if !(FASTANDLOOSE)
-	for (n = 0; n < table->ndim; n++)
-		free(localbasis[n]);
-	#endif
+	    table->order, 0, table->naxes, table->strides, pos, 0,
+	    maxdegree, localbasis);
 
 	return (result);
 }
