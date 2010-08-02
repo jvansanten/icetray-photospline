@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <float.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "photospline/bspline.h"
 
@@ -19,11 +20,12 @@ splinetable_convolve(struct splinetable *table, const int dim, double *knots,
 	unsigned long *strides;
 	long *naxes;
 	unsigned convorder;
-	int i, j, k, q;
-	
+	long stride1, stride2;
+	int i, j, k, l, q;
+		
 	/* Construct the new knot field. */
 	n_rho = 0;
-	rho = malloc(sizeof(double) * table->nknots[dim]);
+	rho = malloc(sizeof(double) * table->nknots[dim] * n_knots);
 	for (i = 0; i < table->nknots[dim]; i++)
 		for (j = 0; j < n_knots; j++)
 			rho[n_rho++] = table->knots[dim][i] + knots[j];
@@ -37,7 +39,7 @@ splinetable_convolve(struct splinetable *table, const int dim, double *knots,
 			n_rho--;
 		}
 	}
-	
+		
 	convorder = table->order[dim] + n_knots - 1;
 	
 	/* Set up space for the convolved coefficients */
@@ -56,8 +58,9 @@ splinetable_convolve(struct splinetable *table, const int dim, double *knots,
 	n_slices = arraysize/naxes[dim];
 	
 	/*
-	 * Now, calculate a transformation from coefficients on the raw knot field
-	 * to coefficients on the convoluted knot field. Since the knots are on a
+	 * Now, calculate a transformation from coefficients on the raw knot 
+	 * field to coefficients on the convoluted knot field. Since the knots 
+	 * are on a
 	 * grid, this transformation can be applied to each slice of the array.
 	 * The coefficient of a spline in the convolved basis is a linear
 	 * combination of the blossoms of each spline in the un-convolved basis
@@ -74,7 +77,8 @@ splinetable_convolve(struct splinetable *table, const int dim, double *knots,
 	 * hence q!(k-1)! rather than (q-1)!(k-1)! (as for two de-Boor splines).
 	 */
 	k = table->order[dim] + 1;
-	q = convorder + 1;
+	q = n_knots - 1;
+	
 	norm = ((double)(factorial(q)*factorial(k-1)))/((double)factorial(k+q-1));
 	if (k % 2 != 0)
 		norm *= -1;
@@ -88,20 +92,26 @@ splinetable_convolve(struct splinetable *table, const int dim, double *knots,
 		}
 	}
 	
-	/*
-	 * Walk through slices along the chosen dimension, applying the
-	 * transformation to each.
-	 */
-	coefficients = malloc(sizeof(double)*arraysize);
-	for (i = 0; i < n_slices; i++) {
-		for (j = 0; j < naxes[dim]; j++) {
-			coefficients[i + j*strides[dim]] = 0;
-			for (k = 0; k < table->naxes[dim]; k++)
-				coefficients[i + j*strides[dim]] += 
-				    table->coefficients[i + k*table->strides[dim]]
-				    * trafo[j][k];
-		}
+	coefficients = calloc(sizeof(double), arraysize);
+	
+	/* You are not meant to understand the following. */
+	/* You know that high-concept horror movie "Cube"? This is _hyper_cube. */
+	stride1 = stride2 = 1;
+	for (i = 0; i < table->ndim; i++) {
+		if (i < dim)	
+			stride1 *= naxes[i];
+		else if (i > dim)
+			stride2 *= naxes[i];
 	}
+
+	for (i = 0; i < stride1; i++)
+	  for (j = 0; j < naxes[dim]; j++)
+	    for (l = 0; l < table->naxes[dim]; l++)
+	      for (k = 0; k < stride2; k++)
+                  coefficients[i*stride2*naxes[dim] + j*stride2 + k] +=
+	              trafo[j][l] * 
+	              table->coefficients[i*stride2*table->naxes[dim] + 
+	              l*stride2 + k];
 	
 	/* Free the transformation matrix. */
 	for (i = 0; i < naxes[dim]; i++)
@@ -148,7 +158,7 @@ static double
 convoluted_blossom(double *x, size_t nx, double *y, size_t ny, double z,
     double *bags, size_t nbags)
 {
-	double scale, fun_x[nx], fun_y[ny];
+	double scale, result, fun_x[nx], fun_y[ny];
 	int i, j, k;
 	
 	scale = x[nx-1] - x[0];
@@ -176,7 +186,7 @@ divdiff(double *x, double *y, size_t n)
 	if (n == 1)
 		return y[0];
 	
-	return ((divdiff(&x[1], &y[1], n-1) - divdiff(x, y, n))
+	return ((divdiff(&x[1], &y[1], n-1) - divdiff(x, y, n-1))
 	    / (x[n-1] - x[0]));
 }
 
