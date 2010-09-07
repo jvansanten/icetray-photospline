@@ -315,7 +315,7 @@ def scalp(table, weights = None, low = -820, high = 820):
 	zenith = table.header['zenith']*n.pi/180.0
 	if geo == Geometry.CYLINDRICAL:
 		Rho, Phi, L = numpy.meshgrid_nd(*table.bin_centers[:3], lex_order=True)
-	else if geo == Geometry.SPHERICAL:
+	elif geo == Geometry.SPHERICAL:
 		R, Phi, CosPolar = numpy.meshgrid_nd(*table.bin_centers[:3], lex_order=True)
 		L = R*CosPolar
 		Rho = n.sqrt(R**2 - L**2)
@@ -334,7 +334,7 @@ def scalp(table, weights = None, low = -820, high = 820):
 	shape = weights.shape
 	ddim = len(shape) - len(mask.shape)
 	if ddim != 0:
-		mask = mask.reshape(mask.shape + (1,)*ddim))
+		mask = mask.reshape(mask.shape + (1,)*ddim)
 	
 	weights[mask] = 0
 	

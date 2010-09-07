@@ -340,8 +340,8 @@ def apply_along_axes(func1d,axis,arrs,*args):
 	i[axis] = slice(None,None)
 	outshape = asarray(arr.shape).take(indlist)
 	for arr in arrs[1:]: 
-	if tuple(asarray(arr.shape).take(indlist)) != tuple(outshape):
-		raise ValueError("Shape of all input arrays must match in all but the selected dimension.")
+		if tuple(asarray(arr.shape).take(indlist)) != tuple(outshape):
+			raise ValueError("Shape of all input arrays must match in all but the selected dimension.")
 	i.put(indlist, ind)
 	arglist = tuple(map(lambda arr: arr[tuple(i.tolist())],arrs)) + args
 	res = func1d(*arglist)
