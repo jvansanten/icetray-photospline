@@ -114,8 +114,17 @@ if __name__ == "__main__":
 	tables = [(splinefitstable.read(i[0]), i[1]) for i in tables]
 	print 'done'
 
-	# XXX HACK: provide full support above and below by cloning the end tables
 	depths = unique([tab[1][0] for tab in tables])
+	angles = unique([tab[1][1] for tab in tables])
+
+	extents = []
+	if len(angles) > 1:
+		extents.append((angles[0], angles[-1]))
+	if len(depths) > 1:
+		extents.append((depths[0], depths[-1]))
+		
+
+	# XXX HACK: provide full support above and below by cloning the end tables
 	print "HACK: cloning tables at %.2f and %.2f" % (depths[0], depths[-1])
 	gap = depths[0] - depths[1]
 	bottom = [(copy.deepcopy(tab[0]), (tab[1][0] + gap, tab[1][1])) for tab in tables if tab[1][0] == tables[0][1][0]]
@@ -181,6 +190,8 @@ if __name__ == "__main__":
 		targetfile = args[1]
 	except IndexError:
 		targetfile = os.path.normpath(os.path.join(os.path.abspath(sourcedir), '..', os.path.basename(os.path.abspath(sourcedir)) + '.fits'))
+
+	finaltab.extents += extents
 
 	try:
 		splinefitstable.write(finaltab, targetfile)

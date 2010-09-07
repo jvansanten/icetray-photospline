@@ -126,14 +126,14 @@ def construct_knots(nknots = None):
 	endgap = [coreknots[1][1]-coreknots[1][0],
 	    coreknots[1][-1]-coreknots[1][-2]]
 	thetaknots = numpy.concatenate((coreknots[1][0] -
-	    endgap[0]*n.arange(2,0,-1), coreknots[1], coreknots[1][-1] +
-	    endgap[1]*n.arange(1,3)))
+	    endgap[0]*numpy.arange(2,0,-1), coreknots[1], coreknots[1][-1] +
+	    endgap[1]*numpy.arange(1,3)))
 	# NB: we want -1 and 1 to be fully supported.
 	endgap = [coreknots[2][1]-coreknots[2][0],
 	    coreknots[2][-1]-coreknots[2][-2]]
 	zknots = numpy.concatenate((coreknots[2][0] - 
-	    endgap[0]*n.arange(2,0,-1), coreknots[2], coreknots[2][-1] +
-	    endgap[1]*n.arange(1,3)))
+	    endgap[0]*numpy.arange(2,0,-1), coreknots[2], coreknots[2][-1] +
+	    endgap[1]*numpy.arange(1,3)))
 	
 	# NB: we can get away with partial support in time, since we know that
 	# F(0) is identically zero.
@@ -190,7 +190,7 @@ if opts.abs:
 	
 	# XXX HACK: don't believe anything that happens outside the
 	#           tracking volume of the table
-	scalp(table, w, low=opts.ice_bottom, high=opts.ice_top)
+	#scalp(table, w, low=opts.ice_bottom, high=opts.ice_top)
 
 	order, penalties, knots = spline_spec(3)
 	bin_centers = [b.copy() for b in table.bin_centers[:3]]
@@ -218,7 +218,7 @@ if opts.prob:
 
 	# XXX HACK: don't believe anything that happens outside the
 	#           tracking volume of the table
-	scalp(table, w, low=opts.ice_bottom, high=opts.ice_top)
+	#scalp(table, w, low=opts.ice_bottom, high=opts.ice_top)
 
 	order, penalties, knots = spline_spec(4)
 	bin_centers = [b.copy() for b in table.bin_centers]

@@ -42,17 +42,19 @@ if not opts.prob and not opts.abs:
 
 def check_exists(outputfile):
     if os.path.exists(outputfile):
-        if raw_input("File %s exists. Overwrite? (y/n)" % outputfile) == 'y':
+        if opts.force or raw_input("File %s exists. Overwrite? (y/n)" % outputfile) == 'y':
             os.unlink(outputfile)
         else:
             sys.exit()
 
+def default_path(input):
+	pth = os.path.basename(input)
+	return pth+'.abs.pspl.fits',pth+'.prob.pspl.fits'
+
 if len(args) < 2:
-    abs_outputfile = args[0]+".abs.pspl.fits"
-    prob_outputfile = args[0]+".prob.pspl.fits"
+    abs_outputfile, prob_outputfile = default_path(args[0])
 else:
-    abs_outputfile = args[1]+".abs.fits"
-    prob_outputfile = args[1]+".prob.fits"
+    abs_outputfile, prob_outputfile = default_path(args[1])
 
 if opts.prob: check_exists(prob_outputfile)
 if opts.abs: check_exists(abs_outputfile)
@@ -96,8 +98,8 @@ coreknots = [None]*4
 # but this should be avoided. Data points exactly at the knot locations are 
 # not fully supported, leading to genuine wierdness in the fit.
 coreknots[0] = numpy.linspace(0, radial_extent**(1./2), nknots[0])**2
-coreknots[0] = numpy.concatenate([0], numpy.logspace(-1,
-    numpy.log10(radial_extent), nknots[0]-1)
+coreknots[0] = numpy.concatenate(([0], numpy.logspace(-1,
+    numpy.log10(radial_extent), nknots[0]-1)))
 coreknots[1] = numpy.linspace(0, 180, nknots[1])
 # space 1/3 of the knots quadratically behind the source, 
 # where everything is diffuse, and the remainder in front
@@ -119,12 +121,12 @@ coreknots[3] = numpy.concatenate(([0], coreknots[3]))
 rknots     = numpy.append(numpy.append([-1, -0.5, -0.1], coreknots[0]),
                           100*numpy.arange(1,3) + radial_extent)
 endgap = [coreknots[1][1]-coreknots[1][0], coreknots[1][-1]-coreknots[1][-2]]
-thetaknots = numpy.concatenate((coreknots[1][0] - endgap[0]*n.arange(2,0,-1),
-    coreknots[1], coreknots[1][-1] + endgap[1]*n.arange(1,3)))
+thetaknots = numpy.concatenate((coreknots[1][0] - endgap[0]*numpy.arange(2,0,-1),
+    coreknots[1], coreknots[1][-1] + endgap[1]*numpy.arange(1,3)))
 # NB: we want -1 and 1 to be fully supported.
 endgap = [coreknots[2][1]-coreknots[2][0], coreknots[2][-1]-coreknots[2][-2]]
-zknots = numpy.concatenate((coreknots[2][0] - endgap[0]*n.arange(2,0,-1),
-    coreknots[2], coreknots[2][-1] + endgap[1]*n.arange(1,3)))
+zknots = numpy.concatenate((coreknots[2][0] - endgap[0]*numpy.arange(2,0,-1),
+    coreknots[2], coreknots[2][-1] + endgap[1]*numpy.arange(1,3)))
 
 # NB: we can get away with partial support in time, since we know that
 # F(0) is identically zero.
@@ -178,9 +180,9 @@ if opts.abs:
 
 	# XXX HACK: don't believe anything that happens outside the
 	#           tracking volume of the table
-	scalp(table, w, low=opts.ice_bottom, high=opts.ice_top)
+	#scalp(table, w, low=opts.ice_bottom, high=opts.ice_top)
 	# XXX HACK: don't believe anything in the first 3 radial bins
-	w[:3,:,:] = 0
+	#w[:3,:,:] = 0
 
 	order, penalties, knots = spline_spec(3)
 
@@ -206,9 +208,9 @@ if opts.prob:
 
 	# XXX HACK: don't believe anything that happens outside the
 	#           tracking volume of the table
-	scalp(table, w, low=opts.ice_bottom, high=opts.ice_top)
+	#scalp(table, w, low=opts.ice_bottom, high=opts.ice_top)
 	# XXX HACK: also, don't believe anything in the first 3 radial bins
-	w[:3,:,:,:] = 0
+	#w[:3,:,:,:] = 0
 
 	# go ahead and remove the table from memory
 	del(table, norm)

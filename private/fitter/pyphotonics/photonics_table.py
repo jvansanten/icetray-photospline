@@ -2,7 +2,7 @@
 import numpy
 import photo2numpy
 import warnings
-import glam.utils
+import glam.numpy_extensions
 
 class Efficiency:
 	"""Normalization types from photonics.h"""
@@ -312,19 +312,19 @@ def scalp(table, weights = None, low = -820, high = 820):
 	
 	geo = table.header['geometry']
 	depth = table.header['z']
-	zenith = table.header['zenith']*n.pi/180.0
+	zenith = table.header['zenith']*numpy.pi/180.0
 	if geo == Geometry.CYLINDRICAL:
 		Rho, Phi, L = numpy.meshgrid_nd(*table.bin_centers[:3], lex_order=True)
 	elif geo == Geometry.SPHERICAL:
 		R, Phi, CosPolar = numpy.meshgrid_nd(*table.bin_centers[:3], lex_order=True)
 		L = R*CosPolar
-		Rho = n.sqrt(R**2 - L**2)
+		Rho = numpy.sqrt(R**2 - L**2)
 		del R, CosPolar
 	else:
 		raise ValueError, "Unknown geometry type %d" % geo
-	Phi *= (n.pi/180.0)
+	Phi *= (numpy.pi/180.0)
 		
-	z = L*n.cos(zenith) + Rho*n.sin(zenith)*(n.cos(Phi) + n.sin(Phi))
+	z = L*numpy.cos(zenith) + Rho*numpy.sin(zenith)*(numpy.cos(Phi) + numpy.sin(Phi))
 	mask = (z > low)&(z < high)
 	
 	del Rho, Phi, L, z
