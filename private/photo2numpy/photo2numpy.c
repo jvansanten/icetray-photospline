@@ -96,6 +96,10 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 	    PyInt_FromLong((long)(io.h->efficiency)));
 	PyDict_SetItemString(header_dict, "geometry",
 	    PyInt_FromLong((long)(io.h->geo)));
+	PyDict_SetItemString(header_dict, "zenith",
+	    PyFloat_FromDouble((double)(io.h->angle)));
+	PyDict_SetItemString(header_dict, "z",
+	    PyFloat_FromDouble((double)(io.h->depth)));
 
 	#ifdef SUPPORT_BIGENDIAN
 		if(!isLittleEndian() && checkMetaHeadLittle(&(io.h->MetaHead)))

@@ -2,6 +2,7 @@
 import numpy
 import photo2numpy
 import warnings
+import glam.utils
 
 class Efficiency:
 	"""Normalization types from photonics.h"""
@@ -77,6 +78,7 @@ class photonics_table():
 		eff = eff & ~Efficiency.DIFFERENTIAL
 
 	self.header['efficiency'] = eff
+
         
     # Returns number of dimensions in table.
     @property
@@ -289,10 +291,10 @@ class photonics_table():
     #def __del__(self):
         #
 
-from numpy_extensions import *
-
-def mellonball(table, weights = None, radius = 1):
+def melonball(table, weights = None, radius = 1):
 	"""Set weights inside a given radius to zero."""
+	if table.header['geometry'] != Geometry.CYLINDRICAL:
+		raise ValueError, "Can't handle non-cylindrical tables"
 	Rho, Z = numpy.meshgrid_nd(table.bin_centers[0], table.bin_centers[2], lex_order=True)
 	mask = Rho**2 + Z**2 < radius**2
 	if weights is None:
@@ -304,3 +306,35 @@ def mellonball(table, weights = None, radius = 1):
 		else:
 			for j in xrange(shape[3]):
 				weights[:,i,:,j][mask] = 0
+				
+def scalp(table, weights = None, low = -820, high = 820):
+	"""Set weights outside of the given depth range to zero."""
+	
+	geo = table.header['geometry']
+	depth = table.header['z']
+	zenith = table.header['zenith']*n.pi/180.0
+	if geo == Geometry.CYLINDRICAL:
+		Rho, Phi, L = numpy.meshgrid_nd(*table.bin_centers[:3], lex_order=True)
+	else if geo == Geometry.SPHERICAL:
+		R, Phi, CosPolar = numpy.meshgrid_nd(*table.bin_centers[:3], lex_order=True)
+		L = R*CosPolar
+		Rho = n.sqrt(R**2 - L**2)
+		del R, CosPolar
+	else:
+		raise ValueError, "Unknown geometry type %d" % geo
+	Phi *= (n.pi/180.0)
+		
+	z = L*n.cos(zenith) + Rho*n.sin(zenith)*(n.cos(Phi) + n.sin(Phi))
+	mask = (z > low)&(z < high)
+	
+	del Rho, Phi, L, z
+	
+	if weights is None:
+		weights = table.weights
+	shape = weights.shape
+	ddim = len(shape) - len(mask.shape)
+	if ddim != 0:
+		mask = mask.reshape(mask.shape + (1,)*ddim))
+	
+	weights[mask] = 0
+	

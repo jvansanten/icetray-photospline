@@ -29,6 +29,11 @@ optparser.add_option("--prob", dest="prob", action="store_true",
              help="Fit only the normalized CDFs", default=False)
 optparser.add_option("--abs", dest="abs", action="store_true",
              help="Fit only the total amplitude in each cell", default=False)
+optparser.add_option("--ice-bottom", dest="ice_bottom", type="float",
+             help="Lower boundary of ice properties. Any table cells below this\
+             depth will be weighted with zero, as they contain no data.", default=-820)
+optparser.add_option("--ice-top", dest="ice_top", type="float",
+             help="Upper boundary of ice properties.", default=820)
 (opts, args) = optparser.parse_args()
 
 # by default, do both fits
@@ -171,6 +176,9 @@ if opts.abs:
 	w[numpy.logical_not(numpy.isfinite(z))] = 0
 	z[numpy.logical_not(numpy.isfinite(z))] = 0
 
+	# XXX HACK: don't believe anything that happens outside the
+	#           tracking volume of the table
+	scalp(table, w, low=opts.ice_bottom, high=opts.ice_top)
 	# XXX HACK: don't believe anything in the first 3 radial bins
 	w[:3,:,:] = 0
 
@@ -196,8 +204,9 @@ if opts.prob:
 
 	centers = table.bin_centers
 
-	# XXX HACK: dont' believe anything that happens inside of a meter
-	#mellonball(table, w, radius=1)
+	# XXX HACK: don't believe anything that happens outside the
+	#           tracking volume of the table
+	scalp(table, w, low=opts.ice_bottom, high=opts.ice_top)
 	# XXX HACK: also, don't believe anything in the first 3 radial bins
 	w[:3,:,:,:] = 0
 

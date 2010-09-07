@@ -33,6 +33,11 @@ optparser.add_option("--abs", dest="abs", action="store_true",
              help="Fit only the total amplitude in each cell", default=False)
 optparser.add_option("--force", dest="force", action="store_true",
              help="Overwrite existing fits files", default=False)
+optparser.add_option("--ice-bottom", dest="ice_bottom", type="float",
+             help="Lower boundary of ice properties. Any table cells below this\
+             depth will be weighted with zero, as they contain no data.", default=-820)
+optparser.add_option("--ice-top", dest="ice_top", type="float",
+             help="Upper boundary of ice properties.", default=820)
 (opts, args) = optparser.parse_args()
 
 # by default, do both fits
@@ -182,6 +187,10 @@ if opts.abs:
 	w = 1000*numpy.ones(norm.shape)
 	w[numpy.logical_not(numpy.isfinite(z))] = 0
 	z[numpy.logical_not(numpy.isfinite(z))] = 0
+	
+	# XXX HACK: don't believe anything that happens outside the
+	#           tracking volume of the table
+	scalp(table, w, low=opts.ice_bottom, high=opts.ice_top)
 
 	order, penalties, knots = spline_spec(3)
 	bin_centers = [b.copy() for b in table.bin_centers[:3]]
@@ -206,6 +215,10 @@ if opts.prob:
 	z = table.values / norm.reshape(norm.shape + (1,))
 	# XXX HACK: ignore weights for normalized timing
 	w = 1000*numpy.ones(table.weights.shape)
+
+	# XXX HACK: don't believe anything that happens outside the
+	#           tracking volume of the table
+	scalp(table, w, low=opts.ice_bottom, high=opts.ice_top)
 
 	order, penalties, knots = spline_spec(4)
 	bin_centers = [b.copy() for b in table.bin_centers]
