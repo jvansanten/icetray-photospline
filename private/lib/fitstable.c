@@ -269,13 +269,13 @@ splinetable_get_key(struct splinetable *table, const char *key)
 
 int
 splinetable_read_key(struct splinetable *table, splinetable_dtype type,
-    char *key, void *result)
+    const char *key, void *result)
 {
 	int error = 0;
 	char *value = splinetable_get_key(table, key);
 
 	if (!value)
-		return (0);
+		return (-1);
 
 	switch (type) {
 		case SPLINETABLE_INT:
