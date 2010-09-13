@@ -110,7 +110,7 @@ tablesearchcenters(struct splinetable *table, double *x, int *centers)
 		 */
 
 		if (x[i] < table->knots[i][table->order[i]] ||
-		    x[i] > table->knots[i][table->nknots[i]-table->order[i]-1])
+		    x[i] > table->knots[i][table->naxes[i]])
 			return (-1);
 
 		/* XXX: should be a binary search */
@@ -120,8 +120,16 @@ tablesearchcenters(struct splinetable *table, double *x, int *centers)
 			    x[i] < table->knots[i][centers[i]+1])
 				break;
 		}
-		if (centers[i]+2 >= table->nknots[i])
+		if (centers[i] > table->naxes[i])
 			return (-1);
+		/*
+		 * B-splines are defined on a half-open interval. For the
+		 * last point of the interval, move center one point to the
+		 * left to get the limit of the sum without evaluating
+		 * absent basis functions.
+		 */
+		if (centers[i] == table->naxes[i])
+			centers[i]--;
 	}
 
 
