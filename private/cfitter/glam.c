@@ -2,8 +2,6 @@
 #include <string.h>
 #include <math.h>
 
-#include <suitesparse/SuiteSparseQR_C.h>
-
 #include "cholesky_solve.h"
 #include "splineutil.h"
 #include "photospline/splinetable.h"
