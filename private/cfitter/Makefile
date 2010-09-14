@@ -1,18 +1,17 @@
 # definitions
 
-CC = clang
+CC = gcc
 BLAS = goto2
 LAPACK = lapack
-LIBDIRS = -L/usr/local/lib -L/usr/local/lib/gcc44
-#INCDIRS = -I/usr/local/include -I/usr/local/include/python2.6
-INCDIRS = -I/usr/local/include -I/usr/local/include/python2.6 -I/usr/local/lib/python2.6/site-packages/numpy/core/include
+LIBDIRS = -L${SROOT}/lib
+INCDIRS = -I${SROOT}/include -I../../public -I${SROOT}/lib/python2.6/site-packages/numpy/core/include -I${SROOT}/include/python2.6
 
 SRC = glam.c cholesky_solve.c nnls.c splineutil.c pyglam.c ../lib/bspline.c
 LIBS = -lm -l$(BLAS) -lcamd -lcolamd -lamd -lccolamd -lmetis -lgfortran -lcholmod
 
 # -----
 
-CFLAGS = -g -fPIC -Wall -Werror -Wno-unused -march=native -I../lib $(INCDIRS) -DUSE_CHOLMOD
+CFLAGS = -g -fPIC -Wall -Werror -Wno-unused -I../lib $(INCDIRS) -DUSE_CHOLMOD
 LDFLAGS = -shared $(LIBDIRS)
 
 RM = /bin/rm
