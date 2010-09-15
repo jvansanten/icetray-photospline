@@ -7,7 +7,7 @@ except:
 	print "SPGLAM not found, falling back on Python GLAM..."
 	import glam
 
-def fithist(data, weights, bins, nknots, smooth, link, ranges = None, penorder=2, verbose=True):
+def fithist(data, weights, bins, nknots, smooth, link, ranges = None, penorder=1, verbose=True):
 	ndim = data.ndim
 	knots = []
 	if ranges == None:
@@ -43,7 +43,7 @@ def fithist(data, weights, bins, nknots, smooth, link, ranges = None, penorder=2
 	# Set weights proportional to the (Poisson) variance: 1 + counts 
 
 	z = link(z)
-	w = counts + 1e-4
+	w = counts + 1
 
 	# Hose data points where the link function blew up, setting their weights to 0 
 	w[numpy.isinf(z)] = 0
@@ -53,12 +53,13 @@ def fithist(data, weights, bins, nknots, smooth, link, ranges = None, penorder=2
 
 	print "Beginning spline fit..."
 
-	table = glam.fit(z,w,axes,knots,2,smooth,penorder=penorder)
+	table = glam.fit(z,w,axes,knots,2,smooth,penalties = {penorder:[smooth]*len(ranges)})
 
 	if verbose:
 		smoothed = glam.grideval(table,axes)
-		resid = (smoothed - z)[w > 2]
-		fracresid = ((smoothed - z)/z)[w > 2]
+		mask = numpy.logical_and(w > 0, z > 0)
+		resid = (smoothed - z)[mask]
+		fracresid = ((smoothed - z)/z)[mask]
 
 		print "Fit Statistics:"
 		print "\tMaximum Deviation from Data:",numpy.max(numpy.abs(resid))
