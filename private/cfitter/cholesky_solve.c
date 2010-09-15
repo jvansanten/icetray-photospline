@@ -5,6 +5,13 @@
 #include <unistd.h>
 #include <math.h>
 
+#ifdef __FreeBSD__
+#include <sys/param.h>
+#include <sys/cpuset.h>
+
+typedef cpuset_t cpu_set_t;
+#endif
+
 #include <time.h>
 #include <float.h>
 #include <stdbool.h>
@@ -739,7 +746,7 @@ void
 evaluate_descent(void *trial_)
 {
 	descent_trial *trial = (descent_trial*)trial_;
-	int i;
+	int i, err;
 	double *xptr;
 	cholmod_dense *x, *x_F;
 	const long *F;
@@ -749,7 +756,13 @@ evaluate_descent(void *trial_)
 	cpu_set_t cpus;
 	CPU_ZERO(&cpus);
 	CPU_SET(trial->id, &cpus);
-	int err = sched_setaffinity(0, sizeof(cpus), &cpus);
+#ifdef __FreeBSD__
+	err = cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
+	    sizeof(cpus), &cpus);
+#else
+	err = sched_setaffinity(0, sizeof(cpus), &cpus);
+#endif
+	
 	if (err)
 		printf("\tsched_setaffinity failed! cpu: %d status: %d\n",
 		    trial->id, err);
@@ -842,7 +855,7 @@ fail:
 #ifdef _SC_NPROCESSORS_ONLN
 	nthreads = sysconf(_SC_NPROCESSORS_ONLN);
 #else
-	#warn Don't know how to determine CPU count on this platform
+	#warn Do not know how to determine CPU count on this platform
 #endif
 	if (nthreads < 1)
 		nthreads = 1;
