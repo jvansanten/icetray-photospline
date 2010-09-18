@@ -127,14 +127,24 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 		goto exit;
 	}
 
-	/* Read out the main part of the table */
+	/* 
+	 * After read_header(), the file handle is positioned at the head
+	 * of the main data table. Read out the main part of the table.
+	 */
 
 	if (do_map)
 		main_array = photol1_map_to_numpy(&photoheader, table);
 	else
 		main_array = photol1_chunks_to_numpy(&photoheader, table);
 
-	/* Check for statistics */
+	/* 
+	 * If the table was generated with statistics, there is a second data
+	 * table following the main table and containing either the number of
+	 * photons tracked through the bin or the sum of the squares of the
+	 * weights assigned to those photons. Reading the main table sets the
+	 * file position to the head of this second table, so we simply turn the
+	 * crank again.
+	 */
 	if (photoheader.record_errors) {
 		if (do_map)
 			stats_array = photol1_map_to_numpy(&photoheader, table);
@@ -306,7 +316,11 @@ static PyObject *photol1_map_to_numpy(Header_type *photoheader,
 	}
 
 	result = NULL;
+	/* The file handle is positioned at the head of the table to be read */
 	pos = ftello(table);
+	
+	/* We know where the table starts; seek to the end to emulate fread() */
+	fseeko(table, table_size * sizeof(float), SEEK_CUR);
 
 	mmap = (PyObject*)mmap_wrapper_new(fileno(table), pos,
 	    table_size * sizeof(float), &data);

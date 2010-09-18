@@ -44,6 +44,11 @@ static PyTypeObject mmap_wrapper_type = {
 	"Thin wrapper around mmap'd pages",           /* tp_doc */
 };
 
+/*
+ * Memory-map `length` bytes, starting at `offset`, from an open file
+ * descriptor `fd` and wrap them up in a PyObject*. The actual address
+ * corresponding to `offset` is placed in *start.
+ */
 static mmap_wrapper*
 mmap_wrapper_new(int fd, off_t offset, size_t length, void **start)
 {
