@@ -149,15 +149,14 @@ maxorder(int *order, int ndim)
 }
    
 static double
-localbasis_sub(const double *weights, const int *centers, int ndim,
-    int *order, int n, const long *naxes, const unsigned long *strides,
-    int pos[ndim], unsigned long stride, int maxdegree,
-    double localbasis[ndim][maxdegree])
+localbasis_sub(const struct splinetable *table, const int *centers,
+    int n, int *restrict pos, unsigned long stride,
+    const double *restrict localbasis[table->ndim])
 {
 	double acc = 0.0;
 	int k;
 
-	if (n+1 == ndim) {
+	if (n+1 == table->ndim) {
 		/*
 		 * If we are at the last recursion level, the weights are
 		 * linear in memory, so grab the row-level basis functions
@@ -165,25 +164,20 @@ localbasis_sub(const double *weights, const int *centers, int ndim,
 		 * vector optimizations pick up on this code.
 		 */
 
-		long woff;
-		woff = stride + centers[n] - order[n];
-
-		for (k = 0; k <= order[n]; k++) {
-			acc += weights[k + woff]*
-			    localbasis[n][k];
-		}
+		for (k = 0; k <= table->order[n]; k++)
+			acc += table->coefficients[stride + centers[n] -
+			    table->order[n] + k]*localbasis[n][k];
 	} else {
-		for (k = -order[n]; k <= 0; k++) {
+		for (k = -table->order[n]; k <= 0; k++) {
 			/*
 			 * If we are not at the last dimension, record where we
 			 * are, multiply in the row basis value, and recurse.
 			 */
 
 			pos[n] = centers[n] + k;
-			acc += localbasis_sub(weights, centers, ndim, order,
-			    n+1, naxes, strides, pos,
-			    stride + pos[n]*strides[n], maxdegree, localbasis)
-			    * localbasis[n][k+order[n]];
+			acc += localbasis_sub(table, centers, n+1, pos,
+			    stride + pos[n]*table->strides[n], localbasis) *
+			    localbasis[n][k+table->order[n]];
 		}
 	}
 
@@ -209,6 +203,7 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 	int pos[table->ndim];
 	double result;
 	double localbasis[table->ndim][maxdegree];
+	const double *localbasis_ptr[table->ndim];
 
 	for (n = 0; n < table->ndim; n++) {
 		if (derivatives & (1 << n)) {
@@ -224,11 +219,11 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 					 centers[n] + offset, table->order[n]);
 			}
 		}
+
+		localbasis_ptr[n] = localbasis[n];
 	}
 
-	result = localbasis_sub(table->coefficients, centers, table->ndim,
-	    table->order, 0, table->naxes, table->strides, pos, 0,
-	    maxdegree, localbasis);
+	result = localbasis_sub(table, centers, 0, pos, 0, localbasis_ptr);
 
 	return (result);
 }
