@@ -16,11 +16,11 @@ readsplinefitstable(const char *path, struct splinetable *table)
 
 	memset(table, 0, sizeof(struct splinetable));
 
-	fits_open_file(&fits,path,READONLY, &error);
+	fits_open_file(&fits, path, READONLY, &error);
 	if (error != 0)
 		return (error);
 
-	error = parsefitstable(fits,table);
+	error = parsefitstable(fits, table);
 	fits_close_file(fits, &error);
 	fits_report_error(stderr, error);
 
@@ -48,9 +48,11 @@ void splinetable_free(struct splinetable *table)
 	int i;
 
 	splinetable_free_aux(table);
-	for (i = 0; i < table->ndim; i++)
-		free(table->knots[i]);
-	free(table->knots);
+	if (table->knots) {
+		for (i = 0; i < table->ndim; i++)
+			free(table->knots[i]);
+		free(table->knots);
+	}
 	free(table->nknots);
 	free(table->naxes);
 	free(table->coefficients);
@@ -142,11 +144,23 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 			table->order[i] = table->order[0];
 	}
 
+	if (error != 0)
+		return (error);
+
+	error = 0;
 	table->periods = malloc(sizeof(table->periods[i])*table->ndim);
 	for (i = 0; i < table->ndim; i++) {
 		char name[255];
 		sprintf(name,"PERIOD%d",i);
 		fits_read_key(fits, TDOUBLE, name, &table->periods[i], NULL, &error);
+		/*
+		 * If the PERIOD keys cannot be read, just interpret this as
+		 * a non-periodic table.
+		 */
+		if (error != 0) {
+			table->periods[i] = 0;
+			error = 0;
+		}
 	}
 
 	/*
@@ -192,6 +206,7 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 	free(fpixel);
 
 	if (error != 0) {
+		fprintf(stderr, "Error reading table coefficients\n");
 		splinetable_free(table);
 		return (error);
 	}
@@ -211,8 +226,10 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 
 		fits_movnam_hdu(fits, IMAGE_HDU, hduname, 0, &error);
 		fits_get_img_size(fits, 1, &table->nknots[i], &error);
-		if (error != 0)
+		if (error != 0) {
+			fprintf(stderr, "Error reading knot vector %d\n", i);
 			break;
+		}
 
 		table->knots[i] = malloc(sizeof(double)*table->nknots[i]);
 		fits_read_pix(fits, TDOUBLE, &fpix, table->nknots[i], NULL,

@@ -51,7 +51,10 @@ def read(path):
 	table.periods = []
 	table.knots = []
 	for i in range(0,table.coefficients.ndim):
-		table.periods.append(data.header['PERIOD%d' % i])
+		try:
+			table.periods.append(data.header['PERIOD%d' % i])
+		except:
+			table.periods.append(0.)
 		table.knots.append(file['KNOTS%d' % i].data)
 
 
