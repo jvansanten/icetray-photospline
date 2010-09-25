@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "splinetable.h"
+#include <photospline/splinetable.h>
 
 int main(int argc, char **argv) {
 	struct splinetable table;
