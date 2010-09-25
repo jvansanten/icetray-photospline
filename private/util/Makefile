@@ -5,11 +5,11 @@ AR = ar
 
 LIBSRC = ../lib/bspline.c ../lib/fitstable.c
 SRC = dumpsplinefits.c evalsplinefits.c
-LIBS = -lm -L/usr/local/lib -lcfitsio
+LIBS = -lm -L/usr/local/lib -L${I3_PORTS}/lib -lcfitsio
 
 # -----
 
-CFLAGS = -Wall -Werror -Wno-unused -march=native -O2 -I../lib -I/usr/local/include
+CFLAGS = -Wall -Werror -Wno-unused -march=opteron -O3 -I../lib -I/usr/local/include -I../../public -I${SROOT}/include -I${I3_PORTS}/include
 
 RM = /bin/rm
 .SUFFIXES: .o .c
