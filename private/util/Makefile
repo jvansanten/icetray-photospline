@@ -9,7 +9,7 @@ LIBS = -lm -L/usr/local/lib -L${I3_PORTS}/lib -lcfitsio
 
 # -----
 
-CFLAGS = -Wall -Werror -Wno-unused -march=opteron -O3 -I../lib -I/usr/local/include -I../../public -I${SROOT}/include -I${I3_PORTS}/include
+CFLAGS = -Wall -Werror -Wno-unused -march=opteron -O3 -I../lib -I/usr/local/include -I../../public -I${SROOT}/include -I${I3_PORTS}/include -std=c99
 
 RM = /bin/rm
 .SUFFIXES: .o .c

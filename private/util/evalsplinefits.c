@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
-#include <sys/limits.h>
+#include <limits.h>
 #include <sys/time.h>
 
 #include <photospline/splinetable.h>
@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
 
 		min = x_f - x_i; max = 0;
 		for (i = 0; i < SAMPLES; i++) {
-			randomseq[i] = ((double)random())/(double)INT_MAX * (x_f - x_i);
+			randomseq[i] = ((double)rand())/(double)RAND_MAX * (x_f - x_i);
 			if (randomseq[i] < min) min = randomseq[i];
 			if (randomseq[i] > max) max = randomseq[i];
 		}
