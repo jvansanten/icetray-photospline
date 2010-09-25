@@ -22,7 +22,7 @@ def fithist(data, weights, bins, nknots, smooth, link, ranges = None, penorder=1
 		r = ranges[i]
 		print "\t",r[0],"-",r[1]
 		space = (r[1] - r[0])/nknots[i]
-		knots.append(numpy.linspace(r[0]-3*space,r[1]+2*space,
+		knots.append(numpy.linspace(r[0]-2*space - 0.1,r[1]+2*space + 0.1,
 		    nknots[i]+5))
 
 	print "Histogramming..."
