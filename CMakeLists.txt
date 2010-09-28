@@ -12,5 +12,5 @@ i3_add_library(photospline
 # We wants it fast, precious.
 SET_TARGET_PROPERTIES(photospline
 	PROPERTIES
-	COMPILE_FLAGS "-O3 -ffast-math -std=c89"
+	COMPILE_FLAGS "-O3 -ffast-math -std=c99"
 )
