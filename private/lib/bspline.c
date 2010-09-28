@@ -99,7 +99,7 @@ splineeval(double *knots, double *weights, int nknots, double x, int order,
 int
 tablesearchcenters(struct splinetable *table, double *x, int *centers)
 {
-	int i;
+	int i, min, max;
 
 	for (i = 0; i < table->ndim; i++) {
 
@@ -113,15 +113,18 @@ tablesearchcenters(struct splinetable *table, double *x, int *centers)
 		    x[i] > table->knots[i][table->naxes[i]])
 			return (-1);
 
-		/* XXX: should be a binary search */
-		for (centers[i] = table->order[i];
-		    centers[i]+1 < table->nknots[i]; centers[i]++) {
-			if (x[i] >= table->knots[i][centers[i]] &&
-			    x[i] < table->knots[i][centers[i]+1])
-				break;
-		}
-		if (centers[i] > table->naxes[i])
-			return (-1);
+		min = table->order[i];
+		max = table->nknots[i]-2;
+		do {
+			centers[i] = (max+min)/2;
+
+			if (x[i] < table->knots[i][centers[i]])
+				max = centers[i]-1;
+			else
+				min = centers[i]+1;
+		} while (x[i] < table->knots[i][centers[i]] ||
+		    x[i] >= table->knots[i][centers[i]+1]);
+
 		/*
 		 * B-splines are defined on a half-open interval. For the
 		 * last point of the interval, move center one point to the
