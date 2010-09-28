@@ -15,7 +15,8 @@ int
 splinetable_convolve(struct splinetable *table, const int dim, double *knots,
     size_t n_knots)
 {
-	double *rho, *coefficients, *bundle, **trafo, norm;
+	double *rho, *bundle, **trafo, norm;
+	float *coefficients;
 	size_t n_rho, arraysize, n_slices;
 	unsigned long *strides;
 	long *naxes;
@@ -92,7 +93,7 @@ splinetable_convolve(struct splinetable *table, const int dim, double *knots,
 		}
 	}
 	
-	coefficients = calloc(sizeof(double), arraysize);
+	coefficients = calloc(sizeof(float), arraysize);
 	
 	/* You are not meant to understand the following. */
 	/* You know that high-concept horror movie "Cube"? This is _hyper_cube. */
