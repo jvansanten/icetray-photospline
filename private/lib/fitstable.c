@@ -194,13 +194,13 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 		if (i > 0)
 			table->strides[i-1] = arraysize;
 	}
-	table->coefficients = malloc(sizeof(double)*arraysize);
+	table->coefficients = malloc(sizeof(float)*arraysize);
 
 	fpixel = malloc(sizeof(long)*table->ndim);
 	for (i = 0; i < table->ndim; i++)
 		fpixel[i] = 1;
 
-	fits_read_pix(fits, TDOUBLE, fpixel, arraysize, NULL,
+	fits_read_pix(fits, TFLOAT, fpixel, arraysize, NULL,
 	    table->coefficients, NULL, &error);
 
 	free(fpixel);

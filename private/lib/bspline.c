@@ -148,12 +148,12 @@ maxorder(int *order, int ndim)
 	return (max);
 }
    
-static double
+static float 
 localbasis_sub(const struct splinetable *table, const int *centers,
     int n, int *restrict pos, unsigned long stride,
-    const double *restrict localbasis[table->ndim])
+    const float *restrict localbasis[table->ndim])
 {
-	double acc = 0.0;
+	float acc = 0.0;
 	int k;
 
 	if (n+1 == table->ndim) {
@@ -164,9 +164,10 @@ localbasis_sub(const struct splinetable *table, const int *centers,
 		 * vector optimizations pick up on this code.
 		 */
 
+		const int woff = stride + centers[n] - table->order[n];
+		const float *row = localbasis[n];
 		for (k = 0; k <= table->order[n]; k++)
-			acc += table->coefficients[stride + centers[n] -
-			    table->order[n] + k]*localbasis[n][k];
+			acc += table->coefficients[woff+k]*row[k];
 	} else {
 		for (k = -table->order[n]; k <= 0; k++) {
 			/*
@@ -202,8 +203,8 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 	int maxdegree = maxorder(table->order, table->ndim) + 1; 
 	int pos[table->ndim];
 	double result;
-	double localbasis[table->ndim][maxdegree];
-	const double *localbasis_ptr[table->ndim];
+	float localbasis[table->ndim][maxdegree];
+	const float *localbasis_ptr[table->ndim];
 
 	for (n = 0; n < table->ndim; n++) {
 		if (derivatives & (1 << n)) {

@@ -12,7 +12,7 @@ struct splinetable {
 
 	double *periods;
 
-	double *coefficients;
+	float *coefficients;
 	long *naxes;
 	unsigned long *strides;
 

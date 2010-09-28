@@ -510,11 +510,13 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 	for (i = 0; i < out.ndim; i++)
 		elements *= out.naxes[i];
 	result_arr = (PyArrayObject *)PyArray_SimpleNew(out.ndim, out.naxes,
-	    PyArray_DOUBLE);
-	memcpy(result_arr->data, out.coefficients, elements*sizeof(double));
+	    PyArray_FLOAT);
 
 	if (result_arr != NULL) {
 		PyObject *splinetable_cls;
+
+		memcpy(result_arr->data, out.coefficients,
+		    elements*sizeof(float));
 
 		/* Look up the splinetable class */
 		splinetable_cls = PyObject_GetAttrString(splinetable_mod,

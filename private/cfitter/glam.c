@@ -285,9 +285,9 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 	/* Copy out the coefficients */
 
 	out->coefficients = malloc(coefficients->nrow * coefficients->ncol *
-	    sizeof(double));
-	memcpy(out->coefficients, coefficients->x,
-	    coefficients->nrow * coefficients->ncol * sizeof(double));
+	    sizeof(float));
+	for (i = 0; i < coefficients->nrow * coefficients->ncol; i++)
+		out->coefficients[i] = ((double *)(coefficients->x))[i];
 	out->naxes = malloc(out->ndim * sizeof(long));
 	for (i = 0; i < out->ndim; i++)
 		out->naxes[i] = out->nknots[i] - order[i] - 1;
