@@ -35,9 +35,19 @@ def bspline_deriv(knots, x, i, n):
 	if n == 0:
 		return 0.
 
-	a = ((x - knots[i])*bspline_deriv(knots, x, i, n-1) + bspline(knots, x, i, n-1))/(knots[i+n] - knots[i])
-	b = ((knots[i+n+1] - x)*bspline_deriv(knots, x, i+1, n-1) - bspline(knots, x, i+1, n-1))/(knots[i+n+1] - knots[i+1])
+	a = n*bspline(knots, x, i, n-1)/(knots[i+n] - knots[i])
+	b = n*bspline(knots, x, i+1, n-1)/(knots[i+n+1] - knots[i+1])
 	return a+b
+	
+def bspline_deriv_2(knots, x, i, n):
+	if n <= 1:
+		return 0.
+
+	a = bspline(knots, x, i, n-2)/((knots[i+n] - knots[i])*(knots[i+n-1] - knots[i]))
+	b = bspline(knots, x, i+1, n-2)*(1/(knots[i+n] - knots[i]) + 1/(knots[i+n+1] - knots[i+1]))/(knots[i+n] - knots[i+1])
+	c = bspline(knots, x, i+2, n-2)/((knots[i+n+1] - knots[i+1])*(knots[i+n+1] - knots[i+2]))
+	return (n*(n-1))*(a - b + c)
+	
 
 def splinebasis(knots,order,x1,period = 0,spline = bspline):
 	splinevals = []

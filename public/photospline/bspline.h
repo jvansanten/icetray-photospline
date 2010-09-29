@@ -10,6 +10,7 @@
 
 double bspline(const double *knots, double x, int i, int n);
 double bspline_deriv(const double *knots, double x, int i, int n);
+double bspline_deriv_2(const double *knots, double x, int i, int n);
 
 /*
  * Evaluates the results of a full spline basis given a set of knots,
