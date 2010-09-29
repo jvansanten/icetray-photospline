@@ -37,7 +37,7 @@ def bspline_deriv(knots, x, i, n):
 
 	a = n*bspline(knots, x, i, n-1)/(knots[i+n] - knots[i])
 	b = n*bspline(knots, x, i+1, n-1)/(knots[i+n+1] - knots[i+1])
-	return a+b
+	return a-b
 	
 def bspline_deriv_2(knots, x, i, n):
 	if n <= 1:
