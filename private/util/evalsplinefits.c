@@ -14,7 +14,7 @@ static void usage() {
 }
 
 #define TIMING
-#define SAMPLES 1000
+#define SAMPLES 10000
 
 int main(int argc, char **argv) {
 	struct splinetable table;
@@ -113,8 +113,9 @@ int main(int argc, char **argv) {
 	    #ifdef TIMING
 		if (tp2.tv_usec < tp1.tv_usec)
 			tp2.tv_usec += 1e6;
-		printf("Multiple evaluation time: %ld microseconds\n",
-		    tp2.tv_usec - tp1.tv_usec);
+		printf("Multiple evaluation time: %ld.%02ld microseconds\n",
+		    (tp2.tv_usec - tp1.tv_usec)/SAMPLES,
+		    (((tp2.tv_usec - tp1.tv_usec)%SAMPLES) * 100) /SAMPLES);
 	    #endif
 	}
 
