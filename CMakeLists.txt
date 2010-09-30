@@ -17,5 +17,5 @@ i3_executable(evalsplinefits
 # We wants it fast, precious.
 SET_TARGET_PROPERTIES(photospline
 	PROPERTIES
-	COMPILE_FLAGS "-O3 -ffast-math -std=c99"
+	COMPILE_FLAGS "-O3 -fpeel-loops -fbranch-probabilities -ffast-math -std=c99"
 )
