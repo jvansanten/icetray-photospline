@@ -37,6 +37,48 @@ bspline(const double *knots, double x, int i, int n)
 	return result;
 }
 
+/*
+ * A brain-dead reimplementation of de Boor's BSPLVB, which generates
+ * the values of the non-zero B-splines at x from the bottom up without
+ * unnccessarily recalculating terms. 
+ * 
+ * NB: the indexing used here assumes that x is fully supported, i.e. has
+ * jhigh knots to the left and right. If this is not the case, the output
+ * will be a casserole of nonsense.
+ *
+ * See Chapter X in: 
+ * 
+ * Carl de Boor. A Practical Guide to Splines, volume 27 of Applied
+ *     Mathematical Sciences. Springer-Verlag, 1978.
+ */
+
+void
+bsplvb(const double *knots, double x, int left, int jlow, int jhigh,
+    float *restrict biatx, float *restrict delta_l, float *restrict delta_r)
+{
+	int i, j;
+	
+	if (jlow == 0)
+		biatx[0] = 1.0;
+		
+	for (j = jlow; j < jhigh-1; j++) {
+		delta_r[j] = knots[left+j+1] - x;
+		delta_l[j] = x - knots[left-j];
+		
+		float saved = 0.0;
+		
+		for (i = 0; i < j+1; i++) {
+			float term = biatx[i] / (delta_r[i] + delta_l[j-i]);
+			biatx[i] = saved + delta_r[i]*term;
+			saved = delta_l[j-i]*term;
+		}
+		
+		biatx[j+1] = saved;
+	}
+	
+	return;
+}
+
 double
 bspline_deriv(const double *knots, double x, int i, int n)
 {
@@ -214,6 +256,8 @@ localbasis_sub(const struct splinetable *table, const int *centers,
 	return acc;
 }
 
+
+
 /*
  * The N-Dimensional tensor product basis version of splineeval.
  * Evaluates the results of a full spline basis given a set of knots,
@@ -233,8 +277,10 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 	int pos[table->ndim];
 	double result;
 	float localbasis[table->ndim][maxdegree];
+	float delta_r[maxdegree];
+	float delta_l[maxdegree];
 	const float *localbasis_ptr[table->ndim];
-
+	
 	for (n = 0; n < table->ndim; n++) {
 		if (derivatives & (1 << n)) {
 			for (offset = -table->order[n]; offset <= 0; offset++) {
@@ -243,11 +289,16 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 					 centers[n] + offset, table->order[n]);
 			}
 		} else {
+#if 1
+			bsplvb(table->knots[n], x[n], centers[n], 0,
+			    table->order[n] + 1, localbasis[n], delta_l, delta_r);
+#else
 			for (offset = -table->order[n]; offset <= 0; offset++) {
 				localbasis[n][offset+table->order[n]] =
 				     bspline(table->knots[n],x[n],
 					 centers[n] + offset, table->order[n]);
 			}
+#endif
 		}
 
 		localbasis_ptr[n] = localbasis[n];
