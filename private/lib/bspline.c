@@ -78,6 +78,45 @@ bsplvb(const double *knots, double x, int left, int jhigh,
 	}
 }
 
+void
+bspline_deriv_nonzero(const double *knots, double x, int left, int n,
+    float *restrict biatx)
+{
+	int i;
+	double temp, a;
+	
+	/* Special case for constant splines */
+	if (n == 0)
+		return;
+	
+	/* Get the non-zero n-1th order B-splines at x */
+	bsplvb(knots, x, left, n, biatx);
+	
+	/* 
+	 * Now, form the derivatives of the nth order B-splines from
+	 * linear combinations of the lower-order splines.
+	 */
+	
+	/* 
+	 * On the last supported segment of the ith nth order spline,
+	 * only the i+1th n-1th order spline is nonzero.
+	 */
+	temp = biatx[0];
+	biatx[0] =  - n*temp / ((knots[left+n+1] - knots[left+1]));
+	
+	/* On the middle segments, both the ith and i+1th splines contribute. */
+	for (i = 1; i < n; i++) {
+		a = n*temp/((knots[left+i+n] - knots[left+i]));
+		temp = biatx[i];
+		biatx[i] = a - n*temp/(knots[left+i+n+1] - knots[left+i+1]);
+	}
+	/*
+	 * On the first supported segment of the i+nth nth order spline,
+	 * only the ith n-1th order spline is nonzero.
+	 */
+	biatx[n] = n*temp/((knots[left+n+n-1] - knots[left+n-1]));
+}
+
 double
 bspline_deriv(const double *knots, double x, int i, int n)
 {
@@ -280,11 +319,8 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 	
 	for (n = 0; n < table->ndim; n++) {
 		if (derivatives & (1 << n)) {
-			for (offset = -table->order[n]; offset <= 0; offset++) {
-				localbasis[n][offset+table->order[n]] =
-				     bspline_deriv(table->knots[n],x[n],
-					 centers[n] + offset, table->order[n]);
-			}
+			bspline_deriv_nonzero(table->knots[n], x[n], centers[n],
+			    table->order[n], localbasis[n]);
 		} else {
 			bsplvb(table->knots[n], x[n], centers[n],
 			    table->order[n] + 1, localbasis[n]);
