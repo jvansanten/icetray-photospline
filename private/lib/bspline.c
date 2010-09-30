@@ -227,7 +227,7 @@ localbasis_sub(const struct splinetable *table, const int *centers,
 	float acc = 0.0;
 	int k;
 
-	if (n+1 == table->ndim) {
+	if (__builtin_expect(n+1 == table->ndim, 0)) {
 		/*
 		 * If we are at the last recursion level, the weights are
 		 * linear in memory, so grab the row-level basis functions
