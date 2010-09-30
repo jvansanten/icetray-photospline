@@ -57,6 +57,7 @@ bsplvb(const double *knots, double x, int left, int jlow, int jhigh,
     float *restrict biatx, float *restrict delta_l, float *restrict delta_r)
 {
 	int i, j;
+	double saved, term;
 	
 	if (jlow == 0)
 		biatx[0] = 1.0;
@@ -65,18 +66,16 @@ bsplvb(const double *knots, double x, int left, int jlow, int jhigh,
 		delta_r[j] = knots[left+j+1] - x;
 		delta_l[j] = x - knots[left-j];
 		
-		float saved = 0.0;
+		saved = 0.0;
 		
 		for (i = 0; i < j+1; i++) {
-			float term = biatx[i] / (delta_r[i] + delta_l[j-i]);
+			term = biatx[i] / (delta_r[i] + delta_l[j-i]);
 			biatx[i] = saved + delta_r[i]*term;
 			saved = delta_l[j-i]*term;
 		}
 		
 		biatx[j+1] = saved;
 	}
-	
-	return;
 }
 
 double
