@@ -52,17 +52,17 @@ bspline(const double *knots, double x, int i, int n)
  *     Mathematical Sciences. Springer-Verlag, 1978.
  */
 
-void
-bsplvb(const double *knots, double x, int left, int jlow, int jhigh,
-    float *restrict biatx, float *restrict delta_l, float *restrict delta_r)
+static void
+bsplvb(const double *knots, double x, int left, int jhigh,
+    float *restrict biatx)
 {
 	int i, j;
 	double saved, term;
+	double delta_l[jhigh], delta_r[jhigh];
 	
-	if (jlow == 0)
-		biatx[0] = 1.0;
+	biatx[0] = 1.0;
 		
-	for (j = jlow; j < jhigh-1; j++) {
+	for (j = 0; j < jhigh-1; j++) {
 		delta_r[j] = knots[left+j+1] - x;
 		delta_l[j] = x - knots[left-j];
 		
@@ -276,8 +276,6 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 	int pos[table->ndim];
 	double result;
 	float localbasis[table->ndim][maxdegree];
-	float delta_r[maxdegree];
-	float delta_l[maxdegree];
 	const float *localbasis_ptr[table->ndim];
 	
 	for (n = 0; n < table->ndim; n++) {
@@ -288,8 +286,8 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 					 centers[n] + offset, table->order[n]);
 			}
 		} else {
-			bsplvb(table->knots[n], x[n], centers[n], 0,
-			    table->order[n] + 1, localbasis[n], delta_l, delta_r);
+			bsplvb(table->knots[n], x[n], centers[n],
+			    table->order[n] + 1, localbasis[n]);
 		}
 
 		localbasis_ptr[n] = localbasis[n];
