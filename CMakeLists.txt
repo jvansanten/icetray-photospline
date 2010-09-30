@@ -9,6 +9,11 @@ i3_add_library(photospline
 	USE_TOOLS cfitsio gsl python
 )
 
+i3_executable(evalsplinefits
+	private/util/evalsplinefits.c
+	USE_TOOLS cfitsio
+	USE_PROJECTS photospline)
+
 # We wants it fast, precious.
 SET_TARGET_PROPERTIES(photospline
 	PROPERTIES

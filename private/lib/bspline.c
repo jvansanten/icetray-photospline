@@ -289,16 +289,8 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 					 centers[n] + offset, table->order[n]);
 			}
 		} else {
-#if 1
 			bsplvb(table->knots[n], x[n], centers[n], 0,
 			    table->order[n] + 1, localbasis[n], delta_l, delta_r);
-#else
-			for (offset = -table->order[n]; offset <= 0; offset++) {
-				localbasis[n][offset+table->order[n]] =
-				     bspline(table->knots[n],x[n],
-					 centers[n] + offset, table->order[n]);
-			}
-#endif
 		}
 
 		localbasis_ptr[n] = localbasis[n];
