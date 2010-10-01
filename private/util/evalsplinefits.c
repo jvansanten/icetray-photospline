@@ -15,7 +15,7 @@ static void usage() {
 
 #define TIMING
 #define GRADIENTS
-#define SAMPLES 10000
+#define SAMPLES 1000
 
 int main(int argc, char **argv) {
 	struct splinetable table;
@@ -84,6 +84,28 @@ int main(int argc, char **argv) {
 
 	printf("Value: %lf\n",value);
 	printf("e^(value): %e\n",exp(value));
+	
+	
+    #ifdef GRADIENTS
+	eval1 = calloc(table.ndim + 1, sizeof(double));
+	eval2 = calloc(table.ndim + 1, sizeof(double));
+	
+	eval1[0] = ndsplineeval(&table, x, centers, 0);
+	for (j = 0; j < table.ndim; j++)
+		eval1[1+j] = ndsplineeval(&table, x, centers,
+		    (1 << j));
+	ndsplineeval_gradient(&table, x, centers, eval2);
+	
+	printf("Sequential gradient:");
+	for (j = 0; j < table.ndim+1; j++)
+		printf(" %- .2e", eval1[j]);
+	printf("\n");
+	printf("Vectorized gradient:");
+	for (j = 0; j < table.ndim+1; j++)
+		printf(" %- .2e", eval2[j]);
+	printf("\n");
+	
+    #endif
 
 	if (iterdim >= 0) {
 		double min, max; 
@@ -119,9 +141,7 @@ int main(int argc, char **argv) {
 	    #endif
 	
 	    #ifdef GRADIENTS
-		eval1 = calloc(table.ndim + 1, sizeof(double));
-		eval2 = calloc(table.ndim + 1, sizeof(double));
-	
+		
 		gettimeofday(&tp1, NULL);
 		for (i = 0; i < SAMPLES; i++) {
 			x[iterdim] = x_i + randomseq[i];
@@ -158,13 +178,16 @@ int main(int argc, char **argv) {
 		    (tp2.tv_usec - tp1.tv_usec)/SAMPLES,
 		    (((tp2.tv_usec - tp1.tv_usec)%SAMPLES) * 100) /SAMPLES);
 		
-		free(eval1);
-		free(eval2);
 	    #endif
 	
 		free(randomseq);
 	
 	}
+	
+    #ifdef GRADIENTS
+	free(eval1);
+	free(eval2);
+    #endif
 
 	return 0;
 }

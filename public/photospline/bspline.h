@@ -13,6 +13,26 @@ double bspline_deriv(const double *knots, double x, int i, int n);
 double bspline_deriv_2(const double *knots, double x, int i, int n);
 
 /*
+ * A brain-dead reimplementation of de Boor's BSPLVB, which generates
+ * the values of the non-zero B-splines at x from the bottom up without
+ * unnccessarily recalculating terms. 
+ * 
+ * NB: the indexing used here assumes that x is fully supported, i.e. has
+ * jhigh knots to the left and right. If this is not the case, the output
+ * will be a casserole of nonsense.
+ *
+ * See Chapter X in: 
+ * 
+ * Carl de Boor. A Practical Guide to Splines, volume 27 of Applied
+ *     Mathematical Sciences. Springer-Verlag, 1978.
+ */
+
+void bsplvb(const double *knots, double x, int left, int jhigh,
+    float *restrict biatx);
+void bspline_deriv_nonzero(const double *knots, double x, int left, int n,
+    float *restrict biatx);
+
+/*
  * Evaluates the results of a full spline basis given a set of knots,
  * a position, an order, and a central spline for the position (or -1).
  * The central spline should be the index of the 0th order basis spline
