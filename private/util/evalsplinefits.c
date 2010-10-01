@@ -14,12 +14,13 @@ static void usage() {
 }
 
 #define TIMING
+#define GRADIENTS
 #define SAMPLES 10000
 
 int main(int argc, char **argv) {
 	struct splinetable table;
-	int i, iterdim;
-	double *x, x_i, x_f, value;
+	int i, j, iterdim;
+	double *x, x_i, x_f, value, *eval1, *eval2;
 	double *randomseq;
 	int *centers;
 	struct timeval tp1, tp2;
@@ -109,7 +110,6 @@ int main(int argc, char **argv) {
 				fprintf(stderr, "Encountered a NaN!\n");
 		}
 		gettimeofday(&tp2, NULL);
-		free(randomseq);
 	    #ifdef TIMING
 		if (tp2.tv_usec < tp1.tv_usec)
 			tp2.tv_usec += 1e6;
@@ -117,6 +117,53 @@ int main(int argc, char **argv) {
 		    (tp2.tv_usec - tp1.tv_usec)/SAMPLES,
 		    (((tp2.tv_usec - tp1.tv_usec)%SAMPLES) * 100) /SAMPLES);
 	    #endif
+	
+	    #ifdef GRADIENTS
+		eval1 = calloc(table.ndim + 1, sizeof(double));
+		eval2 = calloc(table.ndim + 1, sizeof(double));
+	
+		gettimeofday(&tp1, NULL);
+		for (i = 0; i < SAMPLES; i++) {
+			x[iterdim] = x_i + randomseq[i];
+			if (tablesearchcenters(&table, x, centers)) {
+				printf("Search table centers failed for %lf\n", x[iterdim]);
+				break;
+			}
+			eval1[0] = ndsplineeval(&table, x, centers, 0);
+			for (j = 0; j < table.ndim; j++)
+				eval1[1+j] = ndsplineeval(&table, x, centers,
+				    (1 << j));
+		}
+		gettimeofday(&tp2, NULL);
+		if (tp2.tv_usec < tp1.tv_usec)
+			tp2.tv_usec += 1e6;
+		printf("Sequential gradient evaluation time: %ld.%02ld microseconds\n",
+		    (tp2.tv_usec - tp1.tv_usec)/SAMPLES,
+		    (((tp2.tv_usec - tp1.tv_usec)%SAMPLES) * 100) /SAMPLES);
+		
+		
+		gettimeofday(&tp1, NULL);
+		for (i = 0; i < SAMPLES; i++) {
+			x[iterdim] = x_i + randomseq[i];
+			if (tablesearchcenters(&table, x, centers)) {
+				printf("Search table centers failed for %lf\n", x[iterdim]);
+				break;
+			}
+			ndsplineeval_gradient(&table, x, centers, eval2);
+		}
+		gettimeofday(&tp2, NULL);
+		if (tp2.tv_usec < tp1.tv_usec)
+			tp2.tv_usec += 1e6;
+		printf("Combined gradient evaluation time:   %ld.%02ld microseconds\n",
+		    (tp2.tv_usec - tp1.tv_usec)/SAMPLES,
+		    (((tp2.tv_usec - tp1.tv_usec)%SAMPLES) * 100) /SAMPLES);
+		
+		free(eval1);
+		free(eval2);
+	    #endif
+	
+		free(randomseq);
+	
 	}
 
 	return 0;

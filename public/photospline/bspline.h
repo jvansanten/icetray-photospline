@@ -37,6 +37,11 @@ int tablesearchcenters(struct splinetable *table, double *x, int *centers);
 double ndsplineeval(struct splinetable *table, const double *x, 
     const int *centers, int derivatives);
 
+/* Evaluate a spline surface and all its derivatives at x */
+
+void ndsplineeval_gradient(struct splinetable *table, const double *x,
+    const int *centers, double evaluates[table->ndim + 1]);
+
 /*
  * Convolve a table with the spline defined on a set of knots along a given 
  * dimension and store the spline expansion of the convolved surface in the

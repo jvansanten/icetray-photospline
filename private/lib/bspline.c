@@ -333,3 +333,104 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 
 	return (result);
 }
+
+#define VECTOR_SIZE 4
+typedef float v4sf __attribute__ ((vector_size(VECTOR_SIZE*sizeof(float))));
+
+static void 
+localbasis_multisub(const struct splinetable *table, const int *centers,
+    int n, int *restrict pos, unsigned long stride, int nbases,
+    const float **restrict localbasis[table->ndim], float *restrict acc)
+{
+	int i, k;
+	
+	if (n+1 == table->ndim) {
+		/*
+		 * If we are at the last recursion level, the weights are
+		 * linear in memory, so grab the row-level basis functions
+		 * and multiply by the weights. Hopefully the compiler
+		 * vector optimizations pick up on this code.
+		 */
+		
+		const int woff = stride + centers[n] - table->order[n];
+		float weight;
+
+		for (k = 0; k <= table->order[n]; k++) {
+			const float *row = localbasis[n][k];
+			weight = table->coefficients[woff+k];
+			for (i = 0; i < nbases; i++)
+				acc[i] += weight*row[i];
+		}
+	} else {
+		float acc_l[nbases];
+		
+		for (k = -table->order[n]; k <= 0; k++) {
+			/*
+			 * If we are not at the last dimension, record where we
+			 * are, multiply in the row basis value, and recurse.
+			 */
+
+			const float *basis_row = localbasis[n][k+table->order[n]];
+			pos[n] = centers[n] + k;
+			for (i = 0; i < nbases; i++)
+				acc_l[i] = 0;
+				
+			localbasis_multisub(table, centers, n+1, pos,
+			    stride + pos[n]*table->strides[n],
+			    nbases, localbasis, acc_l);
+			for (i = 0; i < nbases; i++)
+				acc[i] += acc_l[i] * basis_row[i];
+		}
+	}
+}
+
+/* Evaluate the spline surface and all its derivatives at x */
+
+void
+ndsplineeval_gradient(struct splinetable *table, const double *x, const int *centers, double evaluates[table->ndim + 1])
+{
+	int n, i, j, offset;
+	int maxdegree = maxorder(table->order, table->ndim) + 1;
+	int nbases = table->ndim + 1;
+	int pos[table->ndim];
+	float acc[nbases];
+	float valbasis[maxdegree];
+	float gradbasis[maxdegree];
+	float localbasis[table->ndim][maxdegree][nbases];
+	const float *localbasis_rowptr[table->ndim][maxdegree];
+	const float **localbasis_ptr[table->ndim];
+		
+	for (n = 0; n < table->ndim; n++) {
+	
+		/* FIXME: compute value and gradient bases in one go */
+		bsplvb(table->knots[n], x[n], centers[n],
+		    table->order[n] + 1, valbasis);
+		bspline_deriv_nonzero(table->knots[n], x[n], centers[n],
+		    table->order[n], gradbasis);
+		
+		for (i = 0; i <= table->order[n]; i++) {
+			
+			localbasis[n][i][0] = valbasis[i];
+			
+			for (j = 1; j < table->ndim+1; j++) {
+				if (j == 1+n)
+					localbasis[n][i][j] = gradbasis[i];
+				else
+					localbasis[n][i][j] = valbasis[i];
+			}
+			
+			localbasis_rowptr[n][i] = localbasis[n][i];
+		}
+		
+		localbasis_ptr[n] = localbasis_rowptr[n];
+	}
+
+	for (i = 0; i < nbases; i++)
+		acc[i] = 0;
+
+	localbasis_multisub(table, centers, 0, pos, 0,
+	    nbases, localbasis_ptr, acc);
+
+	for (i = 0; i < nbases; i++)
+		evaluates[i] = acc[i];
+}
