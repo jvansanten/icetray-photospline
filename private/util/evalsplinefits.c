@@ -15,7 +15,7 @@ static void usage() {
 
 #define TIMING
 #define GRADIENTS
-#define SAMPLES 1000
+#define SAMPLES 10000
 
 int main(int argc, char **argv) {
 	struct splinetable table;
@@ -33,8 +33,7 @@ int main(int argc, char **argv) {
 	gettimeofday(&tp2, NULL);
 
     #ifdef TIMING
-	if (tp2.tv_usec < tp1.tv_usec)
-		tp2.tv_usec += 1e6;
+	tp2.tv_usec += (tp2.tv_sec - tp1.tv_sec)*1e6;
 	printf("Time to open table: %ld.%06ld seconds\n", 
 	    tp2.tv_sec - tp1.tv_sec, tp2.tv_usec - tp1.tv_usec);
     #endif
@@ -64,8 +63,7 @@ int main(int argc, char **argv) {
 	gettimeofday(&tp2, NULL);
 
     #ifdef TIMING
-	if (tp2.tv_usec < tp1.tv_usec)
-		tp2.tv_usec += 1e6;
+	tp2.tv_usec += (tp2.tv_sec - tp1.tv_sec)*1e6;
 	printf("Cold cache evaluation time: %ld microseconds\n",
 	    tp2.tv_usec - tp1.tv_usec);
 
@@ -73,8 +71,7 @@ int main(int argc, char **argv) {
 	value = ndsplineeval(&table, x, centers, 0);
 	gettimeofday(&tp2, NULL);
 
-	if (tp2.tv_usec < tp1.tv_usec)
-		tp2.tv_usec += 1e6;
+	tp2.tv_usec += (tp2.tv_sec - tp1.tv_sec)*1e6;
 	printf("Warm cache evaluation time: %ld microseconds\n",
 	    tp2.tv_usec - tp1.tv_usec);
     #endif
@@ -133,8 +130,7 @@ int main(int argc, char **argv) {
 		}
 		gettimeofday(&tp2, NULL);
 	    #ifdef TIMING
-		if (tp2.tv_usec < tp1.tv_usec)
-			tp2.tv_usec += 1e6;
+		tp2.tv_usec += (tp2.tv_sec - tp1.tv_sec)*1e6;
 		printf("Multiple evaluation time: %ld.%02ld microseconds\n",
 		    (tp2.tv_usec - tp1.tv_usec)/SAMPLES,
 		    (((tp2.tv_usec - tp1.tv_usec)%SAMPLES) * 100) /SAMPLES);
@@ -155,8 +151,7 @@ int main(int argc, char **argv) {
 				    (1 << j));
 		}
 		gettimeofday(&tp2, NULL);
-		if (tp2.tv_usec < tp1.tv_usec)
-			tp2.tv_usec += 1e6;
+		tp2.tv_usec += (tp2.tv_sec - tp1.tv_sec)*1e6;
 		printf("Sequential gradient evaluation time: %ld.%02ld microseconds\n",
 		    (tp2.tv_usec - tp1.tv_usec)/SAMPLES,
 		    (((tp2.tv_usec - tp1.tv_usec)%SAMPLES) * 100) /SAMPLES);
@@ -172,8 +167,7 @@ int main(int argc, char **argv) {
 			ndsplineeval_gradient(&table, x, centers, eval2);
 		}
 		gettimeofday(&tp2, NULL);
-		if (tp2.tv_usec < tp1.tv_usec)
-			tp2.tv_usec += 1e6;
+		tp2.tv_usec += (tp2.tv_sec - tp1.tv_sec)*1e6;
 		printf("Combined gradient evaluation time:   %ld.%02ld microseconds\n",
 		    (tp2.tv_usec - tp1.tv_usec)/SAMPLES,
 		    (((tp2.tv_usec - tp1.tv_usec)%SAMPLES) * 100) /SAMPLES);
