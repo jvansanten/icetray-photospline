@@ -20,7 +20,12 @@ typedef float v4sf __attribute__((vector_size(VECTOR_SIZE*sizeof(float))));
 #if defined(__i386__) || defined (__x86_64__)
 #define v4sf_init(a, b) a = _mm_set1_ps(b)
 #elif defined(__powerpc__)
-#define v4sf_init(a) a = vec_splats(b)
+#ifdef vec_splats
+#define v4sf_init(a, b) a = vec_splats(b)
+#else
+#define v4sf_init(a, b) { float b_tmp __aligned(16) = b; \
+    a = vec_splat(*((v4sf *)(&b_tmp)), 0); }
+#endif
 #else
 #define v4sf_init(a, b) { \
 	((float *)(&a))[0] = b; \
