@@ -27,10 +27,13 @@ double bspline_deriv_2(const double *knots, double x, int i, int n);
  *     Mathematical Sciences. Springer-Verlag, 1978.
  */
 
-void bsplvb(const double *knots, double x, int left, int jhigh,
+void bsplvb_simple(const double *knots, double x, int left, int jhigh,
     float *restrict biatx);
-void bspline_deriv_nonzero(const double *knots, double x, int left, int n,
-    float *restrict biatx);
+void bspline_deriv_nonzero(const double *knots, const double x, const int left,
+    const int n, float *restrict biatx);
+void bsplvb(const double *knots, const double x, const int left, const int jlow,
+    const int jhigh, float *restrict biatx,
+    double *restrict delta_l, double *restrict delta_r);
 
 /*
  * Evaluates the results of a full spline basis given a set of knots,

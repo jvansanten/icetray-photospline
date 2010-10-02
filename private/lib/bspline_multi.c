@@ -98,6 +98,46 @@ localbasis_multisub(const struct splinetable *table, const int *centers,
 	}
 }
 
+void
+bspline_nonzero(const double *knots, const double x, const int left,
+    const int n, float *restrict values, float *restrict derivs)
+{
+	int i;
+	double delta_r[n+1], delta_l[n+1];
+	
+	/* Special case for constant splines */
+	if (n == 0)
+		return;
+	
+	/* Get the non-zero n-1th order B-splines at x */
+	bsplvb(knots, x, left, 0, n, values, delta_r, delta_l);
+	
+	/* 
+	 * Now, form the derivatives of the nth order B-splines from
+	 * linear combinations of the lower-order splines.
+	 */
+	
+	/* 
+	 * On the last supported segment of the ith nth order spline,
+	 * only the i+1th n-1th order spline is nonzero.
+	 */
+	derivs[0] =  - n*values[0] / ((knots[left+n+1] - knots[left+1]));
+	
+	/* On the middle segments, both the ith and i+1th splines contribute. */
+	for (i = 1; i < n; i++) {
+		derivs[i] = n*(values[i-1]/((knots[left+i+n] - knots[left+i]))
+		    - values[i]/(knots[left+i+n+1] - knots[left+i+1]));
+	}
+	/*
+	 * On the first supported segment of the i+nth nth order spline,
+	 * only the ith n-1th order spline is nonzero.
+	 */
+	derivs[n] = n*values[n-1]/((knots[left+n+n-1] - knots[left+n-1]));
+	
+	/* Now, continue to the non-zero nth order B-splines at x */
+	bsplvb(knots, x, left, n-1, n+1, values, delta_r, delta_l);
+}
+
 /* Evaluate the spline surface and all its derivatives at x */
 
 void
@@ -125,13 +165,9 @@ ndsplineeval_gradient(struct splinetable *table, const double *x,
 
 		
 	for (n = 0; n < table->ndim; n++) {
+		bspline_nonzero(table->knots[n], x[n], centers[n],
+		    table->order[n], valbasis, gradbasis);
 	
-		/* FIXME: compute value and gradient bases in one go */
-		bsplvb(table->knots[n], x[n], centers[n],
-		    table->order[n] + 1, valbasis);
-		bspline_deriv_nonzero(table->knots[n], x[n], centers[n],
-		    table->order[n], gradbasis);
-		
 		for (i = 0; i <= table->order[n]; i++) {
 			
 			((float*)(localbasis[n][i]))[0] = valbasis[i];

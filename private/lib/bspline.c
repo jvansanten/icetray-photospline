@@ -53,7 +53,7 @@ bspline(const double *knots, double x, int i, int n)
  */
 
 void
-bsplvb(const double *knots, double x, int left, int jhigh,
+bsplvb_simple(const double *knots, double x, int left, int jhigh,
     float *restrict biatx)
 {
 	int i, j;
@@ -79,8 +79,36 @@ bsplvb(const double *knots, double x, int left, int jhigh,
 }
 
 void
-bspline_deriv_nonzero(const double *knots, double x, int left, int n,
-    float *restrict biatx)
+bsplvb(const double *knots, const double x, const int left, const int jlow,
+    const int jhigh, float *restrict biatx,
+    double *restrict delta_l, double *restrict delta_r)
+{
+	int i, j;
+	double saved, term;
+
+	if (jlow == 0)
+		biatx[0] = 1.0;
+		
+	for (j = jlow; j < jhigh-1; j++) {
+		delta_r[j] = knots[left+j+1] - x;
+		delta_l[j] = x - knots[left-j];
+		
+		saved = 0.0;
+		
+		for (i = 0; i < j+1; i++) {
+			term = biatx[i] / (delta_r[i] + delta_l[j-i]);
+			biatx[i] = saved + delta_r[i]*term;
+			saved = delta_l[j-i]*term;
+		}
+		
+		biatx[j+1] = saved;
+	}
+}
+
+
+void
+bspline_deriv_nonzero(const double *knots, const double x, const int left, 
+    const int n, float *restrict biatx)
 {
 	int i;
 	double temp, a;
@@ -90,7 +118,7 @@ bspline_deriv_nonzero(const double *knots, double x, int left, int n,
 		return;
 	
 	/* Get the non-zero n-1th order B-splines at x */
-	bsplvb(knots, x, left, n, biatx);
+	bsplvb_simple(knots, x, left, n, biatx);
 	
 	/* 
 	 * Now, form the derivatives of the nth order B-splines from
@@ -322,7 +350,7 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 			bspline_deriv_nonzero(table->knots[n], x[n], centers[n],
 			    table->order[n], localbasis[n]);
 		} else {
-			bsplvb(table->knots[n], x[n], centers[n],
+			bsplvb_simple(table->knots[n], x[n], centers[n],
 			    table->order[n] + 1, localbasis[n]);
 		}
 
