@@ -13,7 +13,15 @@
 
 #define MAXDIM	    8
 #define VECTOR_SIZE 4
+
+#if __GNUC__ == 3
+#if VECTOR_SIZE != 4
+    #error On GCC 3, VECTOR_SIZE must be 4!
+#endif
+typedef float v4sf __attribute__(( mode(V4SF) ));
+#else
 typedef float v4sf __attribute__((vector_size(VECTOR_SIZE*sizeof(float))));
+#endif
 
 #define NVECS MAXDIM/VECTOR_SIZE
 

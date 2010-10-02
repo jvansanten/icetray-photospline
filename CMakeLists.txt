@@ -14,6 +14,11 @@ i3_executable(evalsplinefits
 	USE_TOOLS cfitsio
 	USE_PROJECTS photospline)
 
+SET_TARGET_PROPERTIES(photospline-evalsplinefits
+        PROPERTIES
+        COMPILE_FLAGS "-std=c99"
+)
+
 # We wants it fast, precious.
 SET_TARGET_PROPERTIES(photospline
 	PROPERTIES
