@@ -1,6 +1,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #if defined(__i386__) || defined (__x86_64__)
 #include <xmmintrin.h>
@@ -10,8 +11,24 @@
 
 #include "photospline/bspline.h"
 
+#define MAXDIM	    8
 #define VECTOR_SIZE 4
-typedef float v4sf __attribute__ ((vector_size(VECTOR_SIZE*sizeof(float))));
+typedef float v4sf __attribute__((vector_size(VECTOR_SIZE*sizeof(float))));
+
+#define NVECS MAXDIM/VECTOR_SIZE
+
+#if defined(__i386__) || defined (__x86_64__)
+#define v4sf_init(a, b) a = _mm_set1_ps(b)
+#elif defined(__powerpc__)
+#define v4sf_init(a) a = vec_splats(b)
+#else
+#define v4sf_init(a, b) { \
+	((float *)(&a))[0] = b; \
+	((float *)(&a))[1] = b; \
+	((float *)(&a))[2] = b; \
+	((float *)(&a))[3] = b; \
+}
+#endif
 
 static int
 maxorder(int *order, int ndim)
@@ -27,9 +44,12 @@ maxorder(int *order, int ndim)
 
 static void 
 localbasis_multisub(const struct splinetable *table, const int *centers,
-    int n, int *restrict pos, unsigned long stride, int nvecs,
-    const v4sf **restrict localbasis[table->ndim], v4sf *restrict acc)
+    int n, int *restrict pos, unsigned long stride,
+    const v4sf **restrict localbasis[table->ndim], v4sf *restrict acc,
+    /* On GCC 4.2.1 the stack (so acc_local) is misaligned without this: */
+    int gccsucks)
 {
+	v4sf acc_local[NVECS];
 	int i, k;
 	
 	if (n+1 == table->ndim) {
@@ -41,28 +61,16 @@ localbasis_multisub(const struct splinetable *table, const int *centers,
 		 */
 		
 		const int woff = stride + centers[n] - table->order[n];
-		float weight __attribute__ ((aligned(16)));
+		const v4sf *row;
 		v4sf weight_vec;
 
 		for (k = 0; k <= table->order[n]; k++) {
-			const v4sf *row = localbasis[n][k];
-			weight = table->coefficients[woff+k];
-#if defined(__i386__) || defined (__x86_64__)
-			weight_vec = _mm_set1_ps(weight);
-#elif defined(__powerpc__)
-			weight_vec = vec_splat(*((v4sf*)(&weight)), 0);
-#else
-			for (i = 0; i < VECTOR_SIZE; i++)
-				((float *)&weight_vec)[i] = weight;
-#endif
-			for (i = 0; i < nvecs; i++)
+			row = localbasis[n][k];
+			v4sf_init(weight_vec, table->coefficients[woff+k]);
+			for (i = 0; i < NVECS; i++)
 				acc[i] += row[i]*weight_vec;
 		}
 	} else {
-		v4sf acc_local[nvecs];
-		float *acc_local_ptr = (float*)acc_local;
-		float *acc_ptr = (float*)acc;
-		
 		for (k = -table->order[n]; k <= 0; k++) {
 			/*
 			 * If we are not at the last dimension, record where we
@@ -73,15 +81,14 @@ localbasis_multisub(const struct splinetable *table, const int *centers,
 			const float *basis_row_ptr =
 			    (float*)localbasis[n][k+table->order[n]];
 			pos[n] = centers[n] + k;
-			for (i = 0; i < nvecs*VECTOR_SIZE; i++)
-				acc_local_ptr[i] = 0;
+			for (i = 0; i < NVECS; i++)
+				v4sf_init(acc_local[i], 0);
 				
 			localbasis_multisub(table, centers, n+1, pos,
-			    stride + pos[n]*table->strides[n],
-			    nvecs, localbasis, acc_local);
-			for (i = 0; i < nvecs; i++) {
+			    stride + pos[n]*table->strides[n], localbasis,
+			    acc_local, 0);
+			for (i = 0; i < NVECS; i++) 
 				acc[i] += acc_local[i] * basis_row[i];
-			}
 		}
 	}
 }
@@ -89,20 +96,28 @@ localbasis_multisub(const struct splinetable *table, const int *centers,
 /* Evaluate the spline surface and all its derivatives at x */
 
 void
-ndsplineeval_gradient(struct splinetable *table, const double *x, const int *centers, double evaluates[table->ndim + 1])
+ndsplineeval_gradient(struct splinetable *table, const double *x,
+    const int *centers, double evaluates[table->ndim + 1])
 {
 	int n, i, j, offset;
 	int maxdegree = maxorder(table->order, table->ndim) + 1;
 	int nbases = table->ndim + 1;
-	int nvecs = (table->ndim + VECTOR_SIZE) / VECTOR_SIZE;
 	int pos[table->ndim];
-	v4sf acc[nvecs];
+	v4sf acc[NVECS];
 	float valbasis[maxdegree];
 	float gradbasis[maxdegree];
-	v4sf localbasis[table->ndim][maxdegree][nvecs];
+	v4sf localbasis[table->ndim][maxdegree][NVECS];
 	float *acc_ptr;
 	const v4sf *localbasis_rowptr[table->ndim][maxdegree];
 	const v4sf **localbasis_ptr[table->ndim];
+
+	if (table->ndim+1 > MAXDIM) {
+		fprintf(stderr, "Error: ndsplineeval_gradient() can only "
+		    "process up to %d-dimensional tables. Adjust MAXDIM in "
+		    "bspline_multi.c to change this.\n", MAXDIM-1);
+		exit(1);
+	}
+
 		
 	for (n = 0; n < table->ndim; n++) {
 	
@@ -136,8 +151,7 @@ ndsplineeval_gradient(struct splinetable *table, const double *x, const int *cen
 	for (i = 0; i < nbases; i++)
 		acc_ptr[i] = 0;
 
-	localbasis_multisub(table, centers, 0, pos, 0,
-	    nvecs, localbasis_ptr, acc);
+	localbasis_multisub(table, centers, 0, pos, 0, localbasis_ptr, acc, 0);
 
 	for (i = 0; i < nbases; i++)
 		evaluates[i] = acc_ptr[i];
