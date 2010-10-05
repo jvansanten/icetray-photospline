@@ -23,4 +23,5 @@ SET_TARGET_PROPERTIES(photospline-evalsplinefits
 SET_TARGET_PROPERTIES(photospline
 	PROPERTIES
 	COMPILE_FLAGS "-O3 -fpeel-loops -fbranch-probabilities -ffast-math -std=c99"
+	LINK_FLAGS "-fpeel-loops -fbranch-probabilities -ffast-math"
 )
