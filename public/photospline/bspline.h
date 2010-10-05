@@ -28,12 +28,12 @@ double bspline_deriv_2(const double *knots, double x, int i, int n);
  */
 
 void bsplvb_simple(const double *knots, double x, int left, int jhigh,
-    float *restrict biatx);
+    float *biatx);
 void bspline_deriv_nonzero(const double *knots, const double x, const int left,
-    const int n, float *restrict biatx);
+    const int n, float *biatx);
 void bsplvb(const double *knots, const double x, const int left, const int jlow,
-    const int jhigh, float *restrict biatx,
-    double *restrict delta_l, double *restrict delta_r);
+    const int jhigh, float *biatx,
+    double *delta_l, double *delta_r);
 
 /*
  * Evaluates the results of a full spline basis given a set of knots,
@@ -63,7 +63,7 @@ double ndsplineeval(struct splinetable *table, const double *x,
 /* Evaluate a spline surface and all its derivatives at x */
 
 void ndsplineeval_gradient(struct splinetable *table, const double *x,
-    const int *centers, double evaluates[table->ndim + 1]);
+    const int *centers, double *evaluates);
 
 /*
  * Convolve a table with the spline defined on a set of knots along a given 
