@@ -129,18 +129,18 @@ bspline_nonzero(const double *knots, const double x, const int left,
 	 * On the last supported segment of the ith nth order spline,
 	 * only the i+1th n-1th order spline is nonzero.
 	 */
-	derivs[0] =  - n*values[0] / ((knots[left+n+1] - knots[left+1]));
+	derivs[0] =  - n*values[0] / ((knots[left+1] - knots[left+1-n]));
 	
 	/* On the middle segments, both the ith and i+1th splines contribute. */
 	for (i = 1; i < n; i++) {
-		derivs[i] = n*(values[i-1]/((knots[left+i+n] - knots[left+i]))
-		    - values[i]/(knots[left+i+n+1] - knots[left+i+1]));
+		derivs[i] = n*(values[i-1]/((knots[left+i] - knots[left+i-n]))
+		    - values[i]/(knots[left+i+1] - knots[left+i+1-n]));
 	}
 	/*
 	 * On the first supported segment of the i+nth nth order spline,
 	 * only the ith n-1th order spline is nonzero.
 	 */
-	derivs[n] = n*values[n-1]/((knots[left+n+n-1] - knots[left+n-1]));
+	derivs[n] = n*values[n-1]/((knots[left+n] - knots[left]));
 	
 	/* Now, continue to the non-zero nth order B-splines at x */
 	bsplvb(knots, x, left, n-1, n+1, values, delta_r, delta_l);
