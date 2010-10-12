@@ -58,15 +58,15 @@ def bspline_deriv_nonzero(knots, x, n):
 	# biatx[0] contains the first nonzero n-1th order B-spline
 	# On the last supported interval of the ith nth order
 	# spline, only the i+1th order n-1th order spline is nonzero.
-	biatx[0] =  - n*temp / ((knots[left+n+1] - knots[left+1]))
+	biatx[0] =  - n*temp / ((knots[left+1] - knots[left+1-n]))
 	# now, both the ith and i+1th n-1th order splines contribute
 	for i in xrange(1, n):
-		a = n*temp/((knots[left+i+n] - knots[left+i]))
-		b = n*biatx[i]/(knots[left+i+n+1] - knots[left+i+1])
+		a = n*temp/((knots[left+i] - knots[left+i-n]))
+		b = n*biatx[i]/(knots[left+i+1] - knots[left+i+1-n])
 		temp = biatx[i]
 		biatx[i] = a-b
 	# only the ith n-1th order spline is nonzero on the first supported interval
-	biatx[n] = n*temp/((knots[left+n+n-1] - knots[left+n-1]))
+	biatx[n] = n*temp/((knots[left+n] - knots[left]))
 	return biatx
 	
 def bsplvb(knots, x, left, jlow, jhigh, biatx, delta_l, delta_r):
