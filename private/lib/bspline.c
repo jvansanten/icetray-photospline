@@ -130,19 +130,19 @@ bspline_deriv_nonzero(const double *knots, const double x, const int left,
 	 * only the i+1th n-1th order spline is nonzero.
 	 */
 	temp = biatx[0];
-	biatx[0] =  - n*temp / ((knots[left+n+1] - knots[left+1]));
+	biatx[0] =  - n*temp / ((knots[left+1] - knots[left+1-n]));
 	
 	/* On the middle segments, both the ith and i+1th splines contribute. */
 	for (i = 1; i < n; i++) {
-		a = n*temp/((knots[left+i+n] - knots[left+i]));
+		a = n*temp/((knots[left+i] - knots[left+i-n]));
 		temp = biatx[i];
-		biatx[i] = a - n*temp/(knots[left+i+n+1] - knots[left+i+1]);
+		biatx[i] = a - n*temp/(knots[left+i+1] - knots[left+i+1-n]);
 	}
 	/*
 	 * On the first supported segment of the i+nth nth order spline,
 	 * only the ith n-1th order spline is nonzero.
 	 */
-	biatx[n] = n*temp/((knots[left+n+n-1] - knots[left+n-1]));
+	biatx[n] = n*temp/((knots[left+n] - knots[left]));
 }
 
 double
