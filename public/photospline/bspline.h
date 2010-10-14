@@ -60,6 +60,9 @@ int tablesearchcenters(struct splinetable *table, double *x, int *centers);
 double ndsplineeval(struct splinetable *table, const double *x, 
     const int *centers, int derivatives);
 
+double ndsplineeval_deriv2(struct splinetable *table, const double *x, 
+    const int *centers, int derivatives);
+
 /* Evaluate a spline surface and all its derivatives at x */
 
 void ndsplineeval_gradient(struct splinetable *table, const double *x,

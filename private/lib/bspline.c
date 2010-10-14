@@ -362,3 +362,35 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 	return (result);
 }
 
+double
+ndsplineeval_deriv2(struct splinetable *table, const double *x, const int *centers,
+    int derivatives)
+{
+	int n, offset;
+	int maxdegree = maxorder(table->order, table->ndim) + 1; 
+	int pos[table->ndim];
+	double result;
+	float localbasis[table->ndim][maxdegree];
+	const float *localbasis_ptr[table->ndim];
+	
+	for (n = 0; n < table->ndim; n++) {
+		if (derivatives & (1 << n)) {
+			for (offset = -table->order[n]; offset <= 0; offset++) {
+				localbasis[n][offset+table->order[n]] =
+				    bspline_deriv_2(table->knots[n],x[n],
+				    centers[n] + offset, table->order[n]);
+			}
+		} else {
+			bsplvb_simple(table->knots[n], x[n], centers[n],
+			    table->order[n] + 1, localbasis[n]);
+		}
+
+		localbasis_ptr[n] = localbasis[n];
+	}
+
+	result = localbasis_sub(table, centers, 0, pos, 0, localbasis_ptr);
+
+	return (result);
+}
+
+
