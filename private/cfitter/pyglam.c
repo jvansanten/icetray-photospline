@@ -18,13 +18,15 @@ static cholmod_sparse *construct_penalty(struct splinetable* out,
 
 static PyObject *splinetable_mod;
 
+PyDoc_STRVAR(pynnls__doc__, "nnls(AtA, Atb, algorithm=\"block\") => x");
+
 static PyMethodDef methods[] = {
 	{ "box", pybox, METH_VARARGS },
 	{ "rho", pyrho, METH_VARARGS },
 	{ "fit", (PyObject *(*)(PyObject *, PyObject *))pyfit,
 	    METH_VARARGS | METH_KEYWORDS },
 	{ "grideval", pygrideval, METH_VARARGS },
-	{ "nnls", pynnls, METH_VARARGS },
+	{ "nnls", pynnls, METH_VARARGS, pynnls__doc__ },
 	{ NULL, NULL }
 };
 
@@ -698,14 +700,28 @@ pygrideval(PyObject *self, PyObject *args)
 static PyObject *pynnls(PyObject *self, PyObject *args)
 {
 	PyObject *xa, *xb;
+	char *algorithm = "block";
+	enum nnls_algorithm {BLOCK, BLOCK_UPDOWN, BLOCK3} alg;
 	PyArrayObject *a, *b, *result_array;
 	npy_intp dimensions[2];
 	cholmod_common c;
 	cholmod_sparse *am;
 	cholmod_dense *bm, *result;
 
-	if (!PyArg_ParseTuple(args, "OO", &xa, &xb))
+	if (!PyArg_ParseTuple(args, "OO|s:nnls", &xa, &xb, &algorithm))
 		return NULL;
+
+	if (strncmp(algorithm, "block3", 6))
+		alg = BLOCK3;
+	else if (strncmp(algorithm, "block", 6))
+		alg = BLOCK;
+	else if (strncmp(algorithm, "block_updown", 12))
+		alg = BLOCK_UPDOWN;
+	else {
+		PyErr_SetString(PyExc_ValueError,
+		    "algorithm must be one of 'block', 'block_updown', 'block3'");
+		return (NULL);
+	}
 
 	a = (PyArrayObject *)PyArray_ContiguousFromObject(xa,
 	    PyArray_DOUBLE, 2, 2);
@@ -728,7 +744,17 @@ static PyObject *pynnls(PyObject *self, PyObject *args)
 	Py_DECREF(a);
 	Py_DECREF(b);
 
-	result = nnls_normal_block(am, bm, 1, &c);
+	switch (alg) {
+		case BLOCK:
+			result = nnls_normal_block(am, bm, 1, &c);
+			break;
+		case BLOCK_UPDOWN:
+			result = nnls_normal_block_updown(am, bm, 1, &c);
+			break;
+		default:
+			result = nnls_normal_block3(am, bm, 1, &c);
+			break;
+	}
 	cholmod_l_free_dense(&bm, &c);
 
 	if (result == NULL) {
