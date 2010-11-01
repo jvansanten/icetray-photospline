@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
     #ifdef TIMING
 	tp2.tv_usec += (tp2.tv_sec - tp1.tv_sec)*1e6;
 	printf("Time to open table: %ld.%06ld seconds\n", 
-	    tp2.tv_sec - tp1.tv_sec, tp2.tv_usec - tp1.tv_usec);
+	    (long)(tp2.tv_sec - tp1.tv_sec), tp2.tv_usec - tp1.tv_usec);
     #endif
 
 	if (argc < 2+table.ndim)
