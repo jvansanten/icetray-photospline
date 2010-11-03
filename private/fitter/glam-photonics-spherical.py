@@ -58,10 +58,12 @@ def default_path(input):
 if len(args) < 2:
     abs_outputfile, prob_outputfile = default_path(args[0])
 else:
-    abs_outputfile, prob_outputfile = default_path(args[1])
-
-if opts.prob: check_exists(prob_outputfile)
-if opts.abs: check_exists(abs_outputfile)
+    if opts.prob and opts.abs:
+	# Output must be base name
+	abs_outputfile, prob_outputfile = default_path(args[1])
+    else:
+	# Name whichever the exact name
+	abs_outputfile = prob_outputfile = args[1]
 
 smooth = opts.smooth
 
@@ -206,6 +208,7 @@ if opts.abs:
 	print "Saving table to %s..." % abs_outputfile
 	spline.knots = [spline.knots[i] * axis_scale[i] for i
 			    in range(0, len(spline.knots))]
+	check_exists(abs_outputfile)
 	splinefitstable.write(spline, abs_outputfile)
 
 	# clean up
@@ -237,6 +240,7 @@ if opts.prob:
 	print "Saving table to %s..." % prob_outputfile
 	spline.knots = [spline.knots[i] * axis_scale[i] for i
 			    in range(0, len(spline.knots))]
+	check_exists(prob_outputfile)
 	splinefitstable.write(spline, prob_outputfile)
 
 	# clean up
