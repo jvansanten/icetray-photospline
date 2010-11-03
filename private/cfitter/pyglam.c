@@ -11,7 +11,7 @@ static PyObject *pybox(PyObject *self, PyObject *args);
 static PyObject *pyrho(PyObject *self, PyObject *args);
 static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw);
 static PyObject *pygrideval(PyObject *self, PyObject *args);
-static PyObject *pynnls(PyObject *self, PyObject *args);
+static PyObject *pynnls(PyObject *self, PyObject *args, PyObject *kw);
 
 static cholmod_sparse *construct_penalty(struct splinetable* out,
     PyObject* py_penalty, double smooth, int monodim, cholmod_common* c);
@@ -26,7 +26,8 @@ static PyMethodDef methods[] = {
 	{ "fit", (PyObject *(*)(PyObject *, PyObject *))pyfit,
 	    METH_VARARGS | METH_KEYWORDS },
 	{ "grideval", pygrideval, METH_VARARGS },
-	{ "nnls", pynnls, METH_VARARGS, pynnls__doc__ },
+	{ "nnls", (PyObject *(*)(PyObject *, PyObject *))pynnls,
+	    METH_VARARGS | METH_KEYWORDS, pynnls__doc__ },
 	{ NULL, NULL }
 };
 
@@ -697,7 +698,7 @@ pygrideval(PyObject *self, PyObject *args)
 	return ((PyObject *)result);
 }
 
-static PyObject *pynnls(PyObject *self, PyObject *args)
+static PyObject *pynnls(PyObject *self, PyObject *args, PyObject *kw)
 {
 	PyObject *xa, *xb;
 	char *algorithm = "block";
@@ -708,14 +709,15 @@ static PyObject *pynnls(PyObject *self, PyObject *args)
 	cholmod_sparse *am;
 	cholmod_dense *bm, *result;
 
-	if (!PyArg_ParseTuple(args, "OO|s:nnls", &xa, &xb, &algorithm))
+	char *keywordargs[] = {"A", "y", "nnls", NULL};
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "OO|s", keywordargs, &xa, &xb, &algorithm))
 		return NULL;
 
-	if (strncmp(algorithm, "block3", 6))
+	if (!strcmp(algorithm, "block3"))
 		alg = BLOCK3;
-	else if (strncmp(algorithm, "block", 6))
+	else if (!strcmp(algorithm, "block"))
 		alg = BLOCK;
-	else if (strncmp(algorithm, "block_updown", 12))
+	else if (!strcmp(algorithm, "block_updown"))
 		alg = BLOCK_UPDOWN;
 	else {
 		PyErr_SetString(PyExc_ValueError,
@@ -751,7 +753,7 @@ static PyObject *pynnls(PyObject *self, PyObject *args)
 		case BLOCK_UPDOWN:
 			result = nnls_normal_block_updown(am, bm, 1, &c);
 			break;
-		default:
+		case BLOCK3:
 			result = nnls_normal_block3(am, bm, 1, &c);
 			break;
 	}
