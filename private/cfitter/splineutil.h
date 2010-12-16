@@ -28,6 +28,8 @@ cholmod_sparse *kronecker_product(cholmod_sparse *a, cholmod_sparse *b,
 cholmod_sparse *box(cholmod_sparse *a, cholmod_sparse *b, cholmod_common *c);
 cholmod_sparse *cholmod_tril(int dim, cholmod_common *c);
 
+cholmod_dense *nnls_lawson_hanson(cholmod_sparse *A, cholmod_dense *y,
+    int verbose, cholmod_common *c);
 cholmod_dense *nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb,
    int verbose, cholmod_common *c);
 

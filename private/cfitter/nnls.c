@@ -7,6 +7,7 @@
 #include <assert.h>
 
 #include <suitesparse/cholmod.h>
+#include <suitesparse/SuiteSparseQR_C.h>
 #include "splineutil.h"
 #include "cholesky_solve.h"
 
@@ -15,6 +16,140 @@
 #define KKT_TOL 1e-6
 
 static int intcmp(const void *xa, const void *xb);
+
+/*
+ * Lawson-Hanson NNLS
+ */
+
+cholmod_dense *
+nnls_lawson_hanson(cholmod_sparse *A, cholmod_dense *y, int verbose,
+    cholmod_common *c)
+{
+	cholmod_dense *x, *w, *p;
+	cholmod_sparse *Ap;
+	long P[A->ncol], Z[A->ncol];
+	int nP, nZ;
+	double wmax, alpha, qtemp;
+	int i, j, t;
+
+	/* Step 1: All elements actively constrained */
+	nP = 0; nZ = A->ncol;
+	for (i = 0; i < nZ; i++)
+		Z[i] = i;
+	x = cholmod_l_zeros(A->ncol, 1, CHOLMOD_REAL, c);
+
+	/* Step 2: Compute initial w */
+	w = cholmod_l_zeros(A->ncol, 1, CHOLMOD_REAL, c);
+
+step2:
+	{
+		cholmod_dense *wtemp;
+		double alpha[2] = {1.0, 0.0}, beta[2] = {-1.0, 0.0};
+
+		/* Compute w = At(y - Ax) */
+		wtemp = cholmod_l_copy_dense(y, c);
+		cholmod_l_sdmult(A, 0 /* no transpose */, beta, alpha, x, wtemp, c);
+		beta[0] = 0;
+		cholmod_l_sdmult(A, 1 /* transpose */, alpha, beta, wtemp, w, c);
+		cholmod_l_free_dense(&wtemp, c);
+	}
+	
+	/* Step 3a: Check for completion */
+	if (nZ == 0)
+		goto step12;
+
+	/* Steps 3b,4: Find maximum w, complete if <= 0 */
+	wmax = -1;
+	t = -1;
+	for (i = 0; i < nZ; i++)
+		if (((double *)(w->x))[Z[i]] > wmax) {
+			t = i; wmax = ((double *)(w->x))[Z[t]];
+		}
+
+	if (wmax <= 0)
+		goto step12;
+
+	/* Step 5: Move coefficient Z[t] into the passive set P */
+	if (verbose)
+		printf("Freeing coefficient %ld (active: %d, passive: %d)\n",
+		    Z[t], nZ, nP);
+	P[nP++] = Z[t];
+	nZ--;
+	for (i = t; i < nZ; i++)
+		Z[i] = Z[i+1];
+
+	/*
+	 * Step 6: Solve the least-squares subproblem for the columns of A
+	 * in the passive set P by QR decomposition.
+	 */
+step6:
+	Ap = cholmod_l_submatrix(A, NULL, -1, P, nP, 1, 1, c);
+	p = SuiteSparseQR_C_backslash(0, KKT_TOL, Ap, y, c);
+	cholmod_free_sparse(&Ap, c);
+
+	/*
+	 * Step 7: Check if any coefficients need be constrained
+	 */
+	for (i = 0; i < nP; i++)
+		if (((double *)(p->x))[i] <= DBL_EPSILON)
+			break;
+	if (i == nP) {
+		/* All were positive. Cycle back for the next. */
+		bzero(x->x, sizeof(double)*x->nrow);
+		for (i = 0; i < nP; i++)
+			((double *)(x->x))[P[i]] = ((double *)(p->x))[i];
+		cholmod_free_dense(&p, c);
+		goto step2;
+	}
+
+	/*
+	 * Step 8-9: Compute q, alpha
+	 */
+	alpha = 2; /* All computed values <= 1 */
+	for (i = 0; i < nP; i++) {
+		if (((double *)(p->x))[i] > 0)
+			continue;
+
+		qtemp = ((double *)(x->x))[P[i]]/(((double *)(x->x))[P[i]] -
+		    ((double *)(p->x))[i]);
+		if (qtemp < alpha)
+			alpha = qtemp;
+	}
+
+	/*
+	 * Step 10: Recompute x
+	 */
+	for (i = 0; i < A->ncol; i++)
+		((double *)(x->x))[i] -= alpha*((double *)(x->x))[i];
+	for (i = 0; i < nP; i++)
+		((double *)(x->x))[P[i]] += alpha*((double *)(p->x))[i];
+	cholmod_free_dense(&p, c);
+
+	/*
+	 * Step 11: Move coefficients equal to zero to the active set.
+	 */
+	for (i = 0; i < nP; i++) {
+		if (((double *)(x->x))[P[i]] > DBL_EPSILON)
+			continue;
+
+		if (verbose)
+			printf("\tConstraining coefficient %ld (active: %d, "
+			    "passive, %d)\n", P[i], nZ, nP);
+		Z[nZ++] = P[i];
+		nP--;
+		for (j = i; j < nP; j++)
+			P[j] = P[j+1];
+		i--;
+	}
+
+	goto step6;
+
+step12:
+	cholmod_free_dense(&w, c);
+	return (x);
+}
+	
+
 
 /*
  * An implementation of the Portugal/Judice/Vicente block-pivoting algorithm for
