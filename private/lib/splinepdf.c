@@ -105,20 +105,15 @@ void splinepdf_n_sample(double *result, int results, int burnin,
 	mint = table->extents[dim][0];
 	maxt = table->extents[dim][1];
 
+	/* Get a fully-supported starting point from the proposal distribution. */
 	do {
-		/*
-		 * Get a starting point from the proposal distribution,
-		 * making sure the PDF at the starting point is finite
-		 * to avoid numerical problems.
-		 */
-
 		coords[dim] = lastval = (*proposal)(proposal_info);
-
-		lastproppdf = (*proposal_pdf)(lastval,lastval,proposal_info);
-		tablesearchcenters(table, coords, centers);
-		lastpdf = ndsplineeval(table, coords, centers, derivatives);
-		accepted = 0;
 	} while (lastval < mint || lastval > maxt);
+
+	lastproppdf = (*proposal_pdf)(lastval,lastval,proposal_info);
+	tablesearchcenters(table, coords, centers);
+	lastpdf = ndsplineeval(table, coords, centers, derivatives);
+	accepted = 0;
 
 	for (i = -burnin; i < results; i++) {
 		coords[dim] = val = (*proposal)(proposal_info);
