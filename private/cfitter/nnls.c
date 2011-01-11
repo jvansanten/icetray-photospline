@@ -66,7 +66,7 @@ step2:
 			t = i; wmax = ((double *)(w->x))[Z[t]];
 		}
 
-	if (wmax <= 0)
+	if (wmax <= KKT_TOL)
 		goto step12;
 
 	/* Step 5: Move coefficient Z[t] into the passive set P */
@@ -85,7 +85,7 @@ step2:
 step6:
 	Ap = cholmod_l_submatrix(A, NULL, -1, P, nP, 1, 1, c);
 	p = SuiteSparseQR_C_backslash(0, KKT_TOL, Ap, y, c);
-	cholmod_free_sparse(&Ap, c);
+	cholmod_l_free_sparse(&Ap, c);
 
 	/*
 	 * Step 7: Check if any coefficients need be constrained
@@ -98,7 +98,7 @@ step6:
 		bzero(x->x, sizeof(double)*x->nrow);
 		for (i = 0; i < nP; i++)
 			((double *)(x->x))[P[i]] = ((double *)(p->x))[i];
-		cholmod_free_dense(&p, c);
+		cholmod_l_free_dense(&p, c);
 		goto step2;
 	}
 
@@ -112,7 +112,7 @@ step6:
 
 		qtemp = ((double *)(x->x))[P[i]]/(((double *)(x->x))[P[i]] -
 		    ((double *)(p->x))[i]);
-		if (qtemp < alpha)
+		if (qtemp < alpha && qtemp != 0)
 			alpha = qtemp;
 	}
 
@@ -123,7 +123,7 @@ step6:
 		((double *)(x->x))[i] -= alpha*((double *)(x->x))[i];
 	for (i = 0; i < nP; i++)
 		((double *)(x->x))[P[i]] += alpha*((double *)(p->x))[i];
-	cholmod_free_dense(&p, c);
+	cholmod_l_free_dense(&p, c);
 
 	/*
 	 * Step 11: Move coefficients equal to zero to the active set.
@@ -145,7 +145,7 @@ step6:
 	goto step6;
 
 step12:
-	cholmod_free_dense(&w, c);
+	cholmod_l_free_dense(&w, c);
 	return (x);
 }
 	
