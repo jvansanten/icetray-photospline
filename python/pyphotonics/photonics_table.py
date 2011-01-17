@@ -1,8 +1,7 @@
 
 import numpy
-import photo2numpy
+from .. import photo2numpy, glam, numpy_extensions
 import warnings
-import glam.numpy_extensions
 
 class Efficiency:
 	"""Normalization types from photonics.h"""
