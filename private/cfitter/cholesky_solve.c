@@ -57,7 +57,8 @@ cholesky_solve(cholmod_sparse *AtA, cholmod_dense *Atb, cholmod_common *c,
 
 	if (verbose) {
 		t1 = clock();
-		printf("Analyze[%d]: %f s\n",nvar,(double)(t1-t0)/(CLOCKS_PER_SEC));
+		printf("Analyze[%d]: %f s\n", nvar,
+		    (double)(t1-t0)/(CLOCKS_PER_SEC));
 		t0 = clock();
 	}
 
@@ -83,7 +84,8 @@ cholesky_solve(cholmod_sparse *AtA, cholmod_dense *Atb, cholmod_common *c,
 	for (j = 0; j < n_resolves; j++) {
 		sum_delta_b = 0.;
 
-		if (verbose) t0 = clock();
+		if (verbose)
+			t0 = clock();
 
 		/* copy the right-hand side */
 		for (i = 0; i < nvar; i++)
@@ -159,7 +161,7 @@ cholmod_sparse* get_column(cholmod_sparse *A, long k,
 	}
 
 	/* symbolically permute the order of the rows */
-	if (iPerm) {
+	if (iPerm != NULL) {
 		for (i = 0; i < nz; i++) {
 			row = Ri[i];
 			Ri[i] = iPerm[row];
@@ -256,7 +258,7 @@ modify_factor(cholmod_sparse *A, cholmod_factor *L,
 	/* short-circuit for rank-1 updates */
 	if (nH1 + nH2 == 1) update = true;
 
-	if ((!update) && verbose)
+	if (!update && verbose)
 		printf("\tRecomputing factorization from scratch "
 		    "(F[%ld], G[%ld], H1[%ld], H2[%ld], ratio=%.2lf)\n",
 		    nF, nG, nH1, nH2, flop_ratio);
@@ -287,9 +289,10 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 	update_ready = (L && (L->n == (nF + nG)));
 
 	/* Compute the inverse of the fill-reducing permutation */
-	if (L && L->Perm && (!iPerm)) {
+	if (L && L->Perm) {
 		iPerm = (long*)malloc(sizeof(long)*L->n);
-		for (i = 0; i < L->n; i++)  iPerm[ ((long*)(L->Perm))[i] ] = i;
+		for (i = 0; i < L->n; i++)
+			iPerm[((long*)(L->Perm))[i]] = i;
 	}
 
 	t0 = clock();
@@ -301,7 +304,8 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 	 */
 	for (i = 0, j = 0; i < nH1; i++) {
 		G[nG++] = H1[i];
-		while (F[j] != H1[i]) j++;
+		while (F[j] != H1[i])
+			j++;
 		for (k = j+i; k+1 < nF; k++)
 			F[k-i] = F[k-i+1];
 
@@ -324,7 +328,8 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 	/* And vice versa */
 	for (i = 0, j = 0; i < nH2; i++) {
 		F[nF++] = H2[i];
-		while (G[j] != H2[i]) j++;
+		while (G[j] != H2[i])
+			j++;
 		for (k = j+i; k+1 < nG; k++)
 			G[k-i] = G[k-i+1];
 
@@ -357,14 +362,17 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 	 * is a huge waste for single-row updates, but will allow use of
 	 * rowadd/rowdel in the next iteration.
 	 */
-	if (update && (!update_ready)) {
+	if (update && !update_ready) {
 		t0 = clock();
 		cholmod_l_free_factor(&L, c);
 		L = cholmod_l_analyze(A, c);
 
-		if (iPerm) iPerm = (long*)realloc(iPerm, sizeof(long)*L->n);
-		else iPerm = (long*)malloc(sizeof(long)*L->n);
-		for (i = 0; i < L->n; i++)  iPerm[ ((long*)(L->Perm))[i] ] = i;
+		if (iPerm != NULL)
+			free(iPerm);
+
+		iPerm = (long *)malloc(sizeof(long)*L->n);
+		for (i = 0; i < L->n; i++)
+			iPerm[((long*)(L->Perm))[i]] = i;
 
 		L = recompute_factor(A, L, iPerm, F, nF, c);
 		if (verbose) {
@@ -405,7 +413,8 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 	*nH1_ = nH1;
 	*nH2_ = nH2;
 
-	if (iPerm) free(iPerm);
+	if (iPerm != NULL)
+		free(iPerm);
 	
 	return(L);	
 }
@@ -446,7 +455,7 @@ recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
 	nFPerm = 0;
 	FPerm = (long*)malloc(sizeof(long)*nF);
 	Lrows = (long*)malloc(sizeof(long)*nF);
-	if (iPerm) {
+	if (iPerm != NULL) {
 		/* calculate the permuation as it applies to subset F */
 		for (i = 0; i < L->n; i++) {
 			if (iF[LPerm[i]] >= 0) {
@@ -706,7 +715,8 @@ submatrix_symm(cholmod_sparse *A, long *rows, long nrows,
 	free(ccol_start);
 	free(ccol_stop);
 
-	if (!csorted) cholmod_l_sort(C, c);
+	if (!csorted)
+		cholmod_l_sort(C, c);
 
 	return(C);
 }
@@ -789,7 +799,7 @@ evaluate_descent(void *trial_)
 		x_F = trial->x_F;
 
 		/* Set up list of infeasibles if necessary */
-		if (!(trial->H1))
+		if (!trial->H1)
 			trial->H1 = (long*)malloc((trial->nF)*sizeof(long));
 		else
 			trial->H1 = (long*)realloc(trial->H1, 
@@ -797,7 +807,7 @@ evaluate_descent(void *trial_)
 		trial->nH1 = 0;
 
 		/* Allocate trial descent if necessary */
-		if (!(trial->x_c))
+		if (!trial->x_c)
 			trial->x_c = cholmod_l_allocate_dense(nF, 1, nF,
 			    CHOLMOD_REAL, trial->c);
 		else 
@@ -840,9 +850,9 @@ get_nthreads(void)
 	int nthreads = -1;
 
 	str = getenv("GOTO_NUM_THREADS");
-	if (!str)
+	if (str == NULL)
 		str = getenv("OMP_NUM_THREADS");
-	if (!str)
+	if (str == NULL)
 		goto fail;
 
 	nthreads = atoi(str);

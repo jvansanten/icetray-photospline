@@ -530,7 +530,8 @@ nnls_normal_block_updown(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 		L = modify_factor(AtA, L, F, &nF, G, &nG, H1, &nH1, H2, &nH2,
 		    verbose, c);
 	
-		if (verbose) t0 = clock();
+		if (verbose)
+			t0 = clock();
 		
 		/*
 		 * Solve the full system, but with the rows of L corresponding
@@ -588,7 +589,8 @@ nnls_normal_block_updown(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 			AtA->stype = 0;
 			double ones[2] = {1., 0}, mones[2] = {-1., 0};
 
-			if (verbose) t0 = clock();
+			if (verbose)
+				t0 = clock();
 
 			Atb_G = cholmod_l_allocate_dense(nG, 1, nG,
 			    CHOLMOD_REAL, c);
@@ -853,7 +855,7 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 			for (i = 0, j = 0; i < nH2; ) {
 				while((H1[j] < H2[i]) && (j < nH1)) j++;
 				if ((j < nH1) && (H2[i] == H1[j])) {
-					/* Remove the element is from both */
+					/* Remove the element from both */
 					for (k = j; k+1 < nH1; k++)
 						H1[k] = H1[k+1];
 					for (k = i; k+1 < nH2; k++)
