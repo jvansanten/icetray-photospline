@@ -304,6 +304,10 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 	 */
 	for (i = 0, j = 0; i < nH1; i++) {
 		G[nG++] = H1[i];
+		/*
+		 * NB: the following is _not_ an infinite loop, as every element 
+		 * of H1 is guaranteed to also be in F and both are monotonic.
+		 */
 		while (F[j] != H1[i])
 			j++;
 		for (k = j+i; k+1 < nF; k++)
@@ -312,7 +316,8 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 		if (update && update_ready) {
 			/* remove the row from the factorization */
 			/* XXX: pass non-zero pattern of row, instead of NULL */
-			cholmod_l_rowdel(iPerm[H1[i]], NULL, L, c);
+			cholmod_l_rowdel((iPerm != NULL) ? iPerm[H1[i]] : H1[i],
+			    NULL, L, c);
 		}
 	}
 	if (verbose && (update && update_ready) && (nH1 > 0)) {
@@ -341,7 +346,8 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 			 */
 			col = get_column(A, H2[i], iPerm, F, nF, c);
 			/* insert the column at the permuted index */
-			cholmod_l_rowadd(iPerm[H2[i]], col, L, c);
+			cholmod_l_rowadd((iPerm != NULL) ? iPerm[H2[i]] : H2[i], 
+			    col, L, c);
 			cholmod_l_free_sparse(&col, c);
 		}
 	}
