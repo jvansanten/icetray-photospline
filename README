@@ -160,11 +160,11 @@ After that, in photospline/private:
 
 This is a Python extension that reads Photonics tables into Numpy arrays.
 
-## private/fitter
+## resources/scripts
 
 This is the home of the fitting scripts.
 
-### private/fitter/glam-photonics.py
+### resources/scripts/glam-photonics.py
 
 This is a script for fitting a single (cylindrically binned) level-0 table to
 a B-spline surface. The knot placement has been optimized for cascades, but
@@ -177,30 +177,30 @@ of the Choleksy decomposition will be threaded as well. You should set the
 environment variable GOTO_NUM_THREADS to the maximum number of threads you'd
 like the fitter to use.
 
-### private/fitter/glam-photonics-spherical.py
+### resources/scripts/glam-photonics-spherical.py
 
 This is a script for fitting spherically binned level-0 tables, again
 optimized for cascades.
 
-### private/fitter/glam-photoverify.py
+### resources/scripts/glam-photoverify.py
 
 This is a script that compares 1- or 2-dimensional slices of a table to the
 fit B-spline surface. It requires PyGnuplot.
 
-### private/fitter/stack-photonics.py
+### resources/scripts/stack-photonics.py
 
 This script takes a collection of fit tables (each for a certain depth and
 source zenith angle), combines them, and futzes with the knots to create a
 pseudo-interpolating spline in the stacked dimensions. 
 
-## private/fitter/glam
+## python/glam
 
 This is a pure-python implementation of GLAM, the algorithm for formulating
 the normal equations without using infinite amounts of memory. Read this if
 you want to understand how it works, as the C implementation is rather more
 convoluted.
 
-## private/fitter/glam/pyphotonics
+## python/pyphotonics
 
 This is a thin wrapper around photo2numpy, and is useful for interacting with
 Photonics tables.
