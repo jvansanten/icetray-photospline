@@ -209,7 +209,7 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 		}
 	}
 
-	/* Transpose F so that the even-numbered axes come first */
+	/* Reorder dimensions of F so that the even-numbered axes come first */
 	{
 		int **oldi, *oldranges;
 
@@ -264,8 +264,6 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 	}
 
 	cholmod_l_free_sparse(&fitmat, c);
-	if (coefficients == NULL)
-		printf("Solution FAILED\n");
 	
 	/* Clean up detritus */
 
@@ -283,6 +281,12 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 	free(nsplines);
 
 	/* Copy out the coefficients */
+	if (coefficients == NULL) {
+		printf("Solution FAILED\n");
+		out->coefficients = NULL;
+		out->naxes = NULL;
+		return;
+	}
 
 	out->coefficients = malloc(coefficients->nrow * coefficients->ncol *
 	    sizeof(float));
