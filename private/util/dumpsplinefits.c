@@ -3,9 +3,17 @@
 
 #include <photospline/splinetable.h>
 
+static void usage() {
+	fprintf(stderr,"dumpsplinefits <path> [coeff]\n");
+	exit(1);
+}
+
 int main(int argc, char **argv) {
 	struct splinetable table;
 	int i, j;
+
+	if (argc < 2)
+		usage();
 
 	readsplinefitstable(argv[1], &table);
 
@@ -41,3 +49,4 @@ int main(int argc, char **argv) {
 
 	return 0;
 }
+

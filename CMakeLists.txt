@@ -2,7 +2,9 @@
 # $Id: CMakeLists.txt 64301 2010-05-25 16:49:40Z jvansanten $
 #
 
-i3_project(photospline)
+i3_project(photospline
+	PYTHON_DIR python
+)
 
 i3_add_library(photospline
 	private/lib/*.c
@@ -11,6 +13,11 @@ i3_add_library(photospline
 
 i3_executable(evalsplinefits
 	private/util/evalsplinefits.c
+	USE_TOOLS cfitsio
+	USE_PROJECTS photospline)
+
+i3_executable(dumpsplinefits
+	private/util/dumpsplinefits.c
 	USE_TOOLS cfitsio
 	USE_PROJECTS photospline)
 
