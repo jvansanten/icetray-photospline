@@ -45,40 +45,46 @@ SET_TARGET_PROPERTIES(photospline
 	LINK_FLAGS "-fpeel-loops -fbranch-probabilities -ffast-math"
 )
 
-if(${BUILD_PHOTOSPLINE_FITTER})
+if(BUILD_PHOTOSPLINE_FITTER)
+	i3_add_library(photo2numpy
+		private/photo2numpy/photo2numpy.c
+		USE_TOOLS photonics python numpy
+		INSTALL_DESTINATION lib/icecube/photospline
+		NOT_INSPECTABLE
+		MODULE
+	)
+	add_custom_command(TARGET photo2numpy
+		PRE_LINK
+		COMMAND mkdir -p ${CMAKE_BINARY_DIR}/lib/icecube/photospline
+	)
+	set_target_properties(photo2numpy PROPERTIES
+		PREFIX ""
+		OUTPUT_NAME photo2numpy
+		LIBRARY_OUTPUT_DIRECTORY
+		${LIBRARY_OUTPUT_PATH}/icecube/photospline
+	)
 
-i3_add_library(photo2numpy
-	private/photo2numpy/photo2numpy.c
-	USE_TOOLS photonics python numpy
-	INSTALL_DESTINATION lib/icecube/photospline
-	NOT_INSPECTABLE
-	MODULE
-)
-
-i3_add_library(spglam
-	private/cfitter/cholesky_solve.c private/cfitter/glam.c
-	private/cfitter/nnls.c private/cfitter/pyglam.c
-	private/cfitter/splineutil.c
-	USE_TOOLS python numpy
-	INSTALL_DESTINATION lib/icecube/photospline
-	NOT_INSPECTABLE
-	MODULE
-)
-
-add_custom_command(TARGET photo2numpy
-	PRE_LINK
-	COMMAND mkdir -p ${CMAKE_BINARY_DIR}/lib/icecube/photospline
-)
-
-set_target_properties(photo2numpy PROPERTIES
-	PREFIX ""
-	OUTPUT_NAME photo2numpy
-	LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}/icecube/photospline
-)
-
-add_custom_command(TARGET spglam
-	PRE_LINK
-	COMMAND mkdir -p ${CMAKE_BINARY_DIR}/lib/icecube/photospline
-)
-
-endif(${BUILD_PHOTOSPLINE_FITTER})
+	i3_add_library(spglam
+		private/cfitter/cholesky_solve.c private/cfitter/glam.c
+		private/cfitter/nnls.c private/cfitter/pyglam.c
+		private/cfitter/splineutil.c
+		USE_TOOLS python numpy suitesparse
+		INSTALL_DESTINATION lib/icecube/photospline
+		NOT_INSPECTABLE
+		MODULE
+	)
+	add_custom_command(TARGET spglam
+		PRE_LINK
+		COMMAND mkdir -p ${CMAKE_BINARY_DIR}/lib/icecube/photospline
+	)
+	set_target_properties(spglam PROPERTIES
+		PREFIX ""
+		OUTPUT_NAME spglam 
+		LIBRARY_OUTPUT_DIRECTORY
+		${LIBRARY_OUTPUT_PATH}/icecube/photospline
+	)
+	add_custom_command(TARGET spglam
+		PRE_LINK
+		COMMAND mkdir -p ${CMAKE_BINARY_DIR}/lib/icecube/photospline
+	)
+endif(BUILD_PHOTOSPLINE_FITTER)
