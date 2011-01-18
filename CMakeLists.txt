@@ -2,6 +2,8 @@
 # $Id: CMakeLists.txt 64301 2010-05-25 16:49:40Z jvansanten $
 #
 
+option(BUILD_PHOTOSPLINE_FITTER "Build libraries for reading and fitting Photonics tables." OFF)
+
 i3_project(photospline
 	PYTHON_DIR python
 )
@@ -9,24 +11,6 @@ i3_project(photospline
 i3_add_library(photospline
 	private/lib/*.c
 	USE_TOOLS cfitsio gsl python
-)
-
-i3_add_library(photo2numpy
-	private/photo2numpy/photo2numpy.c
-	USE_TOOLS photonics python numpy
-	INSTALL_DESTINATION lib/icecube/photospline
-	NOT_INSPECTABLE
-	MODULE
-)
-
-i3_add_library(spglam
-	private/cfitter/cholesky_solve.c private/cfitter/glam.c
-	private/cfitter/nnls.c private/cfitter/pyglam.c
-	private/cfitter/splineutil.c
-	USE_TOOLS python numpy
-	INSTALL_DESTINATION lib/icecube/photospline
-	NOT_INSPECTABLE
-	MODULE
 )
 
 i3_executable(evalsplinefits
@@ -61,6 +45,26 @@ SET_TARGET_PROPERTIES(photospline
 	LINK_FLAGS "-fpeel-loops -fbranch-probabilities -ffast-math"
 )
 
+if(${BUILD_PHOTOSPLINE_FITTER})
+
+i3_add_library(photo2numpy
+	private/photo2numpy/photo2numpy.c
+	USE_TOOLS photonics python numpy
+	INSTALL_DESTINATION lib/icecube/photospline
+	NOT_INSPECTABLE
+	MODULE
+)
+
+i3_add_library(spglam
+	private/cfitter/cholesky_solve.c private/cfitter/glam.c
+	private/cfitter/nnls.c private/cfitter/pyglam.c
+	private/cfitter/splineutil.c
+	USE_TOOLS python numpy
+	INSTALL_DESTINATION lib/icecube/photospline
+	NOT_INSPECTABLE
+	MODULE
+)
+
 add_custom_command(TARGET photo2numpy
 	PRE_LINK
 	COMMAND mkdir -p ${CMAKE_BINARY_DIR}/lib/icecube/photospline
@@ -77,3 +81,4 @@ add_custom_command(TARGET spglam
 	COMMAND mkdir -p ${CMAKE_BINARY_DIR}/lib/icecube/photospline
 )
 
+endif(${BUILD_PHOTOSPLINE_FITTER})
