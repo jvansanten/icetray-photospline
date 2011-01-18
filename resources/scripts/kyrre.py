@@ -2,7 +2,7 @@ import numpy as n
 import pylab as p
 import copy
 
-from glam import bspline, glam
+from icecube.photospline.glam import bspline, glam
 
 def divdiff(x, y):
 	if len(y) == 1:

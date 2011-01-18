@@ -1,6 +1,6 @@
 import numpy
 
-from glam import splinetable, splinefitstable
+from icecube.photospline import splinetable, splinefitstable
 
 from glob import glob
 import re, os, sys

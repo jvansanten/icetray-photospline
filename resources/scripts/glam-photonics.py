@@ -1,7 +1,7 @@
-from glam import splinefitstable
+from icecube.photospline import splinefitstable
 from optparse import OptionParser
 
-from pyphotonics.photonics_table import *
+from icecube.photospline.pyphotonics.photonics_table import *
 
 import sys
 import os
@@ -62,7 +62,7 @@ if opts.abs: check_exists(abs_outputfile)
 smooth = opts.smooth
 
 # Real code
-import spglam as glam
+from icecube.photospline import spglam as glam
 
 table = photonics_table(args[0])
 

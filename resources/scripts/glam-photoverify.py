@@ -1,11 +1,11 @@
-from glam import glam, bspline, splinetable, splinefitstable
-from glam.utils import TableSlice
-#import spglam as glam
-from pyphotonics.photonics_table import *
+from icecube.photospline.glam import glam, bspline
+from icecube.photospline import splinetable, splinefitstable
+from icecube.photospline.utils import TableSlice
+from icecube.photospline.pyphotonics.photonics_table import *
 
 from optparse import OptionParser
 
-from numpy_extensions import *
+from icecube.photospline.numpy_extensions import *
 
 import sys, os
 import numpy

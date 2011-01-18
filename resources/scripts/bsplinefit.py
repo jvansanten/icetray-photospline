@@ -1,5 +1,5 @@
 import numpy
-from glam.bspline import *
+from icecube.photospline.glam.bspline import *
 import Gnuplot
 
 numpts = 500

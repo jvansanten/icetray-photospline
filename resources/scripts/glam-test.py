@@ -1,7 +1,7 @@
 import numpy
-from glam import glam
+from icecube.photospline.glam import glam
 import Gnuplot
-from glam.bspline import *
+from icecube.photospline.glam.bspline import *
 
 numpts = 500
 knots=[numpy.linspace(-8,35,30)]

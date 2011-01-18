@@ -1,4 +1,5 @@
-from glam import glam, splinetable, splinefitstable
+from icecube.photospline.glam import glam
+from icecube.photospline import splinetable, splinefitstable
 import numpy
 import Gnuplot
 import sys

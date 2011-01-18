@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from glam import splinefitstable
+from icecube.photospline import splinefitstable
 from optparse import OptionParser
 
-from pyphotonics.photonics_table import *
+from icecube.photospline.pyphotonics.photonics_table import *
 
 import sys
 import os
