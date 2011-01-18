@@ -2,8 +2,8 @@ import numpy
 import sys
 
 try:
-	import spglam as glam
-except:
+	from .. import spglam as glam
+except ImportError:
 	print "SPGLAM not found, falling back on Python GLAM..."
 	import glam
 

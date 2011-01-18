@@ -1,5 +1,5 @@
 import numpy
-import splinetable
+from .. import splinetable
 from bspline import *
 
 import nnls as nnls_mockup

@@ -36,9 +36,8 @@ void initspglam(void)
 	import_array();
 
 	/* Look up the splinetable class */
-	splinetable_mod = PyImport_ImportModule("splinetable");
-	if (splinetable_mod == NULL)
-		splinetable_mod = PyImport_ImportModule("glam.splinetable");
+	splinetable_mod =
+	    PyImport_ImportModule("icecube.photospline.splinetable");
 
 	if (splinetable_mod == NULL) {
 		PyErr_SetString(PyExc_ImportError,
