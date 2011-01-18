@@ -45,6 +45,12 @@ SET_TARGET_PROPERTIES(photospline
 	LINK_FLAGS "-fpeel-loops -fbranch-probabilities -ffast-math"
 )
 
+i3_test_executable(test 
+	private/test/*.cxx
+	USE_TOOLS boost log4cplus
+	USE_PROJECTS photospline
+)
+
 if(BUILD_PHOTOSPLINE_FITTER)
 	i3_add_library(photo2numpy
 		private/photo2numpy/photo2numpy.c
