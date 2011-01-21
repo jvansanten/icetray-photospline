@@ -27,10 +27,10 @@ double bspline_deriv_2(const double *knots, double x, int i, int n);
  *     Mathematical Sciences. Springer-Verlag, 1978.
  */
 
-void bsplvb_simple(const double *knots, double x, int left, int jhigh,
-    float *biatx);
-void bspline_deriv_nonzero(const double *knots, const double x, const int left,
-    const int n, float *biatx);
+void bsplvb_simple(const double *knots, const unsigned n_knots,
+    double x, int left, int jhigh, float *biatx);
+void bspline_deriv_nonzero(const double *knots, const unsigned n_knots,
+    const double x, const int left, const int n, float *biatx);
 void bsplvb(const double *knots, const double x, const int left, const int jlow,
     const int jhigh, float *biatx,
     double *delta_l, double *delta_r);

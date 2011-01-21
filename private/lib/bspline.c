@@ -53,16 +53,28 @@ bspline(const double *knots, double x, int i, int n)
  */
 
 void
-bsplvb_simple(const double *knots, double x, int left, int jhigh,
-    float *restrict biatx)
+bsplvb_simple(const double *knots, const unsigned nknots,
+    double x, int left, int degree, float *restrict biatx)
 {
 	int i, j;
 	double saved, term;
-	double delta_l[jhigh], delta_r[jhigh];
+	double delta_l[degree], delta_r[degree];
 	
 	biatx[0] = 1.0;
+	
+	/*
+	 * Handle the (rare) cases where x is outside the full
+	 * support of the spline surface.
+	 */
+	if (left == degree-1)
+		while (left >= 0 && x < knots[left])
+			left--;
+	else if (left == nknots-degree-1)
+		while (left < nknots-1 && x > knots[left+1])
+			left++;	
+	
 		
-	for (j = 0; j < jhigh-1; j++) {
+	for (j = 0; j < degree-1; j++) {
 		delta_r[j] = knots[left+j+1] - x;
 		delta_l[j] = x - knots[left-j];
 		
@@ -75,6 +87,26 @@ bsplvb_simple(const double *knots, double x, int left, int jhigh,
 		}
 		
 		biatx[j+1] = saved;
+	}
+	
+	/* 
+	 * If left < (spline order), only the first (left+1)
+	 * splines are valid; the remainder are utter nonsense.
+	 *
+	 * XXX FIXME: this is sort of dangerous, as it assumes that
+	 * dereferencing up to (spline order) off the front of *knots
+	 * will not segfault.
+	 */
+	if ((i = degree-1-left) > 0) {
+		for (j = 0; j < left+1; j++)
+			biatx[j] = biatx[j+i]; /* Move valid splines over. */
+		for ( ; j < degree; j++)
+			biatx[j] = 0.0; /* The rest are zero by construction. */
+	} else if ((i = left+degree+1-nknots) > 0) {
+		for (j = degree-1; j > i-1; j--)
+			biatx[j] = biatx[j-i];
+		for ( ; j >= 0; j--)
+			biatx[j] = 0.0;
 	}
 }
 
@@ -107,18 +139,32 @@ bsplvb(const double *knots, const double x, const int left, const int jlow,
 
 
 void
-bspline_deriv_nonzero(const double *knots, const double x, const int left, 
-    const int n, float *restrict biatx)
+bspline_deriv_nonzero(const double *knots, const unsigned nknots,
+    const double x, int left, const int n, float *restrict biatx)
 {
-	int i;
+	int i, j;
 	double temp, a;
+	double delta_l[n], delta_r[n];
 	
 	/* Special case for constant splines */
 	if (n == 0)
 		return;
 	
+	/*
+	 * Handle the (rare) cases where x is outside the full
+	 * support of the spline surface.
+	 */
+
+	if (left == n)
+		while (left >= 0 && x < knots[left])
+			left--;
+	else if (left == nknots-n-2)
+		while (left < nknots-1 && x > knots[left+1])
+			left++;
+	
 	/* Get the non-zero n-1th order B-splines at x */
-	bsplvb_simple(knots, x, left, n, biatx);
+	bsplvb(knots, x, left, 0 /* jlow */, n /* jhigh */,
+	    biatx, delta_l, delta_r);
 	
 	/* 
 	 * Now, form the derivatives of the nth order B-splines from
@@ -143,6 +189,20 @@ bspline_deriv_nonzero(const double *knots, const double x, const int left,
 	 * only the ith n-1th order spline is nonzero.
 	 */
 	biatx[n] = n*temp/((knots[left+n] - knots[left]));
+
+	/* Rearrange for partially-supported points. */
+	if ((i = n-left) > 0) {
+		for (j = 0; j < left+1; j++)
+			biatx[j] = biatx[j+i]; /* Move valid splines over. */
+		for ( ; j < n+1; j++)
+			biatx[j] = 0.0; /* The rest are zero by construction. */
+	} else if ((i = left+n+2-nknots) > 0) {
+		for (j = n; j > i-1; j--)
+			biatx[j] = biatx[j-i];
+		for ( ; j >= 0; j--)
+			biatx[j] = 0.0;
+	}
+
 }
 
 double
@@ -236,16 +296,23 @@ tablesearchcenters(struct splinetable *table, double *x, int *centers)
 	int i, min, max;
 
 	for (i = 0; i < table->ndim; i++) {
-
-		/*
-		 * Do some sanity checks. Even inside the table, the results
-		 * can make no sense (or worse, crash) if we are only
-		 * a few knots in due to partial support.
-		 */
-
-		if (x[i] < table->knots[i][table->order[i]] ||
-		    x[i] > table->knots[i][table->naxes[i]])
+		
+		/* Ensure we are actually inside the table. */
+		if (x[i] <= table->knots[i][0] ||
+		    x[i] > table->knots[i][table->nknots[i]-1])
 			return (-1);
+		
+		/*
+		 * If we're only a few knots in, take the center to be
+		 * the nearest fully-supported knot.
+		 */
+		if (x[i] < table->knots[i][table->order[i]]) {
+			centers[i] = table->order[i];
+			continue;
+		} else if (x[i] >= table->knots[i][table->naxes[i]]) {
+			centers[i] = table->naxes[i]-1;
+			continue;
+		}
 
 		min = table->order[i];
 		max = table->nknots[i]-2;
@@ -347,11 +414,12 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 	
 	for (n = 0; n < table->ndim; n++) {
 		if (derivatives & (1 << n)) {
-			bspline_deriv_nonzero(table->knots[n], x[n], centers[n],
+			bspline_deriv_nonzero(table->knots[n], 
+			    table->nknots[n], x[n], centers[n],
 			    table->order[n], localbasis[n]);
 		} else {
-			bsplvb_simple(table->knots[n], x[n], centers[n],
-			    table->order[n] + 1, localbasis[n]);
+			bsplvb_simple(table->knots[n], table->nknots[n],
+			    x[n], centers[n], table->order[n] + 1, localbasis[n]);
 		}
 
 		localbasis_ptr[n] = localbasis[n];
@@ -381,8 +449,8 @@ ndsplineeval_deriv2(struct splinetable *table, const double *x, const int *cente
 				    centers[n] + offset, table->order[n]);
 			}
 		} else {
-			bsplvb_simple(table->knots[n], x[n], centers[n],
-			    table->order[n] + 1, localbasis[n]);
+			bsplvb_simple(table->knots[n], table->nknots[n],
+			    x[n], centers[n], table->order[n] + 1, localbasis[n]);
 		}
 
 		localbasis_ptr[n] = localbasis[n];

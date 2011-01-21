@@ -34,11 +34,27 @@ def bspline(knots, x, i, n):
 def bspline_nonzero(knots, x, n):
 	"""Calculate the value of the possibly non-zero b-splines at x"""
 	left = numpy.digitize([x], knots)[0] - 1
+	print len(knots), left
 	jhigh = n + 1
 	biatx = numpy.zeros(jhigh)
 	delta_l = numpy.zeros(jhigh)
 	delta_r = numpy.zeros(jhigh)
-	bsplvb(knots, x, left, 0, jhigh, biatx, delta_l, delta_r)
+	knits = numpy.zeros(knots.size+n)
+	knits[:knots.size] = knots
+	bsplvb(knits, x, left, 0, jhigh, biatx, delta_l, delta_r)
+	
+	# handle the partial support cases
+	if (left < n):
+		i = n-left
+		for j in xrange(n-i+1):
+			biatx[j] = biatx[j+i]
+		biatx[n-i+1:] = 0
+	elif (left > len(knots)-n-2):
+		i = left+jhigh+1-len(knots)
+		for j in xrange(n, i-1, -1):
+			biatx[j] = biatx[j-i]
+		biatx[:i] = 0
+		
 	return biatx
 	
 def bspline_deriv_nonzero(knots, x, n):
@@ -67,6 +83,18 @@ def bspline_deriv_nonzero(knots, x, n):
 		biatx[i] = a-b
 	# only the ith n-1th order spline is nonzero on the first supported interval
 	biatx[n] = n*temp/((knots[left+n] - knots[left]))
+	
+	# handle the partial support cases
+	if (left < n):
+		i = n-left
+		for j in xrange(n-i+1):
+			biatx[j] = biatx[j+i]
+		biatx[n-i+1:] = 0
+	elif (left > len(knots)-n-2):
+		i = left+jhigh+1-len(knots)
+		for j in xrange(n, i-1, -1):
+			biatx[j] = biatx[j-i]
+		biatx[:i] = 0
 	return biatx
 	
 def bsplvb(knots, x, left, jlow, jhigh, biatx, delta_l, delta_r):
@@ -76,13 +104,16 @@ def bsplvb(knots, x, left, jlow, jhigh, biatx, delta_l, delta_r):
 	
 	if jlow == 0:
 		biatx[0] = 1.0
+		# biatx[left] = 1.0
 	
 	for j in xrange(jlow, jhigh - 1):
+		
 		delta_r[j] = knots[left+j+1] - x
-		if left-j < 0:
-			delta_l[j] = 0
-		else:
-			delta_l[j] = x - knots[left-j]
+		delta_l[j] = x - knots[left-j]
+		# if left-j < 0:
+		# 	delta_l[j] = 0
+		# else:
+		# 	delta_l[j] = x - knots[left-j]
 		
 		
 		saved = 0.0
