@@ -50,7 +50,7 @@ void splinetable_free(struct splinetable *table)
 	splinetable_free_aux(table);
 	if (table->knots) {
 		for (i = 0; i < table->ndim; i++)
-			free(table->knots[i]);
+			free(table->knots[i]-table->order[i]);
 		free(table->knots);
 	}
 	free(table->nknots);
@@ -222,6 +222,7 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 	for (i = 0; i < table->ndim; i++) {
 		char hduname[255];
 		long fpix = 1;
+		double *knot_scratch;
 		sprintf(hduname,"KNOTS%d",i);
 
 		fits_movnam_hdu(fits, IMAGE_HDU, hduname, 0, &error);
@@ -231,7 +232,13 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 			break;
 		}
 
-		table->knots[i] = malloc(sizeof(double)*table->nknots[i]);
+		/* 
+		 * Allow spline evaluations to run off the ends of the
+		 * knot field without segfaulting.
+		 */
+		knot_scratch = malloc(sizeof(double)*(table->nknots[i]
+		    +2*table->order[i]));
+		table->knots[i] = knot_scratch + table->order[i];
 		fits_read_pix(fits, TDOUBLE, &fpix, table->nknots[i], NULL,
 		    table->knots[i], NULL, &error);
 	}
