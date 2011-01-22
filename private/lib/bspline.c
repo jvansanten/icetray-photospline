@@ -40,11 +40,13 @@ bspline(const double *knots, double x, int i, int n)
 /*
  * A brain-dead reimplementation of de Boor's BSPLVB, which generates
  * the values of the non-zero B-splines at x from the bottom up without
- * unnccessarily recalculating terms. 
+ * unnecessarily recalculating terms. 
  * 
- * NB: the indexing used here assumes that x is fully supported, i.e. has
- * jhigh knots to the left and right. If this is not the case, the output
- * will be a casserole of nonsense.
+ * NB: for bsplvb_simple(), bspline_nonzero(), and bspline_deriv_nonzero(),
+ * `left' must be the index of the nearest fully-supported knot
+ * span for splines of order n, i.e. n <= left <= nknots-n-2. For bsplvb(),
+ * `left' must be the index of the nonzero 0-th order spline, i.e.
+ * knots[left] <= x < knots[left+1].
  *
  * See Chapter X in: 
  * 
@@ -73,7 +75,15 @@ bsplvb_simple(const double *knots, const unsigned nknots,
 		while (left < nknots-1 && x > knots[left+1])
 			left++;	
 	
-		
+	/* 
+	 * NB: if left < degree-1 or left > nknots-degree-1,
+	 * the following loop will dereference addresses ouside
+	 * of knots[0:nknots]. While terms involving invalid knot
+	 * indices will be discarded, it is important that `knots'
+	 * have (maxdegree-1)*sizeof(double) bytes of padding
+	 * before and after its valid range to prevent segfaults
+	 * (see parsefitstable()).
+	 */
 	for (j = 0; j < degree-1; j++) {
 		delta_r[j] = knots[left+j+1] - x;
 		delta_l[j] = x - knots[left-j];
@@ -92,10 +102,6 @@ bsplvb_simple(const double *knots, const unsigned nknots,
 	/* 
 	 * If left < (spline order), only the first (left+1)
 	 * splines are valid; the remainder are utter nonsense.
-	 *
-	 * XXX FIXME: this is sort of dangerous, as it assumes that
-	 * dereferencing up to (spline order) off the front of *knots
-	 * will not segfault.
 	 */
 	if ((i = degree-1-left) > 0) {
 		for (j = 0; j < left+1; j++)
@@ -154,7 +160,6 @@ bspline_deriv_nonzero(const double *knots, const unsigned nknots,
 	 * Handle the (rare) cases where x is outside the full
 	 * support of the spline surface.
 	 */
-
 	if (left == n)
 		while (left >= 0 && x < knots[left])
 			left--;

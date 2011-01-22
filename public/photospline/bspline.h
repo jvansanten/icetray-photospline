@@ -15,11 +15,13 @@ double bspline_deriv_2(const double *knots, double x, int i, int n);
 /*
  * A brain-dead reimplementation of de Boor's BSPLVB, which generates
  * the values of the non-zero B-splines at x from the bottom up without
- * unnccessarily recalculating terms. 
+ * unnecessarily recalculating terms. 
  * 
- * NB: the indexing used here assumes that x is fully supported, i.e. has
- * jhigh knots to the left and right. If this is not the case, the output
- * will be a casserole of nonsense.
+ * NB: for bsplvb_simple(), bspline_nonzero(), and bspline_deriv_nonzero(),
+ * `left' must be the index of the nearest fully-supported knot
+ * span for splines of order n, i.e. n <= left <= nknots-n-2. For bsplvb(),
+ * `left' must be the index of the nonzero 0-th order spline, i.e.
+ * knots[left] <= x < knots[left+1].
  *
  * See Chapter X in: 
  * 
@@ -27,13 +29,15 @@ double bspline_deriv_2(const double *knots, double x, int i, int n);
  *     Mathematical Sciences. Springer-Verlag, 1978.
  */
 
-void bsplvb_simple(const double *knots, const unsigned n_knots,
+void bsplvb_simple(const double *knots, const unsigned nknots,
     double x, int left, int jhigh, float *biatx);
-void bspline_deriv_nonzero(const double *knots, const unsigned n_knots,
-    const double x, const int left, const int n, float *biatx);
 void bsplvb(const double *knots, const double x, const int left, const int jlow,
     const int jhigh, float *biatx,
     double *delta_l, double *delta_r);
+void bspline_nonzero(const double *knots, const unsigned nknots,
+    const double x, int left, const int n, float *values, float *derivs);
+void bspline_deriv_nonzero(const double *knots, const unsigned nknots,
+    const double x, const int left, const int n, float *biatx);
 
 /*
  * Evaluates the results of a full spline basis given a set of knots,

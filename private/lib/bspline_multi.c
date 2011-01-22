@@ -107,15 +107,27 @@ localbasis_multisub(const struct splinetable *table, const int *centers,
 }
 
 void
-bspline_nonzero(const double *knots, const double x, const int left,
-    const int n, float *restrict values, float *restrict derivs)
+bspline_nonzero(const double *knots, const unsigned nknots,
+    const double x, int left, const int n,
+    float *restrict values, float *restrict derivs)
 {
-	int i;
+	int i, j;
 	double delta_r[n+1], delta_l[n+1];
 	
 	/* Special case for constant splines */
 	if (n == 0)
 		return;
+	
+	/*
+	 * Handle the (rare) cases where x is outside the full
+	 * support of the spline surface.
+	 */
+	if (left == n)
+		while (left >= 0 && x < knots[left])
+			left--;
+	else if (left == nknots-n-2)
+		while (left < nknots-1 && x > knots[left+1])
+			left++;
 	
 	/* Get the non-zero n-1th order B-splines at x */
 	bsplvb(knots, x, left, 0, n, values, delta_r, delta_l);
@@ -144,6 +156,23 @@ bspline_nonzero(const double *knots, const double x, const int left,
 	
 	/* Now, continue to the non-zero nth order B-splines at x */
 	bsplvb(knots, x, left, n-1, n+1, values, delta_r, delta_l);
+	
+	/* Rearrange for partially-supported points. */
+	if ((i = n-left) > 0) {
+		for (j = 0; j < left+1; j++) {
+			values[j] = values[j+i]; /* Move valid splines over. */
+			derivs[j] = derivs[j+i];
+		}
+		for ( ; j < n+1; j++)
+			values[j] = derivs[j] = 0.0;
+	} else if ((i = left+n+2-nknots) > 0) {
+		for (j = n; j > i-1; j--) {
+			values[j] = values[j-i];
+			derivs[j] = derivs[j-i];
+		}
+		for ( ; j >= 0; j--)
+			values[j] = derivs[j] = 0.0;
+	}
 }
 
 /* Evaluate the spline surface and all its derivatives at x */
@@ -173,8 +202,8 @@ ndsplineeval_gradient(struct splinetable *table, const double *x,
 
 		
 	for (n = 0; n < table->ndim; n++) {
-		bspline_nonzero(table->knots[n], x[n], centers[n],
-		    table->order[n], valbasis, gradbasis);
+		bspline_nonzero(table->knots[n], table->nknots[n],
+		    x[n], centers[n], table->order[n], valbasis, gradbasis);
 	
 		for (i = 0; i <= table->order[n]; i++) {
 			

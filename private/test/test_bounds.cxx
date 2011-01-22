@@ -56,6 +56,12 @@ load_splinetable(fs::path &fname)
 
 TEST_GROUP(BoundaryIssues);
 
+/*
+ * The quantiles in the time dimension are continous. This can only be true
+ * if the spline evaluation code is capable of handling points near the
+ * edges of the knot fields that are supported by fewer than (order+1)
+ * splines.
+ */
 TEST(QuantileContinuity)
 {
 	const unsigned time_dim = 3;
@@ -65,42 +71,91 @@ TEST(QuantileContinuity)
 	unsigned i;
 	unsigned ndim = table->ndim;
 	double tablecoords[ndim], base, nudge;
+	const double eps = std::numeric_limits<double>::epsilon();
 	int centers[ndim];
 	
 	for (i = 0; i < ndim; i++) {
 		double low, high;
-		/* Don't trust the extents for the time dimension; they lie. */
-		if (i == time_dim) {
-			low = table->knots[i][table->order[i]];
-			high = table->knots[i][table->naxes[i]];
-			tablecoords[i] = low - std::numeric_limits<double>::epsilon();
-		} else {
-			low = table->extents[i][0];
-			high = table->extents[i][1];
-			tablecoords[i] = (low+high)/2.0;
-		}
+		low = table->extents[i][0];
+		high = table->extents[i][1];
+		tablecoords[i] = (low+high)/2.0;
 	}
 	
-	ENSURE(tablecoords[time_dim] > 0.0, "t=0 is not fully supported.");
+	/* Check the transition into the knot field from the left. */
+	tablecoords[time_dim] = table->knots[time_dim][0];
+	ENSURE(tablesearchcenters(table.get(), tablecoords, centers) != 0,
+	    "tablesearchcenters() fails right at the left edge of the knot field.");
 	
-	ENSURE(tablesearchcenters(table.get(), tablecoords, centers) == 0,
-	    "tablesearchcenters() succeeds for t>0.");
+	tablecoords[time_dim] += eps;
+	
+	ENSURE_EQUAL(tablesearchcenters(table.get(), tablecoords, centers), 0,
+	    "tablesearchcenters() succeeds just inside the left edge of the knot field.");
+	ENSURE_EQUAL(centers[time_dim], table->order[time_dim],
+	    "centers[time_dim] holds the first fully-supported knot index.");
 	
 	base = ndsplineeval(table.get(), tablecoords, centers, 0);
 	
 	ENSURE(base >= 0, "Base quantile is positive.");
+	ENSURE_DISTANCE(0, base, std::numeric_limits<float>::epsilon(),
+	    "Time quantile is continuous "
+	    "(slope is less than FLOAT_EPSILON/DBL_EPSILON)");
+		
+	/*
+	 * Now, step over the intertior knots, checking for continuity
+	 * at every knot crossing.
+	 */
+	for (i = 1; i < table->nknots[time_dim]-1; i++) {
+		tablecoords[time_dim] = table->knots[time_dim][i]*(1-eps);
+		ENSURE_EQUAL(tablesearchcenters(table.get(), tablecoords, centers), 0,
+		    "tablesearchcenters() succeeds inside the knot field.");
+		
+		base = ndsplineeval(table.get(), tablecoords, centers, 0);
+		ENSURE(base >= 0);
+		
+		tablecoords[time_dim] = table->knots[time_dim][i];
+		ENSURE_EQUAL(tablesearchcenters(table.get(), tablecoords, centers), 0,
+		    "tablesearchcenters() succeeds inside the knot field.");
+		
+		nudge = ndsplineeval(table.get(), tablecoords, centers, 0);
+		ENSURE(nudge >= 0);
+		
+		ENSURE_DISTANCE(base, nudge, std::numeric_limits<float>::epsilon(),
+		    "Time quantile is continuous "
+		    "(slope is less than FLOAT_EPSILON/DBL_EPSILON)");
+		
+		base = nudge;
+		
+		tablecoords[time_dim] = table->knots[time_dim][i]*(1+eps);
+		ENSURE_EQUAL(tablesearchcenters(table.get(), tablecoords, centers), 0,
+		    "tablesearchcenters() succeeds inside the knot field.");
+		
+		nudge = ndsplineeval(table.get(), tablecoords, centers, 0);
+		ENSURE(nudge >= 0);
+		
+		ENSURE_DISTANCE(base, nudge, std::numeric_limits<float>::epsilon(),
+		    "Time quantile is continuous "
+		    "(slope is less than FLOAT_EPSILON/DBL_EPSILON)");
+	}
+
+	/* Check the transition into the knot field from the right */
+	tablecoords[time_dim] = table->knots[time_dim][table->nknots[time_dim]-1]*(1+eps);
+	ENSURE(tablecoords[time_dim] > table->knots[time_dim][table->nknots[time_dim]-1]);
+	ENSURE(tablesearchcenters(table.get(), tablecoords, centers) != 0,
+	    "tablesearchcenters() fails right at the right edge of the knot field.");
 	
-	tablecoords[time_dim] += std::numeric_limits<double>::epsilon();
+	tablecoords[time_dim] = table->knots[time_dim][table->nknots[time_dim]-1];
 	
-	ENSURE(tablesearchcenters(table.get(), tablecoords, centers) == 0,
-	    "tablesearchcenters() still succeeds.");
+	ENSURE_EQUAL(tablesearchcenters(table.get(), tablecoords, centers), 0,
+	    "tablesearchcenters() succeeds just inside the right edge of the knot field.");
+	ENSURE_EQUAL(centers[time_dim],
+	    table->nknots[time_dim]-table->order[time_dim]-2,
+	    "centers[time_dim] holds the first fully-supported knot index.");
 	
-	nudge = ndsplineeval(table.get(), tablecoords, centers, 0);
+	base = ndsplineeval(table.get(), tablecoords, centers, 0);
 	
-	ENSURE(nudge >= 0, "Quantile at edge+epsilon is also positive.");
-	
-	ENSURE_DISTANCE(base, nudge, std::numeric_limits<float>::epsilon(),
-	    "Time quantile is continuous at the edge of support "
+	ENSURE(base >= 0, "Base quantile is positive.");
+	ENSURE_DISTANCE(0, base, std::numeric_limits<float>::epsilon(),
+	    "Time quantile is continuous "
 	    "(slope is less than FLOAT_EPSILON/DBL_EPSILON)");
 }
 
@@ -279,6 +334,108 @@ TEST(bspline_deriv_nonzero_vs_bspline_deriv)
 	
 		for (offset = 0; offset < order+1; offset++) {
 			ENSURE_DISTANCE(localbasis_bspline[offset], localbasis_bsplvb[offset], tol);
+		}
+	}
+}
+
+/*
+ * bspline_nonzero() can be made to return sensical values anywhere
+ * in the knot field.
+ */
+
+TEST(bspline_nonzero_vs_bspline)
+{
+	unsigned i;
+	const unsigned n_knots = 10;
+	const int order = 2;
+	double x, *knots;
+	int center, offset;
+	float localbasis_bsplvb[order+1], localbasis_bspline[order+1],
+	    localbasis_bsplvb_deriv[order+1], localbasis_bspline_deriv[order+1];
+	struct timeval thetime;
+	std::vector<double> knotvec;
+	/* This calculation is less stable. */
+	double tol = 10*std::numeric_limits<float>::epsilon();
+	
+	/* Seed our crappy little PSRNG. */
+	gettimeofday(&thetime, NULL);
+	srand(thetime.tv_sec);
+	/* Generate a random knot field. */
+	for (i = 0; i < n_knots; i++)
+		knotvec.push_back(double(rand())/double(RAND_MAX));
+	std::sort(knotvec.begin(), knotvec.end());
+	knots = &knotvec.front();
+
+	/* Before the first fully-supported knot. */
+	for (i = 0; i < order+1; i++) {
+		x = (knots[i]+knots[i+1])/2.0; /* Less than fully-supported */
+		center = order; /* First fully-supported spline. */
+	
+		ENSURE(int(i) <= center);
+	
+		bspline_nonzero(knots, n_knots, x, center /* left */,
+		    order /* jhigh */, localbasis_bsplvb, localbasis_bsplvb_deriv);
+	
+		for (offset = -order; offset <= 0; offset++) {
+			ENSURE(offset+order >= 0);
+			localbasis_bspline[offset+order] =
+			    bspline(knots, x, center + offset, order);
+			localbasis_bspline_deriv[offset+order] =
+			    bspline_deriv(knots, x, center + offset, order);
+		}
+	
+		for (offset = 0; offset < order+1; offset++) {
+			ENSURE_DISTANCE(localbasis_bspline[offset], localbasis_bsplvb[offset], tol);
+			ENSURE_DISTANCE(localbasis_bspline_deriv[offset], localbasis_bsplvb_deriv[offset], tol);
+			
+		}
+	}
+	
+	/* Within the support. */
+	for (i = order+1; i < n_knots-order-1; i++) {
+		x = (knots[i]+knots[i+1])/2.0;
+		center = i;
+		
+		bspline_nonzero(knots, n_knots, x, center /* left */,
+		    order /* jhigh */, localbasis_bsplvb, localbasis_bsplvb_deriv);
+	
+		for (offset = -order; offset <= 0; offset++) {
+			ENSURE(offset+order >= 0);
+			localbasis_bspline[offset+order] =
+			    bspline(knots, x, center + offset, order);
+			localbasis_bspline_deriv[offset+order] =
+			    bspline_deriv(knots, x, center + offset, order);
+		}
+	
+		for (offset = 0; offset < order+1; offset++) {
+			ENSURE_DISTANCE(localbasis_bspline[offset], localbasis_bsplvb[offset], tol);
+			ENSURE_DISTANCE(localbasis_bspline_deriv[offset], localbasis_bsplvb_deriv[offset], tol);
+			
+		}
+	}
+
+	/* After the last first fully-supported knot. */
+	for (i = n_knots-order-1; i < n_knots-2; i++) {
+		x = (knots[i]+knots[i+1])/2.0; /* Less than fully-supported */
+		center = n_knots-order-2; /* Last fully-supported spline. */
+	
+		ENSURE(int(i) >= center);
+	
+		bspline_nonzero(knots, n_knots, x, center /* left */,
+		    order /* jhigh */, localbasis_bsplvb, localbasis_bsplvb_deriv);
+	
+		for (offset = -order; offset <= 0; offset++) {
+			ENSURE(offset+order >= 0);
+			localbasis_bspline[offset+order] =
+			    bspline(knots, x, center + offset, order);
+			localbasis_bspline_deriv[offset+order] =
+			    bspline_deriv(knots, x, center + offset, order);
+		}
+	
+		for (offset = 0; offset < order+1; offset++) {
+			ENSURE_DISTANCE(localbasis_bspline[offset], localbasis_bsplvb[offset], tol);
+			ENSURE_DISTANCE(localbasis_bspline_deriv[offset], localbasis_bsplvb_deriv[offset], tol);
+			
 		}
 	}
 }
