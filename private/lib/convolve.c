@@ -15,7 +15,7 @@ int
 splinetable_convolve(struct splinetable *table, const int dim, double *knots,
     size_t n_knots)
 {
-	double *rho, *bundle, **trafo, norm;
+	double *rho, *rho_scratch, *bundle, **trafo, norm;
 	float *coefficients;
 	size_t n_rho, arraysize, n_slices;
 	unsigned long *strides;
@@ -26,7 +26,10 @@ splinetable_convolve(struct splinetable *table, const int dim, double *knots,
 		
 	/* Construct the new knot field. */
 	n_rho = 0;
-	rho = malloc(sizeof(double) * table->nknots[dim] * n_knots);
+	convorder = table->order[dim] + n_knots - 1;
+	rho_scratch = malloc(sizeof(double)*
+		(table->nknots[dim]*n_knots + 2*convorder));
+	rho = rho_scratch + convorder;
 	for (i = 0; i < table->nknots[dim]; i++)
 		for (j = 0; j < n_knots; j++)
 			rho[n_rho++] = table->knots[dim][i] + knots[j];
@@ -40,8 +43,6 @@ splinetable_convolve(struct splinetable *table, const int dim, double *knots,
 			n_rho--;
 		}
 	}
-		
-	convorder = table->order[dim] + n_knots - 1;
 	
 	/* Set up space for the convolved coefficients */
 	naxes = malloc(sizeof(long)*table->ndim);
@@ -123,7 +124,7 @@ splinetable_convolve(struct splinetable *table, const int dim, double *knots,
 	free(table->coefficients);
 	free(table->naxes);
 	free(table->strides);
-	free(table->knots[dim]);
+	free(table->knots[dim] - table->order[dim]);
 	
 	table->coefficients = coefficients;
 	table->naxes = naxes;
