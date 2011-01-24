@@ -126,6 +126,25 @@ splinetable_convolve(struct splinetable *table, const int dim, double *knots,
 	free(table->strides);
 	free(table->knots[dim] - table->order[dim]);
 	
+	/* 
+	 * If the extent already had partial support at the lower end,
+	 * let the new table extend to the limit of support. Otherwise,
+	 * retain only full support.
+	 */
+	if (table->extents[dim][0] < table->knots[dim][table->order[dim]])
+		table->extents[dim][0] = rho[0];
+	else
+		table->extents[dim][0] = rho[convorder];
+		
+	/*
+	 * NB: A monotonic function remains monotonic after convolution
+	 * with a strictly positive kernel. However, a spline cannot increase
+	 * monotonically beyond its last fully-supported knot. Here, we reduce
+	 * the extent of the spline by half the support of the spline kernel so 
+	 * that the surface will remain monotonic over its full extent.
+	 */
+	table->extents[dim][1] += knots[0];
+	
 	table->coefficients = coefficients;
 	table->naxes = naxes;
 	table->strides = strides;
@@ -133,10 +152,6 @@ splinetable_convolve(struct splinetable *table, const int dim, double *knots,
 	
 	table->nknots[dim] = n_rho;
 	table->order[dim] = convorder;
-	
-	table->extents[dim][0] = table->knots[dim][convorder];
-	table->extents[dim][1] = 
-	    table->knots[dim][table->nknots[dim]-convorder-1];
 	
 	return (0);
 }

@@ -57,6 +57,84 @@ load_splinetable(fs::path &fname)
 TEST_GROUP(BoundaryIssues);
 
 /*
+ * Check that analytic convolution works and preserves the monotonicity
+ * of the arrival-time CDF.
+ */
+TEST(Convolution)
+{
+	TableSet tables = get_splinetables();
+	boost::shared_ptr<struct splinetable> table = load_splinetable(tables.prob);
+	const unsigned time_dim = 3;
+	double sigma = 10.0;
+	int n_knots = 3;
+	double knots[3] = {-2*sigma, 0, 2*sigma};
+	unsigned i;
+	unsigned ndim = table->ndim;
+	double tablecoords[ndim], base, nudge, q0_raw, q0_conv, q1_raw, q1_conv;
+	const double eps = std::numeric_limits<double>::epsilon();
+	const double tmax = table->extents[time_dim][1];
+	int centers[ndim];
+	
+	for (i = 0; i < ndim; i++) {
+		double low, high;
+		low = table->extents[i][0];
+		high = table->extents[i][1];
+		tablecoords[i] = (low+high)/2.0;
+	}
+	
+	tablecoords[time_dim] = table->knots[time_dim][0]+eps;
+	ENSURE_EQUAL(tablesearchcenters(table.get(), tablecoords, centers), 0);
+	q0_raw = ndsplineeval(table.get(), tablecoords, centers, 0);
+	tablecoords[time_dim] = table->extents[time_dim][1];
+	ENSURE_EQUAL(tablesearchcenters(table.get(), tablecoords, centers), 0);
+	q1_raw = ndsplineeval(table.get(), tablecoords, centers, 0);
+	
+	ENSURE_DISTANCE(q1_raw-q0_raw, 1, 1e-3,
+	    "Arrival-time CDF is normalized to within 0.1%%.");
+	
+	base = q0_raw;
+	for (i = 1; i < table->nknots[time_dim]-table->order[time_dim]-1; i++) {
+		tablecoords[time_dim] = table->knots[time_dim][i];
+		ENSURE_EQUAL(tablesearchcenters(table.get(), tablecoords, centers), 0);
+		nudge = ndsplineeval(table.get(), tablecoords, centers, 0);
+		ENSURE(nudge - base >= 0,
+		    "Arrival-time CDF is monotonic.");
+		base = nudge;
+	}
+	
+	int err = splinetable_convolve(table.get(), time_dim, knots, n_knots);
+	ENSURE_EQUAL(err, 0, "Convolution succeeds.");
+	
+	tablecoords[time_dim] = table->knots[time_dim][0]*(1-eps);
+	ENSURE_EQUAL(tablesearchcenters(table.get(), tablecoords, centers), 0);
+	q0_conv = ndsplineeval(table.get(), tablecoords, centers, 0);
+
+	base = q0_conv;
+	for (i = 1; i < table->nknots[time_dim]; i++) {
+		tablecoords[time_dim] = table->knots[time_dim][i];
+		if (tablecoords[time_dim] > table->extents[time_dim][1])
+			break;
+		ENSURE_EQUAL(tablesearchcenters(table.get(), tablecoords, centers), 0);
+		nudge = ndsplineeval(table.get(), tablecoords, centers, 0);
+		ENSURE(nudge - base > -1e-3,
+		    "Arrival-time CDF remains monotonic.");
+		base = nudge;
+	}
+	
+	tablecoords[time_dim] = table->extents[time_dim][1];
+	ENSURE_EQUAL(tablesearchcenters(table.get(), tablecoords, centers), 0);
+	q1_conv = ndsplineeval(table.get(), tablecoords, centers, 0);
+	
+	ENSURE(table->extents[time_dim][1] < tmax,
+	    "t_max is slightly smaller after convolution.");
+	ENSURE(q1_conv - q1_raw > -10*std::numeric_limits<float>::epsilon(),
+	    "Maximum quantile (at the end of support) is not diminished.");
+	
+	ENSURE_DISTANCE(q1_raw-q0_raw, q1_conv-q0_conv, 10*std::numeric_limits<float>::epsilon(),
+	    "Arrival-time CDF remains normalized after convolution.");
+}
+
+/*
  * The quantiles in the time dimension are continous. This can only be true
  * if the spline evaluation code is capable of handling points near the
  * edges of the knot fields that are supported by fewer than (order+1)
