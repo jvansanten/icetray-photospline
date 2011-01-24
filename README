@@ -4,6 +4,7 @@ A collection of tools for fitting large, multidimensional tables of
 data (in particular, Photonics tables) to tensor-product B-spline surfaces.
 
 Authors: Nathan Whitehorn, Jakob van Santen, Sven LaFebre
+Internal Report: http://internal.icecube.wisc.edu/reports/details.php?type=report&id=icecube%2F201011001
 
 # Rationale
 
