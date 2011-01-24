@@ -136,23 +136,8 @@ on gsl and cfitsio from I3 ports. These will be built by Cmake.
 The actual fitting code depends on:
 - Python, Numpy, and PyFITS for input and output
 - Photonics for reading tables
-- SuiteSparse (http://www.cise.ufl.edu/research/sparse/SuiteSparse/) for sparse matrix operations and Cholesky decompositions
+- SuiteSparse (http://www.cise.ufl.edu/research/sparse/SuiteSparse/) for sparse matrix operations and Cholesky decompositions (available from IceCube ports)
 - Fast BLAS and LAPACK implementations (we recommend GotoBLAS http://www.tacc.utexas.edu/tacc-projects/gotoblas2/) for numerical operations inside of SuiteSparse's supernodal Cholesky factorization
-
-The easiest way to build and install the fitting code is to use the included
-setup.py script. The steps are as follows:
-
-If you want to read Level 2 Photonics tables:
-
-1. Check out Photonics from the SVN repository at SourceForge (http://photonics.svn.sourceforge.net/)
-2. ./configure; make in the Photonics source directory
-3. Rename setup.cfg.example to setup.cfg and adjust the path to the Photonics source directory.
-
-If you're okay with only reading Level 0/1 tables, you can use photonics from I3_PORTS.
-1.-3. Set your I3_PORTS environment variable.
-
-After that, in photospline/private: 
-4. python setup.py install
 
 # What is this stuff, and how do I use it?
 
