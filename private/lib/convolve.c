@@ -1,3 +1,10 @@
+/*
+ * convolve.c: Implements Kyrre Strom's algorithm for convolutions of
+ *   B-spline defined functions with other B-spline defined functions.
+ *   The algorithm can be found in "On convolutions of B-splines", Journal
+ *   of Computational and Applied Mathematics, 55(1):1-29, 1994.
+ */
+
 #include <stdlib.h>
 #include <float.h>
 #include <string.h>

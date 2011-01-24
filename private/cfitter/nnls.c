@@ -1,3 +1,10 @@
+/*
+ * nnls.c: Sparse non-negative least squares algorithms. Except for
+ *  Lawson-Hanson, all algorithms requrie full-rank problems
+ *  (exactly or over-determined). For well-conditioned full-rank problems,
+ *  BLOCK3 is the fastest.
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include <math.h>

@@ -1,3 +1,9 @@
+/*
+ * GLAM (Generalized Linear Array Model) is an algorithm for efficiently
+ *   computing N-D least squares fits on a grid. More information can be
+ *   found at http://www.ma.hw.ac.uk/~iain/research/GLAM.html
+ */
+
 #ifndef GLAM_H
 #define GLAM_H
 

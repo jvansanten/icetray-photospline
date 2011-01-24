@@ -1,3 +1,20 @@
+/*
+ * fitstable.c: Reads spline coefficient tables from on-disk FITS tables.
+ *
+ * These tables are laid out in the following way:
+ *  Header Keys:
+ *   TYPE: "Spline Coefficient Table"
+ *   ORDERn: Order of B-splines on the n-th axis
+ *   PERIODn: Periodicity of the n-th axis, or 0 if not a periodic basis
+ *   BIAS: Logarithm offset (optional)
+ *   GEOMETRY: Photonics geometry (optional)
+ *  Images:
+ *   Primary: N-D array of spline coefficients
+ *   KNOTSn: Vector of knot locations on axis n
+ *   EXTENTS: 2-D array of table boundaries (optional)
+ *   
+ */
+
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>

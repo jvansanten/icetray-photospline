@@ -1,3 +1,9 @@
+/*
+ * bspline_multi.c: Provides efficient routines using vector intrinsics to
+ *    simultaneously compute the value and gradient of an N-dimensional
+ *    B-spline surface.
+ */
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>

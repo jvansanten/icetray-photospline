@@ -1,3 +1,9 @@
+/*
+ * splinepdf.c: Routines to efficiently sample from a dimension of an
+ *    N-dimensional spline surface. Uses a Metropolis-Hastings Markov Chain
+ *    sampler.
+ */
+
 #include <math.h>
 #include <gsl/gsl_rng.h>
 

@@ -1,3 +1,9 @@
+/*
+ * bspline.c: Routines for calculating values of B-splines and their
+ *  derivatives, as well as efficient computation of the values of
+ *  N-dimensional B-spline surfaces.
+ */
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
