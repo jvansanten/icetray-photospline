@@ -85,7 +85,8 @@ if (table.header['efficiency'] != eff):
 if (table.header['geometry'] is not Geometry.SPHERICAL):
 	raise ValueError, "This table does not have spherical geometry"
 
-extents = [(0.0, 600.0), (0.0, 180.0), (-1.0, 1.0), (0.0, 7000.)] 
+# Extents for a particular set of spherically-binned tables produced in 2010
+extents = [(0.0, 600.0), (0.0, 180.0), (-1.0, 1.0), (0.0, 7000.)] # r, phi, cos(polar), t
 
 def construct_knots(nknots = None):
 	if nknots is None:

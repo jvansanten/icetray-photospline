@@ -53,7 +53,7 @@ def read(path):
 	for i in range(0,table.coefficients.ndim):
 		try:
 			table.periods.append(data.header['PERIOD%d' % i])
-		except:
+		except KeyError:
 			table.periods.append(0.)
 		table.knots.append(file['KNOTS%d' % i].data)
 
@@ -61,7 +61,7 @@ def read(path):
 	try:
 		table.order = data.header['ORDER']
 		order = [table.order]*table.coefficients.ndim
-	except:
+	except KeyError:
 		table.order = []
 		for i in range(0,table.coefficients.ndim):
 			table.order.append(data.header['ORDER%d' % i])
@@ -69,7 +69,7 @@ def read(path):
 
 	try:
 		extents = file['EXTENTS'].data
-	except:
+	except KeyError:
 		extents = []
 	
 	if len(extents) != 2*table.coefficients.ndim:
@@ -81,11 +81,11 @@ def read(path):
 
 	try:
 		table.bias = data.header['BIAS']
-	except:
+	except KeyError:
 		pass
 	try:
 		table.geometry = data.header['GEOMETRY']
-	except:
+	except KeyError:
 		pass
 
 	return table

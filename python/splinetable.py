@@ -5,7 +5,7 @@ class SplineTable:
 	periods = []
 
 	# The tensor-product basis function coefficients
-	coefficients = 0
+	coefficients = None
 
 	# logarithmic bias
 	bias = 0

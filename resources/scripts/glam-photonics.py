@@ -33,7 +33,8 @@ optparser.add_option("--ice-bottom", dest="ice_bottom", type="float",
              help="Lower boundary of ice properties. Any table cells below this\
              depth will be weighted with zero, as they contain no data.", default=-820)
 optparser.add_option("--ice-top", dest="ice_top", type="float",
-             help="Upper boundary of ice properties.", default=820)
+             help="Upper boundary of ice properties. Any table cells above this\
+             depth will be weighted with zero, as they contain no data.", default=820)
 (opts, args) = optparser.parse_args()
 
 # by default, do both fits
@@ -68,13 +69,15 @@ table = photonics_table(args[0])
 
 table.convert_to_level1()
 
-# check for a sane normalization
+# Photonics stores a bitmask that gives the kinds of normalizations
+# that have been applied to the table cells in the 'efficiency' field.
+# NB: We want dP, not dP/dt
 if (Efficiency.DIFFERENTIAL & table.header['efficiency']):
 	raise ValueError, "This appears to be a dP/dt table. Don't do that, okay?"
 if (not Efficiency.N_PHOTON & table.header['efficiency']):
 	raise ValueError, "This table does not appear to be normalized."
 
-nknots = [15, 6, 25]
+nknots = [15, 6, 25] # rho, phi, z
 if table.ndim > 3:
     nknots.append(20) # [t]
 
@@ -97,7 +100,7 @@ coreknots = [None]*4
 # It's tempting to use some version of the bin centers as knot positions,
 # but this should be avoided. Data points exactly at the knot locations are 
 # not fully supported, leading to genuine wierdness in the fit.
-coreknots[0] = numpy.linspace(0, radial_extent**(1./2), nknots[0])**2
+coreknots[0] = numpy.linspace(0, numpy.sqrt(radial_extent), nknots[0])**2
 coreknots[0] = numpy.concatenate(([0], numpy.logspace(-1,
     numpy.log10(radial_extent), nknots[0]-1)))
 coreknots[1] = numpy.linspace(0, 180, nknots[1])
@@ -112,6 +115,7 @@ coreknots[2] = numpy.concatenate((
 
 # We're fitting the CDF in time, so we need tightly-spaced knots at
 # early times to be able to represent the potentially steep slope.
+# XXX: we assume t_max == 7000 ns
 coreknots[3] = numpy.logspace(-1, numpy.log10(7000), nknots[3])
 coreknots[3] = numpy.concatenate(([0], coreknots[3]))
 
@@ -175,6 +179,9 @@ if opts.abs:
 
 	# add some numerical stability sauce
 	w = 1000*numpy.ones(norm.shape)
+
+	# Zero (and remove from fit) table cells with non-finite values
+	# (e.g. photon count was zero, and we have log(0) at this point)
 	w[numpy.logical_not(numpy.isfinite(z))] = 0
 	z[numpy.logical_not(numpy.isfinite(z))] = 0
 
@@ -200,8 +207,10 @@ if opts.abs:
 
 if opts.prob:
 	z = table.values / norm.reshape(norm.shape + (1,))
-	# XXX HACK: ignore weights for normalized timing
+	# Same sauce as above.
 	w = 1000*numpy.ones(table.weights.shape)
+	w[numpy.logical_not(numpy.isfinite(z))] = 0
+	z[numpy.logical_not(numpy.isfinite(z))] = 0
 	order, penalties, knots = spline_spec(4)
 
 	centers = table.bin_centers
