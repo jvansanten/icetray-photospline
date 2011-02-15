@@ -7,6 +7,7 @@ extern "C" {
 #include <I3Test.h>
 #include <boost/filesystem.hpp>
 #include <sys/time.h>
+#include <limits>
 
 namespace fs = boost::filesystem;
 
@@ -93,7 +94,7 @@ TEST(Convolution)
 	    "Arrival-time CDF is normalized to within 0.1%%.");
 	
 	base = q0_raw;
-	for (i = 1; i < table->nknots[time_dim]-table->order[time_dim]-1; i++) {
+	for (i = 1; i+table->order[time_dim]+1 < table->nknots[time_dim]; i++) {
 		tablecoords[time_dim] = table->knots[time_dim][i];
 		ENSURE_EQUAL(tablesearchcenters(table.get(), tablecoords, centers), 0);
 		nudge = ndsplineeval(table.get(), tablecoords, centers, 0);
@@ -182,7 +183,7 @@ TEST(QuantileContinuity)
 	 * Now, step over the intertior knots, checking for continuity
 	 * at every knot crossing.
 	 */
-	for (i = 1; i < table->nknots[time_dim]-1; i++) {
+	for (i = 1; i+1 < table->nknots[time_dim]; i++) {
 		tablecoords[time_dim] = table->knots[time_dim][i]*(1-eps);
 		ENSURE_EQUAL(tablesearchcenters(table.get(), tablecoords, centers), 0,
 		    "tablesearchcenters() succeeds inside the knot field.");
