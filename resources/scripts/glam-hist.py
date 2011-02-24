@@ -1,6 +1,6 @@
 import numpy
-from icecube.photospline.glam import glam
-from icecube.photospline import splinefitstable, glamhist
+from icecube.photospline.glam import glam, glamhist
+from icecube.photospline import splinefitstable
 import sys
 
 # Hard-coded params

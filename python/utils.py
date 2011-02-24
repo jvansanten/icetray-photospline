@@ -1,7 +1,8 @@
 import copy
 import numpy
 from pyphotonics.photonics_table import photonics_table
-import glam,bspline,splinefitstable
+import splinefitstable
+from glam import glam, bspline
 
 class TableSlice(object):
 	"""A slice of a photonics table, with spline CDF and PDF evaluates."""

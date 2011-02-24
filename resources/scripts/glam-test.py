@@ -22,4 +22,4 @@ spline = Gnuplot.Data(xfine, [sum([result.coefficients[n] *
     bspline(knots[0], x, n, order) for n in range(0,len(knots[0])-2-1)])
     for x in xfine], with_="lines",title="Spline")
 gp.plot(rawdat,fitdat,spline)
-
+raw_input("Press ENTER to continue")

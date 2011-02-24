@@ -3,7 +3,6 @@ from icecube.photospline.glam.bspline import *
 import Gnuplot
 
 numpts = 20
-knots=range(-3,30)
 order=3
 
 x1 = numpy.linspace(0,25,numpts)
@@ -20,7 +19,7 @@ rawdat = Gnuplot.Data(x1, z, title = "Data")
 
 # See if we can jump to the answer weighting by z and shifting the knots
 
-# We want to center of the spline with coefficient z to be at the point x
+# We want the center of the spline with coefficient z to be at the point x
 # such that f(x) = z. This has to do with the spacing between knots
 # ((max - min)/numpts), as well as the middle of the number of inter-knot
 # cells spanned by a spline ((order - 1)/2).
@@ -31,7 +30,8 @@ for i in range (order,0,-1):
 interpknots.extend(baseknots)
 interpknots.append(interpknots[len(interpknots)-1] + (interpknots[len(interpknots)-1] - interpknots[len(interpknots)-2]))
 
-splinterp = Gnuplot.Data(xfine, [sum([z[n]*bspline(interpknots, x, n, order) for n in range(0,len(interpknots)-order-1)]) for x in xfine], with_="lines", title = "Direct Spline Interpolation Attempt")
+splinterp = Gnuplot.Data(xfine, [sum([z[n]*bspline(interpknots, x, n, order) for n in range(0,len(interpknots)-order-1)]) for x in xfine],
+			with_="lines", title = "Direct Spline Interpolation Attempt")
 knotcoeff = Gnuplot.Data(baseknots, z, title="Knots and Coefficients")
 
 knots = interpknots
@@ -40,10 +40,11 @@ A = splinebasis(knots,order,x1)
 result = numpy.linalg.lstsq(A, z)
 
 # Plot the least-squares result
-spline = Gnuplot.Data(xfine, [sum([result[0][n]*bspline(knots, x, n, order) for n in range(0,len(knots)-order-1)]) for x in xfine], with_="lines", title="Least Squares")
+spline = Gnuplot.Data(xfine, [sum([result[0][n]*bspline(knots, x, n, order) for n in range(0,len(knots)-order-1)]) for x in xfine],
+			with_="lines", title="Least Squares")
 
 #gp.plot(rawdat,splinterp,spline)
 #gp.set_range("yrange",(-1,17))
 gp.set_range("xrange",(-1,26))
 gp.plot(rawdat,splinterp,spline,knotcoeff)
-
+raw_input("Press ENTER to continue")

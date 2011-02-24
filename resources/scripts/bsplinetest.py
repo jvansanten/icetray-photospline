@@ -19,3 +19,4 @@ def bspline(knots, x, i, n):
 gp = Gnuplot.Gnuplot()
 spline = [Gnuplot.Data(x, [bspline(knots, x_ele, n, 2) for x_ele in x], with_="lines") for n in range(0,len(knots)-2-1)]
 gp.plot(spline[0],spline[1],spline[2])
+raw_input("Press ENTER to continue")
