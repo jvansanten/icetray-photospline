@@ -40,6 +40,10 @@ optparser.add_option("--ice-top", dest="ice_top", type="float",
              help="Upper boundary of ice properties.", default=820)
 (opts, args) = optparser.parse_args()
 
+if len(args) < 1:
+	print(usage)
+	sys.exit(1)
+
 # by default, do both fits
 if not opts.prob and not opts.abs:
 	opts.prob = opts.abs = True
@@ -105,20 +109,21 @@ def construct_knots(nknots = None):
 	
 	print "Core knots:", nknots
 	
-	radial_extent = 600
+	radial_extent = extents[0][1]
 	coreknots = [None]*4
 	
 	# It's tempting to use some version of the bin centers as knot
 	# positions, but this should be avoided. Data points exactly at the
 	# knot locations are not fully supported, leading to genuine wierdness
 	# in the fit.
-	coreknots[0] = numpy.linspace(0, radial_extent**(1./2), nknots[0])**2
-	coreknots[1] = numpy.linspace(0, 180, nknots[1])
-	coreknots[2] = numpy.linspace(-1, 1, nknots[2])
+	coreknots[0] = numpy.linspace(extents[0][0], radial_extent**(1./2),
+	    nknots[0])**2
+	coreknots[1] = numpy.linspace(extents[1][0], extents[1][1], nknots[1])
+	coreknots[2] = numpy.linspace(extents[2][0], extents[2][1], nknots[2])
 	
 	# We're fitting the CDF in time, so we need tightly-spaced knots at
 	# early times to be able to represent the potentially steep slope.
-	coreknots[3] = numpy.logspace(-1, numpy.log10(7000), nknots[3])
+	coreknots[3] = numpy.logspace(-1, numpy.log10(extents[3][1]), nknots[3])
 	coreknots[3] = numpy.concatenate(([0], coreknots[3]))
 	
 	# Now append the extra knots off both ends of the axis in order to
@@ -140,7 +145,8 @@ def construct_knots(nknots = None):
 	
 	# NB: we can get away with partial support in time, since we know that
 	# F(0) is identically zero.
-	tknots = numpy.concatenate((coreknots[3], 7000 + 100*numpy.arange(1,4)))
+	tknots = numpy.concatenate((coreknots[3], coreknots[3][-1] +
+	    100*numpy.arange(1,4)))
 	
 	print 'knots:'
 	print rknots

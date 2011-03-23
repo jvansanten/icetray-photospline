@@ -36,6 +36,9 @@ optparser.add_option("--ice-top", dest="ice_top", type="float",
              help="Upper boundary of ice properties. Any table cells above this\
              depth will be weighted with zero, as they contain no data.", default=820)
 (opts, args) = optparser.parse_args()
+if len(args) < 1:
+	print(usage)
+	sys.exit(1)
 
 # by default, do both fits
 if not opts.prob and not opts.abs:

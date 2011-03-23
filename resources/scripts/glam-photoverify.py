@@ -39,7 +39,11 @@ optparser.add_option("--dump",dest="dump",action="store_true",default=False,
 		help="Iterate over dimension, dumping each plot to an EPS file.")
 (opts, args) = optparser.parse_args()
 
-# Load oroginal table
+if len(args) < 2:
+	print(usage)
+	sys.exit(1)
+
+# Load original table
 table = photonics_table(args[0])
 table.remove_nans_and_infinites()
 
