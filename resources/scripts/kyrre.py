@@ -1,3 +1,14 @@
+#!/usr/bin/env/python
+
+"""
+A pure-Python implementation of Kyrre Strom's algorithm for convolutions of
+  B-spline defined functions with other B-spline defined functions.
+  The algorithm can be found in "On convolutions of B-splines", Journal
+  of Computational and Applied Mathematics, 55(1):1-29, 1994.
+
+When run as a script, makes a few demo plots.
+"""
+
 import numpy as n
 import pylab as p
 import copy
@@ -337,12 +348,7 @@ def test():
 		evaluate[i] = (factorial(k)*factorial(q)/factorial(k+q-1))*operated
 	
 	p.figure()
-	# p.plot(z, make_a_spline(x, k-1, z), label='f')
 	p.plot(z, xbasis.sum(axis=1), label='f')
-	# 
-	# for i in xrange(xbasis.shape[1]):
-	# 	p.plot(z, xbasis[:,i], label='f [%d]'%i)
-	# p.plot(z, make_a_spline(y, q-1, z), label='g')
 	p.plot(z, ybasis.flatten(), label='g')
 	
 	spliff = n.dot(coeffs, basis.transpose())
@@ -354,5 +360,11 @@ def test():
 	
 	print "integral %f -> %f" % (fint, spliffint)
 	
-
+	p.title('Analytic spline convolution at work')
 	p.legend()	
+
+if __name__ == "__main__":
+	test()
+	test_pandel()
+	p.show()
+
