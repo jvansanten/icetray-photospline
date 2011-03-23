@@ -6,6 +6,15 @@ data (in particular, Photonics tables) to tensor-product B-spline surfaces.
 Authors: Nathan Whitehorn, Jakob van Santen, Sven LaFebre
 Internal Report: http://internal.icecube.wisc.edu/reports/details.php?type=report&id=icecube%2F201011001
 
+# Installation notes and errata
+
+- The photospline fitter is not built by default, since it has extra
+  dependencies (suitesparse, BLAS). If you want to use it, set the cmake
+  variable BUILD_PHOTOSPLINE_FITTER.
+- While building some files, you may see warnings like
+  "blah/blah.gcda not found, execution counts estimated". These are harmless,
+  and should be ignored.
+
 # Rationale
 
 Muons and charged-particle showers in the IceCube detector volume emit
