@@ -72,7 +72,7 @@ else:
 smooth = opts.smooth
 
 # Real code
-import spglam as glam
+from icecube.photospline import spglam as glam
 
 table = photonics_table(args[0])
 
