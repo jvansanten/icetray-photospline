@@ -73,11 +73,7 @@ localbasis_multisub(const struct splinetable *table, const int *centers,
 		 * Workaround GCC ABI-compliance issue with SSE on x86 by
 		 * forcibly realigning the stack to a 16-byte boundary.
 		 */
-		#if defined(__x64_64__)
-		volatile register unsigned long sp __asm("rsp");
-		#else
 		volatile register unsigned long sp __asm("esp");
-		#endif
 		if (__builtin_expect(sp & 15UL, 0))
 			(void)alloca(16 - (sp & 15UL));
 	#endif
