@@ -10,6 +10,7 @@
 #include <string.h>
 
 #if defined(__i386__) || defined (__x86_64__)
+#include <alloca.h>
 #include <xmmintrin.h>
 #elif defined(__powerpc__)
 #include <altivec.h>
@@ -64,12 +65,23 @@ maxorder(int *order, int ndim)
 static void 
 localbasis_multisub(const struct splinetable *table, const int *centers,
     int n, int *restrict pos, unsigned long stride,
-    const v4sf **restrict localbasis[table->ndim], v4sf *restrict acc,
-    /* On GCC 4.2.1 the stack (so acc_local) is misaligned without this: */
-    int gccsucks)
+    const v4sf **restrict localbasis[table->ndim], v4sf *restrict acc)
 {
-	v4sf acc_local[NVECS];
 	int i, k;
+	#if defined(__i386__) || defined (__x86_64__)
+		/*
+		 * Workaround GCC ABI-compliance issue with SSE on x86 by
+		 * forcibly realigning the stack to a 16-byte boundary.
+		 */
+		#if defined(__x64_64__)
+		volatile register unsigned long sp __asm("rsp");
+		#else
+		volatile register unsigned long sp __asm("esp");
+		#endif
+		if (__builtin_expect(sp & 15UL, 0))
+			(void)alloca(16 - (sp & 15UL));
+	#endif
+	v4sf acc_local[NVECS];
 	
 	if (n+1 == table->ndim) {
 		/*
@@ -105,7 +117,7 @@ localbasis_multisub(const struct splinetable *table, const int *centers,
 				
 			localbasis_multisub(table, centers, n+1, pos,
 			    stride + pos[n]*table->strides[n], localbasis,
-			    acc_local, 0);
+			    acc_local);
 			for (i = 0; i < NVECS; i++) 
 				acc[i] += acc_local[i] * basis_row[i];
 		}
@@ -235,7 +247,7 @@ ndsplineeval_gradient(struct splinetable *table, const double *x,
 	for (i = 0; i < nbases; i++)
 		acc_ptr[i] = 0;
 
-	localbasis_multisub(table, centers, 0, pos, 0, localbasis_ptr, acc, 0);
+	localbasis_multisub(table, centers, 0, pos, 0, localbasis_ptr, acc);
 
 	for (i = 0; i < nbases; i++)
 		evaluates[i] = acc_ptr[i];
