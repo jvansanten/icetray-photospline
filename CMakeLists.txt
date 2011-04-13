@@ -28,14 +28,20 @@ SET_TARGET_PROPERTIES(photospline-evalsplinefits
         COMPILE_FLAGS "-std=c99"
 )
 
-include(vector_units.cmake)
-
-# add flags to enable the vector units present on the host processor
-# we'd love to use -march=native, but that's only available on GCC >= 4.2
 if(NOT DEFINED PHOTOSPLINE_CFLAGS)
 	SET(PHOTOSPLINE_CFLAGS "-O3 -fpeel-loops -fbranch-probabilities -ffast-math -std=c99")
-	add_vector_flags(${CMAKE_C_COMPILER} PHOTOSPLINE_CFLAGS _junk)
-	SET(PHOTOSPLINE_CFLAGS ${PHOTOSPLINE_CFLAGS} CACHE STRING "Compiler flags to enable vector units present on the host processor")
+	# add flags to enable the vector units present on the host processor
+	# we'd love to use -march=native, but that's only available on
+	# GCC >= 4.2 and only on some architectures.
+	if(CMAKE_SYSTEM_PROCESSOR MATCHES "^i.86$")
+		SET(PHOTOSPLINE_CFLAGS "${PHOTOSPLINE_CFLAGS} -msse2")
+	elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(powerpc|ppc)")
+		SET(PHOTOSPLINE_CFLAGS "${PHOTOSPLINE_CFLAGS} -maltivec")
+	elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^sparc")
+		SET(PHOTOSPLINE_CFLAGS "${PHOTOSPLINE_CFLAGS} -mvis")
+	endif(CMAKE_SYSTEM_PROCESSOR MATCHES "^i.86$")
+	# Note: SSE2 is a requirement of amd64, so we don't worry about that
+	SET(PHOTOSPLINE_CFLAGS ${PHOTOSPLINE_CFLAGS} CACHE STRING "Compiler flags specific to photospline")
 endif(NOT DEFINED PHOTOSPLINE_CFLAGS)
 
 # We wants it fast, precious.
