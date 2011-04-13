@@ -10,7 +10,9 @@
 #include <string.h>
 
 #if defined(__i386__) || defined (__x86_64__)
+#ifdef __GLIBC__
 #include <alloca.h>
+#endif
 #include <xmmintrin.h>
 #elif defined(__powerpc__)
 #include <altivec.h>
