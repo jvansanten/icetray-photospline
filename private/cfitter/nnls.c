@@ -26,137 +26,185 @@ static int intcmp(const void *xa, const void *xb);
 
 /*
  * Lawson-Hanson NNLS
+ *
+ * Algorithm NNLS from "Solving Least Squares Problems", Charles Lawson and
+ *  Richard Hanson. Prentice-Hall, 1974.
  */
 
 cholmod_dense *
-nnls_lawson_hanson(cholmod_sparse *A, cholmod_dense *y, int verbose,
-    cholmod_common *c)
+nnls_lawson_hanson(cholmod_sparse *A, cholmod_dense *y, double tolerance,
+    int max_iterations, int npos, int verbose, cholmod_common *c)
 {
 	cholmod_dense *x, *w, *p;
 	cholmod_sparse *Ap;
 	long P[A->ncol], Z[A->ncol];
 	int nP, nZ;
-	double wmax, alpha, qtemp;
-	int i, j, t;
+	double wmax, wpmin, alpha, qtemp;
+	int i, j, n, t, qmax;
+
+	/* By default, all coefficients are positive */
+	if (npos == 0)
+		npos = A->ncol;
 
 	/* Step 1: All elements actively constrained */
-	nP = 0; nZ = A->ncol;
+	nP = A->ncol - npos; nZ = npos;
 	for (i = 0; i < nZ; i++)
 		Z[i] = i;
-	x = cholmod_l_zeros(A->ncol, 1, CHOLMOD_REAL, c);
+	for (i = 0; i < nP; i++)
+		P[i] = npos + i;
 
-	/* Step 2: Compute initial w */
+	/* Initialize coefficient and negative gradient vectors */
+	x = cholmod_l_zeros(A->ncol, 1, CHOLMOD_REAL, c);
 	w = cholmod_l_zeros(A->ncol, 1, CHOLMOD_REAL, c);
 
-step2:
-	{
-		cholmod_dense *wtemp;
-		double alpha[2] = {1.0, 0.0}, beta[2] = {-1.0, 0.0};
+	for (n = 0; n < max_iterations || max_iterations == 0; n++) { 
+		/* Step 2: compute w = At(y - Ax) */
+		{
+			cholmod_dense *wtemp;
+			double alpha[2] = {1.0, 0.0}, beta[2] = {-1.0, 0.0};
 
-		/* Compute w = At(y - Ax) */
-		wtemp = cholmod_l_copy_dense(y, c);
-		cholmod_l_sdmult(A, 0 /* no transpose */, beta, alpha, x, wtemp, c);
-		beta[0] = 0;
-		cholmod_l_sdmult(A, 1 /* transpose */, alpha, beta, wtemp, w, c);
-		cholmod_l_free_dense(&wtemp, c);
-	}
+			wtemp = cholmod_l_copy_dense(y, c);
+			cholmod_l_sdmult(A, 0 /* no transpose */, beta, alpha,
+			    x, wtemp, c);
+			beta[0] = 0;
+			cholmod_l_sdmult(A, 1 /* transpose */, alpha, beta,
+			    wtemp, w, c);
+			cholmod_l_free_dense(&wtemp, c);
+		}
 	
-	/* Step 3a: Check for completion */
-	if (nZ == 0)
-		goto step12;
+		/* Step 3a: Check for completion */
+		if (nZ == 0)
+			break;
 
-	/* Steps 3b,4: Find maximum w, complete if <= 0 */
-	wmax = -1;
-	t = -1;
-	for (i = 0; i < nZ; i++)
-		if (((double *)(w->x))[Z[i]] > wmax) {
-			t = i; wmax = ((double *)(w->x))[Z[t]];
+		/* Steps 3b,4: Find maximum w, complete if <= 0 */
+		wmax = ((double *)(w->x))[Z[0]];
+		t = 0;
+		for (i = 1; i < nZ; i++) {
+			if (((double *)(w->x))[Z[i]] > wmax) {
+				t = i;
+				wmax = ((double *)(w->x))[Z[t]];
+			}
 		}
 
-	if (wmax <= KKT_TOL)
-		goto step12;
-
-	/* Step 5: Move coefficient Z[t] into the passive set P */
-	if (verbose)
-		printf("Freeing coefficient %ld (active: %d, passive: %d)\n",
-		    Z[t], nZ, nP);
-	P[nP++] = Z[t];
-	nZ--;
-	for (i = t; i < nZ; i++)
-		Z[i] = Z[i+1];
-
-	/*
-	 * Step 6: Solve the least-squares subproblem for the columns of A
-	 * in the passive set P by QR decomposition.
-	 */
-step6:
-	Ap = cholmod_l_submatrix(A, NULL, -1, P, nP, 1, 1, c);
-	p = SuiteSparseQR_C_backslash(0, KKT_TOL, Ap, y, c);
-	cholmod_l_free_sparse(&Ap, c);
-
-	/*
-	 * Step 7: Check if any coefficients need be constrained
-	 */
-	for (i = 0; i < nP; i++)
-		if (((double *)(p->x))[i] <= DBL_EPSILON)
+		if (wmax <= 0)
 			break;
-	if (i == nP) {
-		/* All were positive. Cycle back for the next. */
-		bzero(x->x, sizeof(double)*x->nrow);
-		for (i = 0; i < nP; i++)
-			((double *)(x->x))[P[i]] = ((double *)(p->x))[i];
-		cholmod_l_free_dense(&p, c);
-		goto step2;
-	}
 
-	/*
-	 * Step 8-9: Compute q, alpha
-	 */
-	alpha = 2; /* All computed values <= 1 */
-	for (i = 0; i < nP; i++) {
-		if (((double *)(p->x))[i] > 0)
-			continue;
+		/* See if we might be within fit tolerance */
+		if (wmax < tolerance) {
+			/* Check if any passive coefficients need to be reduced
+			 * due to clipped ringing */
+			if (nP == 0)
+				break;
+			
+			wpmin = ((double *)(w->x))[P[0]];
+			for (i = 1; i < nP; i++) {
+				if (((double *)(w->x))[P[i]] < wpmin)
+					wpmin = ((double *)(w->x))[P[i]];
+			}
 
-		qtemp = ((double *)(x->x))[P[i]]/(((double *)(x->x))[P[i]] -
-		    ((double *)(p->x))[i]);
-		if (qtemp < alpha && qtemp != 0)
-			alpha = qtemp;
-	}
+			if (-wpmin < tolerance)
+				break;
+		}
 
-	/*
-	 * Step 10: Recompute x
-	 */
-	for (i = 0; i < A->ncol; i++)
-		((double *)(x->x))[i] -= alpha*((double *)(x->x))[i];
-	for (i = 0; i < nP; i++)
-		((double *)(x->x))[P[i]] += alpha*((double *)(p->x))[i];
-	cholmod_l_free_dense(&p, c);
-
-	/*
-	 * Step 11: Move coefficients equal to zero to the active set.
-	 */
-	for (i = 0; i < nP; i++) {
-		if (((double *)(x->x))[P[i]] > DBL_EPSILON)
-			continue;
-
+		/* Step 5: Move coefficient Z[t] into the passive set P */
 		if (verbose)
-			printf("\tConstraining coefficient %ld (active: %d, "
-			    "passive, %d)\n", P[i], nZ, nP);
-		Z[nZ++] = P[i];
-		nP--;
-		for (j = i; j < nP; j++)
-			P[j] = P[j+1];
-		i--;
+			printf("Freeing coefficient %ld (active: %d, "
+			    "passive: %d, wmax: %e)\n", Z[t], nZ, nP, wmax);
+		P[nP++] = Z[t];
+		nZ--;
+		for (i = t; i < nZ; i++)
+			Z[i] = Z[i+1];
+
+		/*
+		 * Steps 6-11: Move coefficients from the passive to the
+		 * active set
+		 */
+		while (1) {	
+			/*
+			 * Step 6: Solve the least-squares subproblem for the
+			 * columns of A in the passive set P by QR
+			 * decomposition.
+			 */
+			Ap = cholmod_l_submatrix(A, NULL, -1, P, nP, 1, 1, c);
+			p = SuiteSparseQR_C_backslash_default(Ap, y, c);
+			cholmod_l_free_sparse(&Ap, c);
+
+			/*
+			 * Step 7: Check if any coefficients need be constrained
+			 */
+			for (i = 0; i < nP; i++)
+				if (P[i] < npos && ((double *)(p->x))[i] <= 0)
+					break;
+			if (i == nP) {
+				/*
+				 * All were positive. Cycle back for the next.
+				 */
+				bzero(x->x, sizeof(double)*x->nrow);
+				for (i = 0; i < nP; i++)
+					((double *)(x->x))[P[i]] =
+					    ((double *)(p->x))[i];
+				cholmod_l_free_dense(&p, c);
+				break; /* Break loop to step 2 */
+			}
+
+			/*
+			 * Step 8-9: Compute q, alpha
+			 */
+			alpha = 2; /* All computed values <= 1 */
+			qmax = -1;
+			for (i = 0; i < nP; i++) {
+				if (P[i] >= npos || ((double *)(p->x))[i] > 0)
+					continue;
+
+				qtemp = ((double *)(x->x))[P[i]]/
+				    (((double *)(x->x))[P[i]] -
+				    ((double *)(p->x))[i]);
+
+				if (qtemp < alpha && qtemp != 0) {
+					qmax = P[i];
+					alpha = qtemp;
+				}
+			}
+
+			/*
+			 * Step 10: Recompute x
+			 */
+			for (i = 0; i < A->ncol; i++)
+				((double *)(x->x))[i] -=
+				    alpha*((double *)(x->x))[i];
+			for (i = 0; i < nP; i++)
+				((double *)(x->x))[P[i]] +=
+				    alpha*((double *)(p->x))[i];
+			/* Avoid rounding errors above */
+			((double *)(x->x))[qmax] = 0;
+			cholmod_l_free_dense(&p, c);
+
+			/*
+			 * Step 11: Move coefficients equal to zero to the
+			 * active set.
+			 */
+			for (i = 0; i < nP; i++) {
+				if (P[i] >= npos || ((double *)(x->x))[P[i]] > 0)
+					continue;
+
+				if (verbose)
+					printf("\tConstraining coefficient %ld "
+					    "(active: %d, passive: %d, "
+					    "value: %e)\n", P[i], nZ, nP,
+					    ((double *)(x->x))[P[i]]);
+				Z[nZ++] = P[i];
+				nP--;
+				for (j = i; j < nP; j++)
+					P[j] = P[j+1];
+				i--;
+			}
+		}
 	}
 
-	goto step6;
-
-step12:
+	/* Step 12: return */
 	cholmod_l_free_dense(&w, c);
 	return (x);
 }
-	
-
 
 /*
  * An implementation of the Portugal/Judice/Vicente block-pivoting algorithm for
