@@ -47,7 +47,7 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 		accepted = 0;
 	} while (isnan(lastlogpdf) || lastval < mint || lastval > maxt);
 
-	for (i = -burnin; i < results; i++) {
+	for (i = -burnin; i/burnin < results; i++) {
 		coords[dim] = val = (*proposal)(proposal_info);
 
 		/*
@@ -85,8 +85,8 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 		 */
 
 	     reject:
-		if (i >= 0)
-			result[i] = lastval;
+		if (i >= 0 && (i % burnin) == 0)
+			result[i/burnin] = lastval;
 	}
 	#ifdef DEBUG
 		printf("Efficiency: %e\n", (double)(accepted)/(double)(i));
@@ -121,7 +121,7 @@ void splinepdf_n_sample(double *result, int results, int burnin,
 	lastpdf = ndsplineeval(table, coords, centers, derivatives);
 	accepted = 0;
 
-	for (i = -burnin; i < results; i++) {
+	for (i = -burnin; i/burnin < results; i++) {
 		coords[dim] = val = (*proposal)(proposal_info);
 
 		/*
@@ -156,8 +156,8 @@ void splinepdf_n_sample(double *result, int results, int burnin,
 		 */
 
 	     reject:
-		if (i >= 0)
-			result[i] = lastval;
+		if (i >= 0 && (i % burnin) == 0)
+			result[i / burnin] = lastval;
 	}
 	#ifdef DEBUG
 		printf("Efficiency: %e\n", (double)(accepted)/(double)(i));
