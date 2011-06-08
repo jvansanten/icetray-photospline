@@ -397,14 +397,14 @@ static PyObject *readl2table(PyObject *self, PyObject *args)
 	    PyInt_FromLong(io.h->n_photon));
 #endif
 	PyDict_SetItemString(header_dict, "efficiency",
-	    PyInt_FromLong((long)(photoheader->efficiency)));
+	    PyInt_FromLong((long)(photoheader.efficiency)));
 	/* NB: Level2 tables are always cylindrical */
 	PyDict_SetItemString(header_dict, "geometry",
 	    PyInt_FromLong(CYLINDRICAL));
 	PyDict_SetItemString(header_dict, "zenith",
-	    PyFloat_FromDouble((double)(photoheader->theta)));
-	PyDict_SetItemString(header_dict, "z0",
-	    PyFloat_FromDouble((double)(photo->depth)));
+	    PyFloat_FromDouble((double)(photoheader.theta)));
+	PyDict_SetItemString(header_dict, "z",
+	    PyFloat_FromDouble((double)(photoheader.z0)));
 
 	/* Fudge the time axis for Level 2 ABS tables */
 	if (photoheader.type == ABS)
