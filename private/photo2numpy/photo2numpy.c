@@ -351,6 +351,7 @@ static PyObject *readl2table(PyObject *self, PyObject *args)
 	PyObject *main_array, *stats_array;
 	PyObject *coords[L2_MAXDIM], *coords_tuple;
 	PyObject *binwidths[L2_MAXDIM], *binwidths_tuple;
+	PyObject *header_dict;
 	PyObject *result;
 	char coordstr[L2_MAXDIM+1];
 	FILE *table;
@@ -388,6 +389,22 @@ static PyObject *readl2table(PyObject *self, PyObject *args)
 		    "parsing table header failed");
 		goto exit;
 	}
+	
+	header_dict = PyDict_New();
+#if 0
+	/* No useful normalization info */
+	PyDict_SetItemString(header_dict, "n_photon",
+	    PyInt_FromLong(io.h->n_photon));
+#endif
+	PyDict_SetItemString(header_dict, "efficiency",
+	    PyInt_FromLong((long)(photoheader->efficiency)));
+	/* NB: Level2 tables are always cylindrical */
+	PyDict_SetItemString(header_dict, "geometry",
+	    PyInt_FromLong(CYLINDRICAL));
+	PyDict_SetItemString(header_dict, "zenith",
+	    PyFloat_FromDouble((double)(photoheader->theta)));
+	PyDict_SetItemString(header_dict, "z0",
+	    PyFloat_FromDouble((double)(photo->depth)));
 
 	/* Fudge the time axis for Level 2 ABS tables */
 	if (photoheader.type == ABS)
@@ -473,8 +490,8 @@ static PyObject *readl2table(PyObject *self, PyObject *args)
 
 	/* Now put together the final result */
 
-	result = Py_BuildValue("OOOO", main_array, stats_array, coords_tuple,
-	    binwidths_tuple);
+	result = Py_BuildValue("OOOOO", main_array, stats_array, coords_tuple,
+	    binwidths_tuple, header_dict);
 
     exit:
 	if (table != NULL)
