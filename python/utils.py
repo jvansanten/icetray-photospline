@@ -18,12 +18,20 @@ class TableSlice(object):
 		self.slices = slices[:table.values.ndim]
 		self.density = density
 		self.make_grid()
-		if len(spline.knots) == 3:
-			norm = True
-			is_log = False
-		else:
-			norm = False
-			is_log = True
+		if spline.level == 2:
+			if len(spline.knots) == 3:
+				norm = True
+				is_log = False
+			else:
+				norm = False
+				is_log = True
+		if spline.level == 1:
+			if len(spline.knots) == 4:
+				norm = True
+				is_log = False
+			else:
+				norm = False
+				is_log = True
 		self.slice(is_log, norm)
 		self.eval(is_log)
 
