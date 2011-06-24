@@ -100,6 +100,8 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 	    PyFloat_FromDouble((double)(io.h->angle)));
 	PyDict_SetItemString(header_dict, "z",
 	    PyFloat_FromDouble((double)(io.h->depth)));
+	PyDict_SetItemString(header_dict, "level",
+	    PyInt_FromLong((long)(1))); //level1 tables have level 1
 
 	#ifdef SUPPORT_BIGENDIAN
 		if(!isLittleEndian() && checkMetaHeadLittle(&(io.h->MetaHead)))
@@ -405,6 +407,8 @@ static PyObject *readl2table(PyObject *self, PyObject *args)
 	    PyFloat_FromDouble((double)(photoheader.theta)));
 	PyDict_SetItemString(header_dict, "z",
 	    PyFloat_FromDouble((double)(photoheader.z0)));
+	PyDict_SetItemString(header_dict, "level", //Level2 tables have level 3
+	    PyInt_FromLong((long)(2)));
 
 	/* Fudge the time axis for Level 2 ABS tables */
 	if (photoheader.type == ABS)

@@ -18,6 +18,7 @@ def write(table,path):
 
 	data.header.update('BIAS',table.bias)
 	data.header.update('GEOMETRY',table.geometry)
+	data.header.update('LEVEL',table.level)
 
 	hdulist = pyfits.HDUList([data])
 
@@ -85,6 +86,11 @@ def read(path):
 		pass
 	try:
 		table.geometry = data.header['GEOMETRY']
+	except KeyError:
+		pass
+
+	try:
+		table.level = data.header['LEVEL']
 	except KeyError:
 		pass
 

@@ -39,7 +39,10 @@ class photonics_table():
 		if filename is not None:
 			self.open_file(filename, mmap=mmap)
 		if normalize:
-			self.normalize()
+			try:
+				self.normalize()
+			except:
+				pass
 	    
 
 	# Checks consistency of loaded tables.
@@ -68,7 +71,7 @@ class photonics_table():
 		if (eff & Efficiency.DIFFERENTIAL):
 			# Someone has made this a dP/dt table. Undo their work.
 			if self.values.ndim != 4:
-				raise ValueError, "This table is wierd, man."
+				raise ValueError, "This table is weird, man."
 			shape = [1]*len(self.values.shape)
 			shape[-1] = self.values.shape[-1]
 			dt = self.bin_widths[-1].reshape(shape)
@@ -111,7 +114,7 @@ class photonics_table():
 		else:
 			return True
 
-	def open_file(self, filename, convert=True, mmap=False):
+	def open_file(self, filename, convert=False, mmap=False):
 		if mmap:
 			warnings.warn("Memory-mapped tables are single-precision. You have been warned.");
 			self.filename = filename

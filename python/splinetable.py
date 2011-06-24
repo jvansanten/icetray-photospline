@@ -16,3 +16,5 @@ class SplineTable:
 	# geometry type
 	geometry = 2
 
+	# level of photonics table
+	level=1
