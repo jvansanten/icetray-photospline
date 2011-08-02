@@ -21,7 +21,7 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 	double val, lastval;
 	double lastlogpdf, logpdf;
 	double lastproppdf, proppdf;
-	double odds, test;
+	double odds;
 	double mint, maxt;
 
 	/* Find the boundaries by choosing the first and last points
@@ -103,7 +103,7 @@ void splinepdf_n_sample(double *result, int results, int burnin,
 	double val, lastval;
 	double lastpdf, pdf;
 	double lastproppdf, proppdf;
-	double odds, test;
+	double odds;
 	double mint, maxt;
 
 	/* Find the boundaries by choosing the first and last points

@@ -107,8 +107,8 @@ localbasis_multisub(const struct splinetable *table, const int *centers,
 			 */
 
 			const v4sf *basis_row = localbasis[n][k+table->order[n]];
-			const float *basis_row_ptr =
-			    (float*)localbasis[n][k+table->order[n]];
+/* 			const float *basis_row_ptr = */
+/* 			    (float*)localbasis[n][k+table->order[n]]; */
 			pos[n] = centers[n] + k;
 			for (i = 0; i < NVECS; i++)
 				v4sf_init(acc_local[i], 0);
@@ -197,7 +197,7 @@ void
 ndsplineeval_gradient(struct splinetable *table, const double *x,
     const int *centers, double evaluates[table->ndim + 1])
 {
-	int n, i, j, offset;
+	int n, i, j; /* , offset; */
 	int maxdegree = maxorder(table->order, table->ndim) + 1;
 	int nbases = table->ndim + 1;
 	int pos[table->ndim];

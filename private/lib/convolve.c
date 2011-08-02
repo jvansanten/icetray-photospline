@@ -22,7 +22,7 @@ int
 splinetable_convolve(struct splinetable *table, const int dim, double *knots,
     size_t n_knots)
 {
-	double *rho, *rho_scratch, *bundle, **trafo, norm;
+	double *rho, *rho_scratch, **trafo, norm;
 	float *coefficients;
 	size_t n_rho, arraysize, n_slices;
 	unsigned long *strides;
@@ -182,7 +182,7 @@ static double
 convoluted_blossom(double *x, size_t nx, double *y, size_t ny, double z,
     double *bags, size_t nbags)
 {
-	double scale, result, fun_x[nx], fun_y[ny];
+	double scale, fun_x[nx], fun_y[ny];
 	int i, j, k;
 	
 	scale = x[nx-1] - x[0];
