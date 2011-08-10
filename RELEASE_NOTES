@@ -3,6 +3,19 @@
 # $Date$
 #
 
+August 9, 2011 Emanuel Jacobi  (emanuel.jacobi@desy.de)
+--------------------------------------------------------------------
+Release V00-02-00
+
+Features:
+- Updated the version of Lawson-Hanson
+- Reduced the effects of autocorrelation by thinning
+  the sampled points by the burnin period.
+  -- Nathan Whitehorn
+- utils.py works with level1 and level2 tables
+  -- Jacob Feintzeig
+
+
 April 15, 2011, Fabian Kislat  (fabian.kislat@desy.de)
 --------------------------------------------------------------------
 Release V00-01-00. Initial release.
