@@ -18,3 +18,8 @@ class SplineTable:
 
 	# level of photonics table
 	level=1
+
+	# group phase velocity if spline is fit
+	# from a photonics table
+
+	ngroup = -1.0

@@ -407,8 +407,10 @@ static PyObject *readl2table(PyObject *self, PyObject *args)
 	    PyFloat_FromDouble((double)(photoheader.theta)));
 	PyDict_SetItemString(header_dict, "z",
 	    PyFloat_FromDouble((double)(photoheader.z0)));
-	PyDict_SetItemString(header_dict, "level", //Level2 tables have level 3
+	PyDict_SetItemString(header_dict, "level", //Level2 tables have level 2
 	    PyInt_FromLong((long)(2)));
+	PyDict_SetItemString(header_dict, "ref_ng",
+	    PyFloat_FromDouble((double)(photoheader.ref_ng)));
 
 	/* Fudge the time axis for Level 2 ABS tables */
 	if (photoheader.type == ABS)
