@@ -768,7 +768,11 @@ evaluate_descent(void *trial_)
 	const long *F;
 	long nF;
 
-	/* Bind to the CPU corresponding to the thread id */
+	/*
+	 * Bind to the CPU corresponding to the thread id, unless we're on
+	 * OS X, where the thread affinity API is...special.
+	 */
+#ifndef __APPLE__
 	cpu_set_t cpus;
 	CPU_ZERO(&cpus);
 	CPU_SET(trial->id, &cpus);
@@ -777,6 +781,7 @@ evaluate_descent(void *trial_)
 	    sizeof(cpus), &cpus);
 #else
 	err = sched_setaffinity(0, sizeof(cpus), &cpus);
+#endif
 #endif
 	
 	if (err)
