@@ -9,9 +9,16 @@ i3_project(photospline
 )
 
 i3_add_library(photospline
-	private/lib/*.c
+	private/lib/bspline.c
+	private/lib/bspline_multi.c
+	private/lib/convolve.c
+	private/lib/fitstable.c
+	private/lib/splinepdf.c
+	private/lib/I3SplineTable.cxx
 	USE_TOOLS cfitsio gsl python
 )
+
+add_subdirectory(private/pybindings)
 
 i3_executable(evalsplinefits
 	private/util/evalsplinefits.c
@@ -45,9 +52,17 @@ if(NOT DEFINED PHOTOSPLINE_CFLAGS)
 endif(NOT DEFINED PHOTOSPLINE_CFLAGS)
 
 # We wants it fast, precious.
-SET_TARGET_PROPERTIES(photospline
+SET_SOURCE_FILES_PROPERTIES(
+	private/lib/bspline.c
+	private/lib/bspline_multi.c
+	private/lib/convolve.c
+	private/lib/fitstable.c
+	private/lib/splinepdf.c
 	PROPERTIES
 	COMPILE_FLAGS ${PHOTOSPLINE_CFLAGS}
+)
+SET_TARGET_PROPERTIES(photospline
+	PROPERTIES
 	LINK_FLAGS "-fpeel-loops -fbranch-probabilities -ffast-math"
 )
 
