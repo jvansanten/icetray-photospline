@@ -70,7 +70,7 @@ localbasis_multisub(const struct splinetable *table, const int *centers,
     const v4sf **restrict localbasis[table->ndim], v4sf *restrict acc)
 {
 	int i, k;
-	#if defined(__i386__) || defined (__x86_64__)
+	#if (defined(__i386__) || defined (__x86_64__)) && defined(__ELF__)
 		/*
 		 * Workaround GCC ABI-compliance issue with SSE on x86 by
 		 * forcibly realigning the stack to a 16-byte boundary.
