@@ -494,9 +494,9 @@ static PyObject *readl2table(PyObject *self, PyObject *args)
 	}
 	
 	coords_tuple = Py_BuildValue(coordstr, coords[0], coords[1], coords[2],
-	    coords[3], coords[4], coords[5]);
+	    coords[3]);
 	binwidths_tuple = Py_BuildValue(coordstr, binwidths[0], binwidths[1],
-	    binwidths[2], binwidths[3], binwidths[4], binwidths[5]);
+	    binwidths[2], binwidths[3]);
 
 	/* Now put together the final result */
 
