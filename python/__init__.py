@@ -6,7 +6,10 @@ load_pybindings(__name__, __path__)
 import glam
 import splinetable
 import splinefitstable
-import spglam
+try:
+	import spglam
+except ImportError:
+	pass
 import numpy_extensions
 import photo2numpy
 import pyphotonics
