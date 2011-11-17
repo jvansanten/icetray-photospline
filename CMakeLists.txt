@@ -72,8 +72,16 @@ i3_test_executable(test
 	USE_PROJECTS photospline
 )
 
+include(CheckIncludeFile)
+CHECK_INCLUDE_FILE(level2_reader.h HAVE_LEVEL2_READER_H)
+
+if (NOT HAVE_LEVEL2_READER_H)
+	set(PHOTO2NUMPY_FLAGS -DSKIP_LEVEL2)
+endif (NOT HAVE_LEVEL2_READER_H)
+
 i3_add_library(photo2numpy
 	private/photo2numpy/photo2numpy.c
+	COMPILE_FLAGS ${PHOTO2NUMPY_FLAGS}
 	USE_TOOLS photonics python numpy
 	INSTALL_DESTINATION lib/icecube/photospline
 	NOT_INSPECTABLE
