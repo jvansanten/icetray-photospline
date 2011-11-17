@@ -102,6 +102,10 @@ static PyObject *readl1table(PyObject *self, PyObject *args)
 	    PyFloat_FromDouble((double)(io.h->depth)));
 	PyDict_SetItemString(header_dict, "level",
 	    PyInt_FromLong((long)(1))); //level1 tables have level 1
+	PyDict_SetItemString(header_dict, "n_group",
+	    PyFloat_FromDouble((double)(io.h->ref_ng)));
+	PyDict_SetItemString(header_dict, "n_phase",
+	    PyFloat_FromDouble((double)(io.h->ref_np)));
 
 	#ifdef SUPPORT_BIGENDIAN
 		if(!isLittleEndian() && checkMetaHeadLittle(&(io.h->MetaHead)))
