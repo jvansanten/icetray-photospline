@@ -1,7 +1,12 @@
 __all__=['glam', 'spglam', 'photo2numpy', 'pyphotonics', 'splinetable']
 
-from icecube.load_pybindings import load_pybindings
-load_pybindings(__name__, __path__)
+try:
+	import numpy
+	from icecube.load_pybindings import load_pybindings
+	load_pybindings(__name__, __path__)
+	del numpy
+except ImportError:
+	pass
 
 try:
 	import splinetable
