@@ -33,14 +33,16 @@ static int intcmp(const void *xa, const void *xb);
 
 cholmod_dense *
 nnls_lawson_hanson(cholmod_sparse *A, cholmod_dense *y, double tolerance,
-    int max_iterations, int npos, int verbose, cholmod_common *c)
+    int min_iterations, int max_iterations, int npos, int normaleq,
+    int verbose, cholmod_common *c)
 {
-	cholmod_dense *x, *w, *p;
+	cholmod_dense *x, *w, *p, *yp;
 	cholmod_sparse *Ap;
 	long P[A->ncol], Z[A->ncol];
 	int nP, nZ;
 	double wmax, wpmin, alpha, qtemp;
 	int i, j, n, t, qmax;
+	int last_freed = -1;
 
 	/* By default, all coefficients are positive */
 	if (npos == 0)
@@ -58,8 +60,17 @@ nnls_lawson_hanson(cholmod_sparse *A, cholmod_dense *y, double tolerance,
 	w = cholmod_l_zeros(A->ncol, 1, CHOLMOD_REAL, c);
 
 	for (n = 0; n < max_iterations || max_iterations == 0; n++) { 
-		/* Step 2: compute w = At(y - Ax) */
-		{
+		/* Step 2: compute the negative gradient of the residuals, w */
+		if (normaleq) {
+			 /* If the normal equations are pre-formulated, 
+			  * w = y - Ax. */
+			double alpha[2] = {1.0, 0.0}, beta[2] = {-1.0, 0.0};
+
+			memcpy(w->x, y->x, sizeof(double)*A->ncol);
+			cholmod_l_sdmult(A, 0 /* no transpose */, beta, alpha,
+			    x, w, c);
+		} else {
+			/* Otherwise, take the derivative: w = At(y - Ax) */
 			cholmod_dense *wtemp;
 			double alpha[2] = {1.0, 0.0}, beta[2] = {-1.0, 0.0};
 
@@ -71,7 +82,7 @@ nnls_lawson_hanson(cholmod_sparse *A, cholmod_dense *y, double tolerance,
 			    wtemp, w, c);
 			cholmod_l_free_dense(&wtemp, c);
 		}
-	
+
 		/* Step 3a: Check for completion */
 		if (nZ == 0)
 			break;
@@ -80,7 +91,8 @@ nnls_lawson_hanson(cholmod_sparse *A, cholmod_dense *y, double tolerance,
 		wmax = ((double *)(w->x))[Z[0]];
 		t = 0;
 		for (i = 1; i < nZ; i++) {
-			if (((double *)(w->x))[Z[i]] > wmax) {
+			if (((double *)(w->x))[Z[i]] > wmax &&
+			    last_freed != Z[i]) {
 				t = i;
 				wmax = ((double *)(w->x))[Z[t]];
 			}
@@ -90,7 +102,7 @@ nnls_lawson_hanson(cholmod_sparse *A, cholmod_dense *y, double tolerance,
 			break;
 
 		/* See if we might be within fit tolerance */
-		if (wmax < tolerance) {
+		if (wmax < tolerance && n >= min_iterations) {
 			/* Check if any passive coefficients need to be reduced
 			 * due to clipped ringing */
 			if (nP == 0)
@@ -110,6 +122,8 @@ nnls_lawson_hanson(cholmod_sparse *A, cholmod_dense *y, double tolerance,
 		if (verbose)
 			printf("Freeing coefficient %ld (active: %d, "
 			    "passive: %d, wmax: %e)\n", Z[t], nZ, nP, wmax);
+		last_freed = Z[t];
+		alpha = -1;
 		P[nP++] = Z[t];
 		nZ--;
 		for (i = t; i < nZ; i++)
@@ -125,9 +139,23 @@ nnls_lawson_hanson(cholmod_sparse *A, cholmod_dense *y, double tolerance,
 			 * columns of A in the passive set P by QR
 			 * decomposition.
 			 */
-			Ap = cholmod_l_submatrix(A, NULL, -1, P, nP, 1, 1, c);
-			p = SuiteSparseQR_C_backslash_default(Ap, y, c);
-			cholmod_l_free_sparse(&Ap, c);
+			if (normaleq) {
+				Ap = cholmod_l_submatrix(A, P, nP, P, nP, 1,
+				    1, c);
+				yp = cholmod_l_allocate_dense(nP, 1, nP,
+				    CHOLMOD_REAL, c);
+				for (i = 0; i < nP; i++)
+					((double *)(yp->x))[i] =
+					    ((double *)(y->x))[P[i]];
+				p = SuiteSparseQR_C_backslash_default(Ap, yp, c);
+				cholmod_l_free_sparse(&Ap, c);
+				cholmod_l_free_dense(&yp, c);
+			} else {
+				Ap = cholmod_l_submatrix(A, NULL, -1, P, nP,
+				    1, 1, c);
+				p = SuiteSparseQR_C_backslash_default(Ap, y, c);
+				cholmod_l_free_sparse(&Ap, c);
+			}
 
 			/*
 			 * Step 7: Check if any coefficients need be constrained
@@ -163,18 +191,28 @@ nnls_lawson_hanson(cholmod_sparse *A, cholmod_dense *y, double tolerance,
 				if (qtemp < alpha && qtemp != 0) {
 					qmax = P[i];
 					alpha = qtemp;
+				} else if (last_freed == P[i]) {
+					/* Anti-cycling advice from LH */
+					alpha = 0;
+					qmax = P[i];
+					break;
 				}
+			}
+
+			if (qmax < 0) {
+				fprintf(stderr, "%s line %d: Math has failed\n",
+				    __FILE__, __LINE__);
+				exit(1);
 			}
 
 			/*
 			 * Step 10: Recompute x
 			 */
-			for (i = 0; i < A->ncol; i++)
-				((double *)(x->x))[i] -=
-				    alpha*((double *)(x->x))[i];
 			for (i = 0; i < nP; i++)
-				((double *)(x->x))[P[i]] +=
-				    alpha*((double *)(p->x))[i];
+				((double *)(x->x))[P[i]] += alpha*
+				    (((double *)(p->x))[i] -
+				    ((double *)(x->x))[P[i]]);
+
 			/* Avoid rounding errors above */
 			((double *)(x->x))[qmax] = 0;
 			cholmod_l_free_dense(&p, c);
@@ -192,13 +230,23 @@ nnls_lawson_hanson(cholmod_sparse *A, cholmod_dense *y, double tolerance,
 					    "(active: %d, passive: %d, "
 					    "value: %e)\n", P[i], nZ, nP,
 					    ((double *)(x->x))[P[i]]);
+
+				((double *)(x->x))[P[i]] = 0;
 				Z[nZ++] = P[i];
 				nP--;
 				for (j = i; j < nP; j++)
 					P[j] = P[j+1];
 				i--;
 			}
+
+			/* If alpha = 0, we've reached equilibrium */
+			if (alpha == 0)
+				break;
 		}
+
+		/* Exit to the caller in equilibrium */
+		if (alpha == 0)
+			break;
 	}
 
 	/* Step 12: return */
