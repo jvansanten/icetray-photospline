@@ -2,8 +2,6 @@
 # $Id: CMakeLists.txt 64301 2010-05-25 16:49:40Z jvansanten $
 #
 
-option(BUILD_PHOTOSPLINE_FITTER "Build libraries for reading and fitting Photonics tables." OFF)
-
 i3_project(photospline
 	PYTHON_DIR python
 )
@@ -101,7 +99,7 @@ if (NUMPY_FOUND)
 	)
 endif (NUMPY_FOUND)
 
-if(BUILD_PHOTOSPLINE_FITTER)
+if(NUMPY_FOUND AND BLAS_FOUND AND LAPACK_FOUND AND SUITESPARSE_FOUND)
 	i3_add_library(spglam
 		private/cfitter/cholesky_solve.c private/cfitter/glam.c
 		private/cfitter/nnls.c private/cfitter/pyglam.c
@@ -126,5 +124,5 @@ if(BUILD_PHOTOSPLINE_FITTER)
 		PRE_LINK
 		COMMAND mkdir -p ${CMAKE_BINARY_DIR}/lib/icecube/photospline
 	)
-endif(BUILD_PHOTOSPLINE_FITTER)
+endif(NUMPY_FOUND AND BLAS_FOUND AND LAPACK_FOUND AND SUITESPARSE_FOUND)
 
