@@ -3,6 +3,24 @@
 # $Date$
 #
 
+January 11, 2012 Emanuel Jacobi  (emanuel.jacobi@desy.de)
+--------------------------------------------------------------------
+Release V00-03-00
+
+Features:
+- Added support for Ngroup
+   -- Jacob Feintzeig
+- Read reference index of refraction from Photonics tables
+  -- Jakob van Santen
+
+Bugfixes:
+- Build photo2numpy unconditionally
+- Allow use of non-spglam components if spglam is not built
+- Check if level2 support exists
+- Handle missing numpy gracefully
+- Synchronize nnls_lawson_hanson() with wavedeform and millipede
+  -- Nathan Whitehorn
+
 August 9, 2011 Emanuel Jacobi  (emanuel.jacobi@desy.de)
 --------------------------------------------------------------------
 Release V00-02-00
