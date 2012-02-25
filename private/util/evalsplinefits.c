@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
     #ifdef TIMING
 	tp2.tv_usec += (tp2.tv_sec - tp1.tv_sec)*1e6;
 	printf("Time to open table: %ld.%06ld seconds\n", 
-	    (long)(tp2.tv_sec - tp1.tv_sec), tp2.tv_usec - tp1.tv_usec);
+	    (long)(tp2.tv_sec - tp1.tv_sec), (long)(tp2.tv_usec - tp1.tv_usec));
     #endif
 
 	if (argc < 2+table.ndim)
@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
     #ifdef TIMING
 	tp2.tv_usec += (tp2.tv_sec - tp1.tv_sec)*1e6;
 	printf("Cold cache evaluation time: %ld microseconds\n",
-	    tp2.tv_usec - tp1.tv_usec);
+	    (long)(tp2.tv_usec - tp1.tv_usec));
 
 	gettimeofday(&tp1, NULL);
 	value = ndsplineeval(&table, x, centers, 0);
@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
 
 	tp2.tv_usec += (tp2.tv_sec - tp1.tv_sec)*1e6;
 	printf("Warm cache evaluation time: %ld microseconds\n",
-	    tp2.tv_usec - tp1.tv_usec);
+	    (long)(tp2.tv_usec - tp1.tv_usec));
     #endif
 
 	printf("NDim: %d\n",table.ndim);
@@ -132,8 +132,8 @@ int main(int argc, char **argv) {
 	    #ifdef TIMING
 		tp2.tv_usec += (tp2.tv_sec - tp1.tv_sec)*1e6;
 		printf("Multiple evaluation time: %ld.%02ld microseconds\n",
-		    (tp2.tv_usec - tp1.tv_usec)/SAMPLES,
-		    (((tp2.tv_usec - tp1.tv_usec)%SAMPLES) * 100) /SAMPLES);
+		    (long)((tp2.tv_usec - tp1.tv_usec)/SAMPLES),
+		    (long)((((tp2.tv_usec - tp1.tv_usec)%SAMPLES) * 100) /SAMPLES));
 	    #endif
 	
 	    #ifdef GRADIENTS
@@ -153,8 +153,8 @@ int main(int argc, char **argv) {
 		gettimeofday(&tp2, NULL);
 		tp2.tv_usec += (tp2.tv_sec - tp1.tv_sec)*1e6;
 		printf("Sequential gradient evaluation time: %ld.%02ld microseconds\n",
-		    (tp2.tv_usec - tp1.tv_usec)/SAMPLES,
-		    (((tp2.tv_usec - tp1.tv_usec)%SAMPLES) * 100) /SAMPLES);
+		    (long)((tp2.tv_usec - tp1.tv_usec)/SAMPLES),
+		    (long)((((tp2.tv_usec - tp1.tv_usec)%SAMPLES) * 100) /SAMPLES));
 		
 		
 		gettimeofday(&tp1, NULL);
@@ -169,8 +169,8 @@ int main(int argc, char **argv) {
 		gettimeofday(&tp2, NULL);
 		tp2.tv_usec += (tp2.tv_sec - tp1.tv_sec)*1e6;
 		printf("Combined gradient evaluation time:   %ld.%02ld microseconds\n",
-		    (tp2.tv_usec - tp1.tv_usec)/SAMPLES,
-		    (((tp2.tv_usec - tp1.tv_usec)%SAMPLES) * 100) /SAMPLES);
+		    (long)((tp2.tv_usec - tp1.tv_usec)/SAMPLES),
+		    (long)((((tp2.tv_usec - tp1.tv_usec)%SAMPLES) * 100) /SAMPLES));
 		
 	    #endif
 	
