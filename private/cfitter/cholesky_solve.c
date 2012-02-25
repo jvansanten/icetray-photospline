@@ -782,6 +782,8 @@ evaluate_descent(void *trial_)
 #else
 	err = sched_setaffinity(0, sizeof(cpus), &cpus);
 #endif
+#else
+	err = 0;
 #endif
 	
 	if (err)
