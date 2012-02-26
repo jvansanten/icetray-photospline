@@ -916,7 +916,6 @@ walk_descents(cholmod_sparse *AtA_F,
 	int i, j, k;
 	pthread_t *threads;
 	pthread_attr_t thread_attr;
-	struct sched_param schedule;
 	descent_trial *descent_trials;
 				
 	nF = *nF_;
