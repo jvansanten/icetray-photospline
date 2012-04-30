@@ -15,9 +15,11 @@ class SplineTable:
 
 	# geometry type
 	geometry = 2
+	# geometry class of photonics table (0 is point souce, 1 is inf. muon)
+	geotype = 0
 
 	# level of photonics table
-	level=1
+	level = 1
 
 	# group phase velocity if spline is fit
 	# from a photonics table
