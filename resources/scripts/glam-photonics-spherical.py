@@ -211,6 +211,7 @@ if opts.abs:
 	spline = glam.fit(z,w,bin_centers,knots,order,smooth,penalties=penalties)
 	spline.geometry = Geometry.SPHERICAL
 	spline.extents = extents[:3]
+	spline.ngroup = table.header['n_group']
 
 	print "Saving table to %s..." % abs_outputfile
 	spline.knots = [spline.knots[i] * axis_scale[i] for i
@@ -243,6 +244,7 @@ if opts.prob:
 	spline = glam.fit(z,w,bin_centers,knots,order,smooth,penalties=penalties,monodim=3)
 	spline.geometry = Geometry.SPHERICAL
 	spline.extents = extents
+	spline.ngroup = table.header['n_group']
 
 	print "Saving table to %s..." % prob_outputfile
 	spline.knots = [spline.knots[i] * axis_scale[i] for i

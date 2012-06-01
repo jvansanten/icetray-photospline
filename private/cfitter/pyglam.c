@@ -528,7 +528,7 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 			    "Could not find spline table class");
 			goto exit;
 		}
-		result = PyInstance_NewRaw(splinetable_cls, NULL);
+		result = PyInstance_New(splinetable_cls, NULL, NULL);
 		if (result == NULL) {
 			PyErr_SetString(PyExc_ImportError,
 			    "Could not instantiate spline table class");
