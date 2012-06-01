@@ -104,7 +104,7 @@ if(NUMPY_FOUND AND BLAS_FOUND AND LAPACK_FOUND AND SUITESPARSE_FOUND)
 		private/cfitter/cholesky_solve.c private/cfitter/glam.c
 		private/cfitter/nnls.c private/cfitter/pyglam.c
 		private/cfitter/splineutil.c
-		USE_TOOLS blas python numpy suitesparse
+		USE_TOOLS blas lapack python numpy suitesparse
 		USE_PROJECTS photospline
 		INSTALL_DESTINATION lib/icecube/photospline
 		NOT_INSPECTABLE
