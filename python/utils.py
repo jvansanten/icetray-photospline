@@ -1,6 +1,5 @@
 import copy
 import numpy
-from pyphotonics.photonics_table import photonics_table
 import splinefitstable
 from glam import glam, bspline
 

@@ -1,7 +1,7 @@
 from icecube.photospline import splinefitstable
 from optparse import OptionParser
 
-from icecube.photospline.pyphotonics.photonics_table import *
+from icecube.photospline.photonics import *
 
 import sys
 import os
@@ -68,7 +68,7 @@ smooth = opts.smooth
 # Real code
 from icecube.photospline import spglam as glam
 
-table = photonics_table(args[0])
+table = Table(args[0])
 
 table.convert_to_level1()
 

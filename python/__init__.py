@@ -1,4 +1,4 @@
-__all__=['glam', 'spglam', 'photo2numpy', 'pyphotonics', 'splinetable']
+__all__=['glam', 'spglam', 'photonics', 'splinetable']
 
 try:
 	import numpy
@@ -17,8 +17,7 @@ try:
 	except ImportError:
 		pass
 	import numpy_extensions
-	import photo2numpy
-	import pyphotonics
+	import photonics
 except ImportError:
 	pass
 

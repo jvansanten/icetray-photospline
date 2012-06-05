@@ -1,7 +1,7 @@
 from icecube.photospline.glam import glam, bspline
 from icecube.photospline import splinetable, splinefitstable
 from icecube.photospline.utils import TableSlice
-from icecube.photospline.pyphotonics.photonics_table import *
+from icecube.photospline.photonics import *
 
 from optparse import OptionParser
 
@@ -44,7 +44,7 @@ if len(args) < 2:
 	sys.exit(1)
 
 # Load original table
-table = photonics_table(args[0])
+table = Table(args[0])
 table.remove_nans_and_infinites()
 
 print "Loaded histogram with dimensions ",table.shape

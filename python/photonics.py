@@ -1,7 +1,5 @@
 
-import numpy
-from .. import glam, numpy_extensions
-import warnings, struct
+import numpy, numpy_extensions, warnings, struct
 
 class MetaHead(object):
 	"""
@@ -81,7 +79,7 @@ class Geometry:
 	CUBIC       = 3
 
 # Class for reading IceCube photonics tables
-class photonics_table(object):
+class Table(object):
 	level = -1
 
 	table       = None
