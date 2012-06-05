@@ -1,7 +1,66 @@
 
 import numpy
-from .. import photo2numpy, glam, numpy_extensions
-import warnings
+from .. import glam, numpy_extensions
+import warnings, struct
+
+class MetaHead(object):
+	"""
+	Parse a packed representation of MetaHead_type from photonics.h.
+	"""
+	_struct = struct.Struct('<5s8B32s40s')
+	size = _struct.size
+	def __init__(self, buf):
+		v = self._struct.unpack(buf)
+		stringify = lambda s: s[:s.index('\0')]
+		self.File_Format_Label = stringify(v[0])
+		self.File_Format_Revision = v[1]
+		self.bitsys = v[3]
+		self.endian = v[4]
+		self.level  = v[5]
+		self.Photonics_Version = stringify(v[9])
+		
+class Header(object):
+	"""
+	Parse a packed representation of Header_type from photonics.h.
+	"""
+	_struct = struct.Struct('<100s6f3i6f7i25f2i1f1i2l2i')
+	size = _struct.size
+	def __init__(self, fh):
+		v = self._struct.unpack(fh.read(self.size))
+		self.MetaHead = MetaHead(v[0][:-15])
+		self.sphere_frac = v[1]
+		self.impsampl_Lf = v[2]
+		self.impsampl_Tf = v[3]
+		self.ref_np      = v[5]
+		self.ref_ng      = v[6]
+		self.record_errors = bool(v[7])
+		self.source_type = v[8]
+		self.extended_source = bool(v[9])
+		self.step        = v[10]
+		self.e           = v[11]
+		self.volume      = v[12]
+		self.angle       = v[13]
+		self.source_rz   = (v[14], v[15])
+		self.geo         = v[16]
+		self.n           = v[17:23]
+		self.limits = []
+		self.maxes = []
+		pos = 23
+		for i in xrange(6):
+			self.limits.append(v[pos:pos+2])
+			pos += 2
+		for i in xrange(6):
+			self.maxes.append(v[pos:pos+2])
+			pos += 2
+		print pos
+		self.depth       = v[47]
+		self.d_scale     = v[48]
+		self.t_scale     = v[49]
+		self.lambda_     = v[50]
+		self.efficiency  = v[51]
+		self.n_photon    = v[52]
+		self.n_entries   = v[53]
+		self.refraction_mode = v[54]
 
 class Efficiency:
 	"""Normalization types from photonics.h"""
@@ -22,7 +81,7 @@ class Geometry:
 	CUBIC       = 3
 
 # Class for reading IceCube photonics tables
-class photonics_table():
+class photonics_table(object):
 	level = -1
 
 	table       = None
@@ -35,7 +94,7 @@ class photonics_table():
 	filename    = None
 
 	# Constructor. Creates instance and optionally opens pt file.
-	def __init__(self, filename=None, normalize=True, mmap=False):
+	def __init__(self, filename=None, normalize=True, mmap=True):
 		if filename is not None:
 			self.open_file(filename, mmap=mmap)
 		if normalize:
@@ -113,8 +172,14 @@ class photonics_table():
 				return False
 		else:
 			return True
-
-	def open_file(self, filename, convert=False, mmap=False):
+			
+	def _read_photo2numpy(self, filename, mmap):
+		"""
+		Read using the Photonics library.
+		"""
+		
+		from .. import photo2numpy
+		
 		if mmap:
 			warnings.warn("Memory-mapped tables are single-precision. You have been warned.");
 			self.filename = filename
@@ -140,6 +205,75 @@ class photonics_table():
 		self.bin_widths  = list(table[3])
 
 		self.header = table[4]
+		
+	def _read_standalone(self, filename, mmap):
+		"""
+		Read using standalone implementation.
+		"""
+		
+		header = Header(open(filename))
+		
+		if header.MetaHead.level == 2:
+			raise ValueError, "I don't know how to read level-2 tables!"
+		self.values = numpy.squeeze(numpy.memmap(filename, shape=header.n, dtype=numpy.float32, offset=Header.size, mode='r'))
+		if header.record_errors:
+			offset = Header.size + self.values.itemsize*self.values.size
+			self.weights = numpy.squeeze(numpy.memmap(filename, shape=header.n, dtype=numpy.float32, offset=offset, mode='r'))
+		else:
+			self.weights = numpy.zeros(self.values.shape, dtype=numpy.float32)
+
+		# In keeping with a convention established by photo2numpy,
+		# tables are either mmap'd in single precision or read in
+		# to memory completely in double precision
+		if not mmap:
+			self.values = self.values.astype(numpy.float64)
+			self.weights = self.weights.astype(numpy.float64)
+		else:
+			warnings.warn("Memory-mapped tables are single-precision. You have been warned.");
+
+		self.bin_centers = []
+		self.bin_widths = []
+		
+		trafos = [lambda a: a]*len(header.limits)
+		itrafos = [lambda a: a]*len(header.limits)
+		if header.geo == Geometry.SPHERICAL:
+			trafos[2] = lambda a: -numpy.cos(numpy.pi*a/180.)
+		if header.d_scale == 2:
+			trafos[0] = numpy.sqrt
+			itrafos[0] = lambda a: a**2
+		if header.t_scale == 2:
+			trafos[-1] = numpy.sqrt
+			itrafos[-1] = lambda a: a**2
+		
+		for i in xrange(len(header.limits)):
+			steps = header.n[i]+1
+			if steps == 2:
+				continue
+			lo, hi = map(trafos[i], header.limits[i])
+			edges = itrafos[i](numpy.linspace(lo, hi, steps))
+			self.bin_centers.append(0.5*(edges[1:]+edges[:-1]))
+			self.bin_widths.append(numpy.diff(edges))
+		
+		self.ph_header = header
+		
+		# Add compatibility 
+		self.level = header.MetaHead.level	
+		self.header = {
+			'n_photon'  : header.n_photon,
+			'efficiency': header.efficiency,
+			'geometry'  : header.geo,
+			'zenith'    : header.angle,
+			'z'         : header.depth,
+			'n_group'   : header.ref_ng,
+			'n_phase'   : header.ref_np,
+		}
+
+	def open_file(self, filename, convert=False, mmap=False, photo2numpy=False):
+		
+		if photo2numpy:
+			self._read_photo2numpy(filename, mmap)
+		else:
+			self._read_standalone(filename, mmap)
 
 		# Level 2 tables get an extra, random element here for
 		# some reason
