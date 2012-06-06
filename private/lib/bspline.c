@@ -418,7 +418,7 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
     int derivatives)
 {
 	int i, j, n, tablepos;
-	double result;
+	float result;
 	int maxdegree = maxorder(table->order, table->ndim) + 1; 
 	float localbasis[table->ndim][maxdegree];
 	float basis_tree[table->ndim+1];
