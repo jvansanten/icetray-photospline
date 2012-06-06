@@ -13,7 +13,7 @@ i3_add_library(photospline
 	private/lib/fitstable.c
 	private/lib/splinepdf.c
 	private/lib/I3SplineTable.cxx
-	USE_TOOLS cfitsio gsl python
+	USE_TOOLS cfitsio gsl python blas
 )
 
 add_subdirectory(private/pybindings)

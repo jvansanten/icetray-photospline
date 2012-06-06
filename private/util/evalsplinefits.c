@@ -15,7 +15,7 @@ static void usage() {
 
 #define TIMING
 #define GRADIENTS
-#define SAMPLES 10000
+#define SAMPLES 1000
 
 int main(int argc, char **argv) {
 	struct splinetable table;
@@ -68,12 +68,14 @@ int main(int argc, char **argv) {
 	    (long)(tp2.tv_usec - tp1.tv_usec));
 
 	gettimeofday(&tp1, NULL);
-	value = ndsplineeval(&table, x, centers, 0);
+	for (i = 0; i < SAMPLES; i++)
+		value = ndsplineeval(&table, x, centers, 0);
 	gettimeofday(&tp2, NULL);
 
 	tp2.tv_usec += (tp2.tv_sec - tp1.tv_sec)*1e6;
-	printf("Warm cache evaluation time: %ld microseconds\n",
-	    (long)(tp2.tv_usec - tp1.tv_usec));
+	printf("Warm cache evaluation time: %ld.%02ld microseconds\n",
+	    (long)((tp2.tv_usec - tp1.tv_usec)/SAMPLES),
+	    (long)((((tp2.tv_usec - tp1.tv_usec)%SAMPLES) * 100) /SAMPLES));
     #endif
 
 	printf("NDim: %d\n",table.ndim);
@@ -81,6 +83,20 @@ int main(int argc, char **argv) {
 
 	printf("Value: %lf\n",value);
 	printf("e^(value): %e\n",exp(value));
+
+    #ifdef TIMING
+	value = ndsplineeval_linalg(&table, x, centers, 0);
+	gettimeofday(&tp1, NULL);
+	for (i = 0; i < SAMPLES; i++)
+		value = ndsplineeval_linalg(&table, x, centers, 0);
+	gettimeofday(&tp2, NULL);
+
+	tp2.tv_usec += (tp2.tv_sec - tp1.tv_sec)*1e6;
+	printf("Warm cache evaluation time (BLAS): %ld.%02ld microseconds\n",
+	    (long)((tp2.tv_usec - tp1.tv_usec)/SAMPLES),
+	    (long)((((tp2.tv_usec - tp1.tv_usec)%SAMPLES) * 100) /SAMPLES));
+	printf("Value (BLAS): %lf\n",value);
+    #endif
 	
 	
     #ifdef GRADIENTS
