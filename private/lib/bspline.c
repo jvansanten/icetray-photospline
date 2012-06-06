@@ -414,6 +414,76 @@ localbasis_sub(const struct splinetable *table, const int *centers,
  */
 
 double
+ndsplineeval(struct splinetable *table, const double *x, const int *centers,
+    int derivatives)
+{
+	int i, j, n, tablepos;
+	double result;
+	int maxdegree = maxorder(table->order, table->ndim) + 1; 
+	float localbasis[table->ndim][maxdegree];
+	float basis_tree[table->ndim+1];
+	int coeffstrides[table->ndim];
+	int decomposedposition[table->ndim];
+	
+	for (n = 0; n < table->ndim; n++) {
+		if (derivatives & (1 << n)) {
+			bspline_deriv_nonzero(table->knots[n], 
+			    table->nknots[n], x[n], centers[n],
+			    table->order[n], localbasis[n]);
+		} else {
+			bsplvb_simple(table->knots[n], table->nknots[n],
+			    x[n], centers[n], table->order[n] + 1,
+			    localbasis[n]);
+		}
+	}
+
+	tablepos = 0;
+	for (n = 0; n < table->ndim; n++) {
+		decomposedposition[n] = 0;
+		tablepos += (centers[n] - table->order[n])*table->strides[n];
+	}
+
+	basis_tree[0] = 1;
+	for (n = 0; n < table->ndim; n++)
+		basis_tree[n+1] = basis_tree[n]*localbasis[n][0];
+	coeffstrides[table->ndim - 1] = 1;
+        for (n = table->ndim-1; n > 0; n--)
+		coeffstrides[n-1] = coeffstrides[n]*(table->order[n] + 1);
+
+	result = 0;
+	for (n = 0; n < coeffstrides[0] /* number of chunks */; n++) {
+		/* XXX below code fails for 1D */
+		for (i = 0; i < table->order[table->ndim-1] + 1; i++) {
+			result += basis_tree[table->ndim-1]*
+			    localbasis[table->ndim-1][i]*
+			    table->coefficients[tablepos + i];
+		}
+
+		tablepos += table->strides[table->ndim-2];
+		decomposedposition[table->ndim-2]++;
+
+		if (__builtin_expect(decomposedposition[table->ndim-2] <=
+		    table->order[table->ndim-2], 1))
+			continue;
+
+		/* Carry to higher dimensions */
+		for (i = table->ndim-2; i > 0 && 
+		    decomposedposition[i] > table->order[i]; i--) {
+			decomposedposition[i-1]++;
+			tablepos += (table->strides[i-1]
+			    - decomposedposition[i]*table->strides[i]);
+			decomposedposition[i] = 0;
+		}
+		__builtin_prefetch(&table->coefficients[tablepos]);
+		for (j = i; j < table->ndim-1; j++)
+			basis_tree[j+1] = basis_tree[j]*
+			    localbasis[j][decomposedposition[j]];
+	}
+
+	return result;
+}
+
+double
 ndsplineeval_linalg(struct splinetable *table, const double *x,
     const int *centers, int derivatives)
 {
@@ -477,16 +547,18 @@ ndsplineeval_linalg(struct splinetable *table, const double *x,
 	/* Now basis1 is free, so fill it with the spline coefficients */
 	int i, tablepos;
 	int decomposedposition[table->ndim];
-	memset(decomposedposition, 0, sizeof(decomposedposition));
 	tablepos = 0;
-	for (n = 0; n < table->ndim; n++)
+	for (n = 0; n < table->ndim; n++) {
+		decomposedposition[n] = 0;
 		tablepos += (centers[n] - table->order[n])*table->strides[n];
+	}
 
 	for (i = 0; i < table->order[table->ndim-1] + 1; i++)
 		basis1->data[i] = table->coefficients[tablepos + i];
 	for (n = 1; n < coeffstrides[0] /* number of chunks */; n++) {
 		tablepos += table->strides[table->ndim-2];
 		decomposedposition[table->ndim-2]++;
+		__builtin_prefetch(&table->coefficients[tablepos]);
 		/* Carry to higher dimensions */
 		for (i = table->ndim-2; __builtin_expect(i > 0 && 
 		    decomposedposition[i] > table->order[i], 0); i--) {
@@ -506,35 +578,6 @@ ndsplineeval_linalg(struct splinetable *table, const double *x,
 	return cblas_sdot(totalcoeff, basis1->data, 1, basis2->data, 1);
 }
 			
-double
-ndsplineeval(struct splinetable *table, const double *x, const int *centers,
-    int derivatives)
-{
-	int n;
-	int maxdegree = maxorder(table->order, table->ndim) + 1; 
-	int pos[table->ndim];
-	double result;
-	float localbasis[table->ndim][maxdegree];
-	const float *localbasis_ptr[table->ndim];
-	
-	for (n = 0; n < table->ndim; n++) {
-		if (derivatives & (1 << n)) {
-			bspline_deriv_nonzero(table->knots[n], 
-			    table->nknots[n], x[n], centers[n],
-			    table->order[n], localbasis[n]);
-		} else {
-			bsplvb_simple(table->knots[n], table->nknots[n],
-			    x[n], centers[n], table->order[n] + 1, localbasis[n]);
-		}
-
-		localbasis_ptr[n] = localbasis[n];
-	}
-
-	result = localbasis_sub(table, centers, 0, pos, 0, localbasis_ptr);
-
-	return (result);
-}
-
 double
 ndsplineeval_deriv2(struct splinetable *table, const double *x, const int *centers,
     int derivatives)
