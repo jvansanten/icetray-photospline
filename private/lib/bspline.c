@@ -447,7 +447,7 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 	for (n = 0; n < table->ndim; n++)
 		basis_tree[n+1] = basis_tree[n]*localbasis[n][0];
 	coeffstrides[table->ndim - 1] = 1;
-        for (n = table->ndim-1; n > 0; n--)
+	for (n = table->ndim-1; n > 0; n--)
 		coeffstrides[n-1] = coeffstrides[n]*(table->order[n] + 1);
 
 	result = 0;
@@ -462,10 +462,6 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 		tablepos += table->strides[table->ndim-2];
 		decomposedposition[table->ndim-2]++;
 
-		if (__builtin_expect(decomposedposition[table->ndim-2] <=
-		    table->order[table->ndim-2], 1))
-			continue;
-
 		/* Carry to higher dimensions */
 		for (i = table->ndim-2; i > 0 && 
 		    decomposedposition[i] > table->order[i]; i--) {
@@ -474,7 +470,6 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 			    - decomposedposition[i]*table->strides[i]);
 			decomposedposition[i] = 0;
 		}
-		__builtin_prefetch(&table->coefficients[tablepos]);
 		for (j = i; j < table->ndim-1; j++)
 			basis_tree[j+1] = basis_tree[j]*
 			    localbasis[j][decomposedposition[j]];
