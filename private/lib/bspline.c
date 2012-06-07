@@ -453,7 +453,8 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 	result = 0;
 	for (n = 0; n < coeffstrides[0] /* number of chunks */; n++) {
 		/* XXX below code fails for 1D */
-		for (i = 0; i < table->order[table->ndim-1] + 1; i++) {
+		for (i = 0; __builtin_expect(i < table->order[table->ndim-1] +
+		    1, 1); i++) {
 			result += basis_tree[table->ndim-1]*
 			    localbasis[table->ndim-1][i]*
 			    table->coefficients[tablepos + i];
@@ -463,14 +464,14 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 		decomposedposition[table->ndim-2]++;
 
 		/* Carry to higher dimensions */
-		for (i = table->ndim-2; i > 0 && 
-		    decomposedposition[i] > table->order[i]; i--) {
+		for (i = table->ndim-2; __builtin_expect(i > 0 && 
+		    decomposedposition[i] > table->order[i], 0); i--) {
 			decomposedposition[i-1]++;
 			tablepos += (table->strides[i-1]
 			    - decomposedposition[i]*table->strides[i]);
 			decomposedposition[i] = 0;
 		}
-		for (j = i; j < table->ndim-1; j++)
+		for (j = i; __builtin_expect(j < table->ndim-1, 1); j++)
 			basis_tree[j+1] = basis_tree[j]*
 			    localbasis[j][decomposedposition[j]];
 	}
@@ -568,8 +569,9 @@ ndsplineeval_linalg(struct splinetable *table, const double *x,
 			    table->coefficients[tablepos + i];
 	}
 
-	/* Take the dot product, putting it in basis_elem, which has to have at
-	 * least one element. */
+	/* Take the dot product */
+	__builtin_prefetch(basis1->data);
+	__builtin_prefetch(basis2->data);
 	return cblas_sdot(totalcoeff, basis1->data, 1, basis2->data, 1);
 }
 			
