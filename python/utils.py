@@ -24,7 +24,7 @@ class TableSlice(object):
 			else:
 				norm = False
 				is_log = True
-		if spline.level == 1:
+		else:
 			if len(spline.knots) == 4:
 				norm = True
 				is_log = False

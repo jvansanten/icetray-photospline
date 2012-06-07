@@ -74,9 +74,10 @@ smooth = opts.smooth
 # Real code
 from icecube.photospline import spglam as glam
 
-table = Table(args[0])
+table = Table(args[0], mmap=False)
 
 table.convert_to_level1()
+table.normalize()
 
 # check for a sane normalization
 eff = Efficiency.RECEIVER | Efficiency.WAVELENGTH | Efficiency.N_PHOTON
@@ -91,6 +92,7 @@ if (table.header['geometry'] is not Geometry.SPHERICAL):
 
 # Extents for a particular set of spherically-binned tables produced in 2010
 extents = [(0.0, 600.0), (0.0, 180.0), (-1.0, 1.0), (0.0, 7000.)] # r, phi, cos(polar), t
+ngroup = table.header['n_group']
 
 def construct_knots(nknots = None):
 	if nknots is None:
@@ -244,7 +246,7 @@ if opts.prob:
 	spline = glam.fit(z,w,bin_centers,knots,order,smooth,penalties=penalties,monodim=3)
 	spline.geometry = Geometry.SPHERICAL
 	spline.extents = extents
-	spline.ngroup = table.header['n_group']
+	spline.ngroup = ngroup
 
 	print "Saving table to %s..." % prob_outputfile
 	spline.knots = [spline.knots[i] * axis_scale[i] for i

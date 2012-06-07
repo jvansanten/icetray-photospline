@@ -44,8 +44,9 @@ if len(args) < 2:
 	sys.exit(1)
 
 # Load original table
-table = Table(args[0])
+table = Table(args[0], mmap=False)
 table.remove_nans_and_infinites()
+table.normalize()
 
 print "Loaded histogram with dimensions ",table.shape
 
@@ -177,7 +178,7 @@ for i,icenter in enumerate(table.bin_centers[idim]):
                 gp.ylabel('log Amplitude [PE/m track]')
             
             yvals = sample[:,ndim]
-            ymin = yvals[n.isfinite(yvals)].min()
+            ymin = yvals[numpy.isfinite(yvals)].min()
             if ymin == 0:
                 ymin += 1e-20
             ymax = yvals.max()
