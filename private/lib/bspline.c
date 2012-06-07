@@ -422,7 +422,7 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 	int maxdegree = maxorder(table->order, table->ndim) + 1; 
 	float localbasis[table->ndim][maxdegree];
 	float basis_tree[table->ndim+1];
-	int coeffstrides[table->ndim];
+	int nchunks;
 	int decomposedposition[table->ndim];
 	
 	for (n = 0; n < table->ndim; n++) {
@@ -446,12 +446,12 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 	basis_tree[0] = 1;
 	for (n = 0; n < table->ndim; n++)
 		basis_tree[n+1] = basis_tree[n]*localbasis[n][0];
-	coeffstrides[table->ndim - 1] = 1;
+	nchunks = 1;
 	for (n = table->ndim-1; n > 0; n--)
-		coeffstrides[n-1] = coeffstrides[n]*(table->order[n] + 1);
+		nchunks *= (table->order[n] + 1);
 
 	result = 0;
-	for (n = 0; n < coeffstrides[0] /* number of chunks */; n++) {
+	for (n = 0; __builtin_expect(n < nchunks, 1); n++) {
 		/* XXX below code fails for 1D */
 		for (i = 0; __builtin_expect(i < table->order[table->ndim-1] +
 		    1, 1); i++) {
@@ -554,7 +554,6 @@ ndsplineeval_linalg(struct splinetable *table, const double *x,
 	for (n = 1; n < coeffstrides[0] /* number of chunks */; n++) {
 		tablepos += table->strides[table->ndim-2];
 		decomposedposition[table->ndim-2]++;
-		__builtin_prefetch(&table->coefficients[tablepos]);
 		/* Carry to higher dimensions */
 		for (i = table->ndim-2; __builtin_expect(i > 0 && 
 		    decomposedposition[i] > table->order[i], 0); i--) {
