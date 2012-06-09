@@ -447,7 +447,7 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 	for (n = 0; n < table->ndim; n++)
 		basis_tree[n+1] = basis_tree[n]*localbasis[n][0];
 	nchunks = 1;
-	for (n = table->ndim-1; n > 0; n--)
+	for (n = table->ndim-2; n >= 0; n--)
 		nchunks *= (table->order[n] + 1);
 
 	result = 0;
