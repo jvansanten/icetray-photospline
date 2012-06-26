@@ -3,6 +3,28 @@
 # $Date$
 #
 
+June 25, 2012 Emanuel Jacobi  (emanuel.jacobi@desy.de)
+--------------------------------------------------------------------
+Release V00-04-00
+
+- Rototill photospline code to get the geometry lookup class (point
+  source vs. infinite muon for now) from the table headers instead of
+  guessing from the look-up particle type.
+- Make the photonics-dependent parts conditional on the
+  presence of photonics
+- Add an experimental non-recursive BLAS-based ndsplineeval()
+- Remove localbasis_sub()
+  -- Nathan Whitehorn
+
+- Condense photo2numpy from 500 lines of C to 60 lines of Python
+  -- Jakob van Santen
+
+- Silence warnings in clang
+- removed an unused variable from cholesky_solve
+  -- Claudio Kopper
+
+
+
 January 11, 2012 Emanuel Jacobi  (emanuel.jacobi@desy.de)
 --------------------------------------------------------------------
 Release V00-03-00
@@ -20,6 +42,7 @@ Bugfixes:
 - Handle missing numpy gracefully
 - Synchronize nnls_lawson_hanson() with wavedeform and millipede
   -- Nathan Whitehorn
+
 
 August 9, 2011 Emanuel Jacobi  (emanuel.jacobi@desy.de)
 --------------------------------------------------------------------
