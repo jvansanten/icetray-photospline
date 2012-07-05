@@ -122,18 +122,18 @@ for i,icenter in enumerate(table.bin_centers[idim]):
                 bin = int(len(table.bin_centers[d])/2.)
             slices[d] = bin
             title += ", %s = %f" % (axis_vars[d], table.bin_centers[d][bin])
-    print "Building data set..."
-    if len(splines) == 1:
-        sample = TableSlice(table, spline, slices, opts.density).flatten()
-    else:
-        samples = [TableSlice(table, spline, slices, opts.density).flatten() for spline in splines]
-        datacols = 2 if timing else 1
-        stacks = tuple([samples[0]] + [sample[:,-datacols:] for sample in samples[1:]])
+        print "Building data set..."
+        if len(splines) == 1:
+            sample = TableSlice(table, spline, slices, opts.density).flatten()
+        else:
+            samples = [TableSlice(table, spline, slices, opts.density).flatten() for spline in splines]
+            datacols = 2 if timing else 1
+            stacks = tuple([samples[0]] + [sample[:,-datacols:] for sample in samples[1:]])
             sample = numpy.column_stack(stacks)
 
-        gp.xlabel(axis_labels[xdim])
-        gp.title(title)
-        plots = []
+            gp.xlabel(axis_labels[xdim])
+            gp.title(title)
+            plots = []
 
         ndim = table.ndim
         if timing:
@@ -193,14 +193,14 @@ for i,icenter in enumerate(table.bin_centers[idim]):
                 gp('set arrow from %e,%e to %e,%e as 2'%(k,ymin,k,ymax))
             gp.plot(*plots)
 
-    printdiffstats(sample[::opts.density,ndim], sample[::opts.density,ndim+offset])
-    if opts.dump:
-        if not three_d:
-            gp.set(yrange=(0,1.2))
-            gp.set_boolean('grid',True)
-        gp.hardcopy('cdf_slice_%s_%.3d_%s_%f.eps'%(axis_vars[idim], i, axis_vars[d], table.bin_centers[d][bin]),eps=True,color=True)
-    else:
-        gp.interact()
-        #raw_input('Press Enter to continue')
+        printdiffstats(sample[::opts.density,ndim], sample[::opts.density,ndim+offset])
+        if opts.dump:
+            if not three_d:
+                gp.set(yrange=(0,1.2))
+                gp.set_boolean('grid',True)
+            gp.hardcopy('cdf_slice_%s_%.3d_%s_%f.eps'%(axis_vars[idim], i, axis_vars[d], table.bin_centers[d][bin]),eps=True,color=True)
+        else:
+            gp.interact()
+            #raw_input('Press Enter to continue')
     except AssertionError:
         print 'Skipping   slice at  (no raw data)' % i
