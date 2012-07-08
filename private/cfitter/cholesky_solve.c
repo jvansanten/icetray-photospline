@@ -237,7 +237,7 @@ modify_factor(cholmod_sparse *A, cholmod_factor *L,
 		c->modfl = c->lnz;
 	}
 
-	if (nF == 0) {
+	if (L == NULL || nF == 0) {
 		/* First iteration, always do a full factorization */
 		update = false;
 	} else if ((c->fl > 0) && (c->modfl > 0)) {

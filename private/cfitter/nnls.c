@@ -825,80 +825,16 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	c->method[2] = c->method[3]; /* NESDIS, default parameters */
 	c->nmethods = 3;
 
-	/* Initialize with the solution to the unconstrained problem. */
-	L = cholmod_l_analyze(AtA, c);
-	cholmod_l_factorize(AtA, L, c);
-	x = cholmod_l_solve(CHOLMOD_A, L, Atb, c);
-	++solves;
-
-	/* Be a dear and tell us whether this is going to blow the hell up. */
-	if (verbose)
-		printf("Reciprocal condition number =~ %e\n",
-		    cholmod_l_rcond(L, c));
-
-	/* Place any negative coefficients in the actively constrained set */
+	/*
+	 * Start with x equal to the null vector. This implies
+	 * that y = -Atb.
+	 */
+	AtA_F = NULL; x_F = NULL; Atb_F = NULL; L = NULL; 
+	x = cholmod_l_zeros(nvar, 1, CHOLMOD_REAL, c); 	
+	y = cholmod_l_copy_dense(Atb, c);
 	for (i = 0; i < nvar; i++) {
-		if (((double*)(x->x))[i] >= 0)
-			F[nF++] = i;
-		else {
-			((double*)(x->x))[i] = 0.0;
-			G[nG++] = i;
-		}
-	}
-
-	if (verbose) {
-		t1 = clock();
-		printf("\tInitial solve [%d]: %.2f s\n",
-		    nvar,(double)(t1-t0)/(CLOCKS_PER_SEC));
-	}
-
-	/* Initialize Lagrange multipliers for the constrained part */
-	y = cholmod_l_zeros(nvar, 1, CHOLMOD_REAL, c);
-	{
-		cholmod_sparse *AtA_FG;
-		cholmod_dense *Atb_G;
-	
-		/*
-		 * NB: We happen to know that AtA is actually
-		 * symmetric, but cholmod_submatrix will only
-		 * handle unsymmetric ones. The submatrix constructed
-		 * this way will also be secretly symmetric.
-		 */
-		AtA->stype = 0;
-		double ones[2] = {1., 0}, mones[2] = {-1., 0};
-
-		if (verbose) t0 = clock();
-
-		Atb_G = cholmod_l_allocate_dense(nG, 1, nG,
-		    CHOLMOD_REAL, c);
-		for (i = 0; i < nG; i++)
-			((double *)(Atb_G->x))[i] =
-			    ((double *)(Atb->x))[G[i]];
-
-		x_F = cholmod_l_allocate_dense(nF, 1, nF,
-		    CHOLMOD_REAL, c);
-		for (i = 0; i < nF; i++)
-			((double *)(x_F->x))[i] =
-			    ((double *)(x->x))[F[i]];
-
-		AtA_FG = cholmod_l_submatrix(AtA, G, nG, F, nF, 1,1,c);
-		cholmod_l_sdmult(AtA_FG, 0, ones, mones, x_F, Atb_G, c);
-		
-		for (i = 0; i < nG; i++)
-			((double *)(y->x))[G[i]] =
-			    ((double *)(Atb_G->x))[i];
-
-		cholmod_l_free_dense(&Atb_G, c);
-		cholmod_l_free_dense(&x_F, c);
-		cholmod_l_free_sparse(&AtA_FG, c);
-
-		if (verbose) {
-			t1 = clock();
-			printf("\tUpdate y[%ld]: %.2f s\n",
-			    nG,(double)(t1-t0)/(CLOCKS_PER_SEC));
-		}
-		AtA->stype = 1;
-		
+		G[nG++] = i;
+		((double*)(y->x))[i] *= -1.0;
 	}
 
 	for (iter = 0; iter < max_iter; iter++) {
