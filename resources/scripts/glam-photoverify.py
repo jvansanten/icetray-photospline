@@ -11,12 +11,6 @@ import sys, os
 import numpy
 import Gnuplot
 
-axis_vars   = ("r", "theta", "z", "t")
-axis_labels = ("Perpendicular distance (m)",
-               "Source-observer angle (degree)",
-               "Parallel distance (m)",
-               "Time (ns)")
-
 usage = "usage: %prog [options] table.pt table.fits [table2.fits [ ... ] ]"
 optparser = OptionParser(usage=usage)
 optparser.add_option("-0", "--dim0", dest="dim0", type="string",
@@ -83,6 +77,39 @@ else:
     idim = max(free_axes)
 free_axes.remove(idim)
 
+class AxisDesc(object):
+	def __init__(self, abbrev, desc, unit=None):
+		self._abbrev = abbrev
+		self._desc = desc
+		self._unit = unit	
+	@property
+	def unit(self):
+		if self._unit:
+			return " [%s]" % self._unit
+		else:
+			return ""
+	@property
+	def description(self):
+		return self._desc + self.unit
+	def format(self, val):
+		return "%s = %.2f%s" % (self._abbrev, val, self.unit)
+
+axis_labels = [
+	AxisDesc('rho', 'Perpendicular distance', 'm'),
+	AxisDesc('theta', 'Observervation angle (wrt vertical)', 'degree'),
+	AxisDesc('z', 'Parallel distance', 'm'),
+	AxisDesc('t', 'Time delay', 'ns'),
+]
+
+# Label axes appropriately
+if table.ph_header.geo == Geometry.CYLINDRICAL:
+	pass
+elif table.ph_header.geo == Geometry.SPHERICAL:
+	axis_labels[0] = AxisDesc('r', 'Source-observer distance', 'm')
+	axis_labels[2] = AxisDesc('cos(z)', 'Observervation angle (wrt source axis)', None)
+else:
+	print 'Unknown table geometry %d!' % table.ph_header.geo
+
 #print 'x:', xdim, '   y:', ydim, '   i:', idim, 'free:', free_axes
 
 # Load the spline fit
@@ -111,7 +138,7 @@ timing = len(spline.knots) > 3
 for i,icenter in enumerate(table.bin_centers[idim]):
     if i < opts.start:
         continue
-    title = "Slice at %s = %f" % (axis_vars[idim], icenter)
+    title = "Slice at %s" % (axis_labels[idim].format(icenter))
     try:
         slices = [slice(None)]*4
         slices[idim] = i
@@ -121,7 +148,7 @@ for i,icenter in enumerate(table.bin_centers[idim]):
             else:
                 bin = int(len(table.bin_centers[d])/2.)
             slices[d] = bin
-            title += ", %s = %f" % (axis_vars[d], table.bin_centers[d][bin])
+            title += ", %s" % (axis_labels[d].format(table.bin_centers[d][bin]))
         print "Building data set..."
         if len(splines) == 1:
             sample = TableSlice(table, spline, slices, opts.density).flatten()
@@ -131,9 +158,9 @@ for i,icenter in enumerate(table.bin_centers[idim]):
             stacks = tuple([samples[0]] + [sample[:,-datacols:] for sample in samples[1:]])
             sample = numpy.column_stack(stacks)
 
-            gp.xlabel(axis_labels[xdim])
-            gp.title(title)
-            plots = []
+        gp.xlabel(axis_labels[xdim].description)
+        gp.title(title)
+        plots = []
 
         ndim = table.ndim
         if timing:
@@ -150,7 +177,7 @@ for i,icenter in enumerate(table.bin_centers[idim]):
                                           title="%s CDF" % fit_labels[(plot - ndim - offset)/offset]))
             plots.append(Gnuplot.Data(sample[:,xdim], sample[:,ydim], sample[:,table.ndim],   title="Raw CDF"))
             #plots.append(Gnuplot.Data(sample[:,xdim], sample[:,ydim], sample[:,table.ndim+1],   title="Raw PDF"))
-            gp.ylabel(axis_labels[ydim])
+            gp.ylabel(axis_labels[ydim].description)
             gp.zlabel("CDF")
             gp.splot(*plots)
         else:
