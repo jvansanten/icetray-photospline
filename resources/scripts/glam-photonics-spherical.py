@@ -41,8 +41,14 @@ optparser.add_option("--ice-top", dest="ice_top", type="float",
 (opts, args) = optparser.parse_args()
 
 if len(args) < 1:
-	print(usage)
+	optparser.print_usage()
 	sys.exit(1)
+
+if (not os.path.exists(args[0])):
+	optparser.error("Input table %s doesn't exist!" % args[0])
+
+if os.stat(args[0]).st_size == 0:
+	optparser.error("Input table %s has zero size! Did photomc finish properly?" % args[0])
 
 # by default, do both fits
 if not opts.prob and not opts.abs:
@@ -125,7 +131,7 @@ def construct_knots(nknots = None):
 	
 	# We're fitting the CDF in time, so we need tightly-spaced knots at
 	# early times to be able to represent the potentially steep slope.
-	coreknots[3] = numpy.logspace(-1, numpy.log10(extents[3][1]), nknots[3])
+	coreknots[3] = numpy.logspace(0, numpy.log10(extents[3][1]), nknots[3])
 	coreknots[3] = numpy.concatenate(([0], coreknots[3]))
 	
 	# Now append the extra knots off both ends of the axis in order to
