@@ -163,11 +163,13 @@ for i,icenter in enumerate(table.bin_centers[idim]):
         plots = []
 
         ndim = table.ndim
+        xshift = numpy.zeros(len(sample))
         if timing:
             offset = 2
+            # shift the raw CDF points to the right-hand bin edges
+            xshift[::opts.density] = table.bin_widths[xdim]/2.0
         else:
             offset = 1
-
         if three_d:
             pass
             for plot in range(table.ndim+2,sample.shape[1],2):
@@ -195,7 +197,7 @@ for i,icenter in enumerate(table.bin_centers[idim]):
                     plots.append(Gnuplot.Data(sample[:,xdim],
                                           sample[:,plot+1],
                                           title="%s PDF" % fit_labels[(plot - ndim - offset)/offset], axes='x1y2', with_='lines lc %d' % pcolor))
-            plots.append(Gnuplot.Data(sample[:,xdim], sample[:,ndim],   title="Raw CDF", axes='x1y1', with_='points lc 1', every=opts.density))
+            plots.append(Gnuplot.Data(sample[:,xdim]+xshift, sample[:,ndim],   title="Raw CDF", axes='x1y1', with_='points lc 1', every=opts.density))
             if showpdf:
                 plots.append(Gnuplot.Data(sample[:,xdim], sample[:,ndim+1], title="Raw PDF", axes='x1y2', with_='points lc 3', every=opts.density))
             if timing:
