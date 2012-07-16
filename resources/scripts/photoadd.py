@@ -11,5 +11,5 @@ import sys
 
 infiles, outfile = sys.argv[1:-1], sys.argv[-1]
 
-Table.stack(oufile, *infiles)
+Table.stack(outfile, *infiles)
 
