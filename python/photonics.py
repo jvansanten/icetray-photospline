@@ -17,6 +17,11 @@ class MetaHead(object):
 		self.level  = v[5]
 		self.Photonics_Version = stringify(v[9])
 		
+	def pack(self):
+		v = (self.File_Format_Label, self.File_Format_Revision, 0, self.bitsys,
+		    self.endian, self.level, 0, 0, 0, self.Photonics_Version, "")
+		return self._struct.pack(*v)
+		
 class Header(object):
 	"""
 	Parse a packed representation of Header_type from photonics.h.
@@ -50,7 +55,6 @@ class Header(object):
 		for i in xrange(6):
 			self.maxes.append(v[pos:pos+2])
 			pos += 2
-		print pos
 		self.depth       = v[47]
 		self.d_scale     = v[48]
 		self.t_scale     = v[49]
@@ -59,7 +63,22 @@ class Header(object):
 		self.n_photon    = v[52]
 		self.n_entries   = v[53]
 		self.refraction_mode = v[54]
-
+		
+	def write(self, fh):
+		v = [self.MetaHead.pack(), self.sphere_frac, self.impsampl_Lf, self.impsampl_Tf, 0,
+		    self.ref_np, self.ref_ng, self.record_errors, self.source_type, self.extended_source,
+		    self.step, self.e, self.volume, self.angle]
+		v += list(self.source_rz)
+		v += [self.geo]
+		v += list(self.n)
+		for l in self.limits:
+			v += list(l)
+		for l in self.maxes:
+			v += list(l)
+		v += [self.depth, self.d_scale, self.t_scale, self.lambda_, self.efficiency,
+		    self.n_photon, self.n_entries, self.refraction_mode, 0]
+		fh.write(self._struct.pack(*v))
+		
 class Efficiency:
 	"""Normalization types from photonics.h"""
 	NONE         = 0x00
@@ -100,7 +119,23 @@ class Table(object):
 				self.normalize()
 			except:
 				pass
-	    
+
+	@classmethod
+	def stack(cls, outfile, *fnames):
+		import shutil
+		shutil.copy(fnames[0], outfile)
+		target = cls()
+		target._read_standalone(outfile, mmap=True, mode='r+')
+		for fn in fnames[1:]:
+			piece = cls()
+			piece._read_standalone(fn, mmap=True, mode='r')
+			target.values += piece.values
+			if piece.ph_header.record_errors and target.ph_header.record_errors:
+				target.weights += piece.weights
+			target.ph_header.n_photon += piece.ph_header.n_photon
+		with open(outfile, 'r+') as fh:
+			fh.seek(0)
+			target.ph_header.write(fh)
 
 	# Checks consistency of loaded tables.
 	# For now, only checks shapes of various arrays.
@@ -204,7 +239,7 @@ class Table(object):
 
 		self.header = table[4]
 		
-	def _read_standalone(self, filename, mmap):
+	def _read_standalone(self, filename, mmap, mode='r'):
 		"""
 		Read using standalone implementation.
 		"""
@@ -213,10 +248,10 @@ class Table(object):
 		
 		if header.MetaHead.level == 2:
 			raise ValueError, "I don't know how to read level-2 tables!"
-		self.values = numpy.squeeze(numpy.memmap(filename, shape=header.n, dtype=numpy.float32, offset=Header.size, mode='r'))
+		self.values = numpy.squeeze(numpy.memmap(filename, shape=header.n, dtype=numpy.float32, offset=Header.size, mode=mode))
 		if header.record_errors:
 			offset = Header.size + self.values.itemsize*self.values.size
-			self.weights = numpy.squeeze(numpy.memmap(filename, shape=header.n, dtype=numpy.float32, offset=offset, mode='r'))
+			self.weights = numpy.squeeze(numpy.memmap(filename, shape=header.n, dtype=numpy.float32, offset=offset, mode=mode))
 		else:
 			self.weights = numpy.zeros(self.values.shape, dtype=numpy.float32)
 

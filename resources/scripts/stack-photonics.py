@@ -162,6 +162,8 @@ if __name__ == "__main__":
 			          ]
 			if len(sublist) < (sublist[len(sublist)-1][1] - sublist[0][1]) / options.astep + 1:
 				print "Error: Some azimuth steps are missing in table directory."
+				print "Just stopping at z=%d" % z
+				break
 				sys.exit(1)
 
 		# extend angular range by mirroring next-to-last
