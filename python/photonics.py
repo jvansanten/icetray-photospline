@@ -26,7 +26,7 @@ class Header(object):
 	"""
 	Parse a packed representation of Header_type from photonics.h.
 	"""
-	_struct = struct.Struct('<100s6f3i6f7i25f2i1f1i2l2i')
+	_struct = struct.Struct('<100s6f3i6f7i25f2i1f1i2q2i')
 	size = _struct.size
 	def __init__(self, fh):
 		v = self._struct.unpack(fh.read(self.size))
@@ -78,6 +78,8 @@ class Header(object):
 		v += [self.depth, self.d_scale, self.t_scale, self.lambda_, self.efficiency,
 		    self.n_photon, self.n_entries, self.refraction_mode, 0]
 		fh.write(self._struct.pack(*v))
+
+assert(Header.size == 328)
 		
 class Efficiency:
 	"""Normalization types from photonics.h"""
