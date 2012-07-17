@@ -95,7 +95,7 @@ def read(path):
 	except KeyError:
 		pass
 	try:
-		table.level = data.header['GEOTYPE']
+		table.geotype = data.header['GEOTYPE']
 	except KeyError:
 		pass
 	try:
