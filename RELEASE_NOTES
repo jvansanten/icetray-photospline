@@ -3,6 +3,35 @@
 # $Date$
 #
 
+September 11, 2012 Emanuel Jacobi  (emanuel.jacobi@desy.de)
+--------------------------------------------------------------------
+Release V00-05-00
+
+- Make plots look nicer, with colors, correct axes, ...
+- Reformulate the entry to the outer loop of BLOCK3 to avoid spurious
+  early termination.
+    In the previous version of the initilization, we started by solving
+    the unconstrained problem and projecting the solution into the x>=0
+    space. The first operation in the other loop is to check the Lagrange
+    multipliers associated with the constrained coefficients and free any
+    whose nonzeroness would reduce the residual. In certain cases where a
+    very small penalty term was used, it could happen that all elements of y
+    were nonnegative, causing the outer loop to terminate with a truncated
+    solution that did not correspond to the minimum in the subspace of
+    the free coefficients. Starting with the null vector instead of the
+    truncated solution to the unconstrained problem keeps the state of the
+    factorization consistent with the rest of the outer loop, and makes this
+    behavior go away.
+- Shift time knots to start from 1 ns instead of 0.1 ns
+- Replace photoadd with something that actually works.
+- Fix an off-by-2 bug in standalone reader.
+  -- Jakob van Santen
+
+- Fixed small bug in reading spline header in python. Now, spline.geotype
+  actually returns the geotype, and spline.level actually returns the level
+  -- Jake Feintzeig
+
+
 June 25, 2012 Emanuel Jacobi  (emanuel.jacobi@desy.de)
 --------------------------------------------------------------------
 Release V00-04-00
