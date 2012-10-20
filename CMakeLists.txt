@@ -68,33 +68,6 @@ i3_test_executable(test
 
 include(CheckIncludeFile)
 
-if (NUMPY_FOUND AND PHOTONICS_FOUND)
-	CHECK_INCLUDE_FILE(level2_reader.h HAVE_LEVEL2_READER_H)
-
-	if (NOT HAVE_LEVEL2_READER_H)
-		set(PHOTO2NUMPY_FLAGS -DSKIP_LEVEL2)
-	endif (NOT HAVE_LEVEL2_READER_H)
-
-	i3_add_library(photo2numpy
-		private/photo2numpy/photo2numpy.c
-		COMPILE_FLAGS ${PHOTO2NUMPY_FLAGS}
-		USE_TOOLS photonics python numpy
-		INSTALL_DESTINATION lib/icecube/photospline
-		NOT_INSPECTABLE
-		MODULE
-	)
-	add_custom_command(TARGET photo2numpy
-		PRE_LINK
-		COMMAND mkdir -p ${CMAKE_BINARY_DIR}/lib/icecube/photospline
-	)
-	set_target_properties(photo2numpy PROPERTIES
-		PREFIX ""
-		OUTPUT_NAME photo2numpy
-		LIBRARY_OUTPUT_DIRECTORY
-		${LIBRARY_OUTPUT_PATH}/icecube/photospline
-	)
-endif (NUMPY_FOUND AND PHOTONICS_FOUND)
-
 if(NUMPY_FOUND AND BLAS_FOUND AND LAPACK_FOUND AND SUITESPARSE_FOUND)
 	i3_add_library(spglam
 		private/cfitter/cholesky_solve.c private/cfitter/glam.c

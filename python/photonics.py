@@ -208,39 +208,6 @@ class Table(object):
 		else:
 			return True
 			
-	def _read_photo2numpy(self, filename, mmap):
-		"""
-		Read using the Photonics library.
-		"""
-		
-		from .. import photo2numpy
-		
-		if mmap:
-			warnings.warn("Memory-mapped tables are single-precision. You have been warned.");
-			self.filename = filename
-		try:
-			table = photo2numpy.readl1(filename, mmap)
-			self.level = 1
-		except ValueError, inst:
-			try:
-				table = photo2numpy.readl2(filename)
-				self.level = 2
-			except ValueError, inst:
-				print inst
-				return 0
-
-		self.values = table[0]
-
-		if table[1] == None:
-			self.weights = numpy.ones(self.values.shape)
-		else:
-			self.weights = table[1]
-
-		self.bin_centers = list(table[2])
-		self.bin_widths  = list(table[3])
-
-		self.header = table[4]
-		
 	def _read_standalone(self, filename, mmap, mode='r'):
 		"""
 		Read using standalone implementation.
@@ -303,12 +270,9 @@ class Table(object):
 			'n_phase'   : header.ref_np,
 		}
 
-	def open_file(self, filename, convert=False, mmap=False, photo2numpy=False):
+	def open_file(self, filename, convert=False, mmap=False):
 		
-		if photo2numpy:
-			self._read_photo2numpy(filename, mmap)
-		else:
-			self._read_standalone(filename, mmap)
+		self._read_standalone(filename, mmap)
 
 		# Level 2 tables get an extra, random element here for
 		# some reason
