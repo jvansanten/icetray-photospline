@@ -24,7 +24,7 @@ splinetable_convolve(struct splinetable *table, const int dim, double *knots,
 {
 	double *rho, *rho_scratch, **trafo, norm;
 	float *coefficients;
-	size_t n_rho, arraysize, n_slices;
+	size_t n_rho, arraysize;
 	unsigned long *strides;
 	long *naxes;
 	unsigned convorder;
@@ -64,7 +64,6 @@ splinetable_convolve(struct splinetable *table, const int dim, double *knots,
 		if (i > 0)
 			strides[i-1] = arraysize;
 	}
-	n_slices = arraysize/naxes[dim];
 	
 	/*
 	 * Now, calculate a transformation from coefficients on the raw knot 

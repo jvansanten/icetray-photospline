@@ -615,7 +615,7 @@ submatrix_symm(cholmod_sparse *A, long *rows, long nrows,
 {
 	cholmod_sparse *C;
 	int i, j, pend, pstart, last;
-	long *Ap, *Ai, *Anz, *Cp, *Ci, *Cnz;
+	long *Ap, *Ai, *Anz, *Cp, *Ci;
 	double *Ax, *Cx;
 	long *cnz, *irows, *icols;
 	int *ccol_start, *ccol_stop;
@@ -693,7 +693,6 @@ submatrix_symm(cholmod_sparse *A, long *rows, long nrows,
 
 	Cp = (long*)(C->p);
 	Ci = (long*)(C->i);
-	Cnz = (long*)(C->nz);
 	Cx  = (double*)(C->x);
 
 	Cp[0] = 0;
@@ -911,9 +910,9 @@ walk_descents(cholmod_sparse *AtA_F,
 	long nF, nH1;
 	clock_t t0, t1;
 
-	double *alpha, res;
+	double *alpha, res=NAN;
 	int n_alpha, n_threads, n_blocks, success, feasible;
-	int i, j, k;
+	int i, j=-2, k;
 	pthread_t *threads;
 	pthread_attr_t thread_attr;
 	descent_trial *descent_trials;

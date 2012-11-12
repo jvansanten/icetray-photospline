@@ -16,13 +16,16 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
     double (* proposal)(void*), double (* proposal_pdf)(double, double, void*),
     void* proposal_info, const gsl_rng *rng)
 {
-	int i, accepted;
+	int i;
 	int centers[table->ndim];
 	double val, lastval;
 	double lastlogpdf, logpdf;
 	double lastproppdf, proppdf;
 	double odds;
 	double mint, maxt;
+        #ifdef DEBUG
+	        int accepted=0;
+        #endif
 
 	/* Find the boundaries by choosing the first and last points
 	 * with full support */
@@ -44,7 +47,6 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 		if (derivatives)
 			lastlogpdf += log(ndsplineeval(table, coords, centers,
 			    derivatives));
-		accepted = 0;
 	} while (isnan(lastlogpdf) || lastval < mint || lastval > maxt);
 
 	for (i = -burnin; i/burnin < results; i++) {
@@ -98,13 +100,16 @@ void splinepdf_n_sample(double *result, int results, int burnin,
     double (* proposal)(void*), double (* proposal_pdf)(double, double, void*),
     void *proposal_info, const gsl_rng *rng)
 {
-	int i, accepted;
+	int i;
 	int centers[table->ndim];
 	double val, lastval;
 	double lastpdf, pdf;
 	double lastproppdf, proppdf;
 	double odds;
 	double mint, maxt;
+        #ifdef DEBUG
+	        int accepted=0;
+        #endif
 
 	/* Find the boundaries by choosing the first and last points
 	 * with full support */
@@ -119,7 +124,6 @@ void splinepdf_n_sample(double *result, int results, int burnin,
 	lastproppdf = (*proposal_pdf)(lastval,lastval,proposal_info);
 	tablesearchcenters(table, coords, centers);
 	lastpdf = ndsplineeval(table, coords, centers, derivatives);
-	accepted = 0;
 
 	for (i = -burnin; i/burnin < results; i++) {
 		coords[dim] = val = (*proposal)(proposal_info);
