@@ -23,9 +23,9 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 	double lastproppdf, proppdf;
 	double odds;
 	double mint, maxt;
-        #ifdef DEBUG
-	        int accepted=0;
-        #endif
+#ifdef DEBUG
+	int accepted=0;
+#endif
 
 	/* Find the boundaries by choosing the first and last points
 	 * with full support */
@@ -73,9 +73,9 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 			lastval = val;
 			lastlogpdf = logpdf;
 			lastproppdf = proppdf;
-			#ifdef DEBUG
-				accepted++;
-			#endif
+		#ifdef DEBUG
+			accepted++;
+		#endif
 		}
 
 		/*
@@ -90,9 +90,9 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 		if (i >= 0 && (i % burnin) == 0)
 			result[i/burnin] = lastval;
 	}
-	#ifdef DEBUG
-		printf("Efficiency: %e\n", (double)(accepted)/(double)(i));
-	#endif
+#ifdef DEBUG
+	printf("Efficiency: %e\n", (double)(accepted)/(double)(i));
+#endif
 }
 
 void splinepdf_n_sample(double *result, int results, int burnin,
@@ -107,9 +107,9 @@ void splinepdf_n_sample(double *result, int results, int burnin,
 	double lastproppdf, proppdf;
 	double odds;
 	double mint, maxt;
-        #ifdef DEBUG
-	        int accepted=0;
-        #endif
+#ifdef DEBUG
+	int accepted=0;
+#endif
 
 	/* Find the boundaries by choosing the first and last points
 	 * with full support */
