@@ -63,7 +63,7 @@ SET_SOURCE_FILES_PROPERTIES(
 i3_test_executable(test 
 	private/test/*.cxx
 	USE_TOOLS boost log4cplus
-	USE_PROJECTS photospline
+	USE_PROJECTS photospline icetray
 )
 
 include(CheckIncludeFile)
