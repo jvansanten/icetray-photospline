@@ -46,7 +46,7 @@ void bspline_deriv_nonzero(const double *knots, const unsigned nknots,
  * that is non-zero at the position x.
  */
 
-double splineeval(double *knots, double *weights, int nknots, double x,
+double splineeval(const double *knots, const double *weights, int nknots, double x,
     int order, int center);
 
 /*
@@ -59,19 +59,19 @@ double splineeval(double *knots, double *weights, int nknots, double x,
  * was produced, a more efficient method may be available.
  */
 
-int tablesearchcenters(struct splinetable *table, double *x, int *centers);
+int tablesearchcenters(const struct splinetable *table, const double *x, int *centers);
 
-double ndsplineeval(struct splinetable *table, const double *x, 
+double ndsplineeval(const struct splinetable *table, const double *x, 
     const int *centers, int derivatives);
-double ndsplineeval_linalg(struct splinetable *table, const double *x, 
+double ndsplineeval_linalg(const struct splinetable *table, const double *x, 
     const int *centers, int derivatives);
 
-double ndsplineeval_deriv2(struct splinetable *table, const double *x, 
+double ndsplineeval_deriv2(const struct splinetable *table, const double *x, 
     const int *centers, int derivatives);
 
 /* Evaluate a spline surface and all its derivatives at x */
 
-void ndsplineeval_gradient(struct splinetable *table, const double *x,
+void ndsplineeval_gradient(const struct splinetable *table, const double *x,
     const int *centers, double *evaluates);
 
 /*
@@ -82,7 +82,7 @@ void ndsplineeval_gradient(struct splinetable *table, const double *x,
  * defined on two knots) will raise the order of the spline surface by 1.
  */
 int splinetable_convolve(struct splinetable *table, const int dim,
-    double *knots, size_t n_knots);
+    const double *knots, size_t n_knots);
 
 
 #endif /* _BSPLINE_H */

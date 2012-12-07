@@ -275,7 +275,7 @@ bspline_deriv_2(const double *knots, double x, int i, int n)
  */
 
 double
-splineeval(double *knots, double *weights, int nknots, double x, int order,
+splineeval(const double *knots, const double *weights, int nknots, double x, int order,
     int center)
 {
 	double work = 0.0;
@@ -305,7 +305,7 @@ splineeval(double *knots, double *weights, int nknots, double x, int order,
 }
 
 int
-tablesearchcenters(struct splinetable *table, double *x, int *centers)
+tablesearchcenters(const struct splinetable *table, const double *x, int *centers)
 {
 	int i, min, max;
 
@@ -377,7 +377,7 @@ maxorder(int *order, int ndim)
  */
 
 static double
-ndsplineeval_core(struct splinetable *table, const int *centers, int maxdegree,
+ndsplineeval_core(const struct splinetable *table, const int *centers, int maxdegree,
     float localbasis[table->ndim][maxdegree])
 {
 	int i, j, n, tablepos;
@@ -432,7 +432,7 @@ ndsplineeval_core(struct splinetable *table, const int *centers, int maxdegree,
 }
 
 double
-ndsplineeval(struct splinetable *table, const double *x, const int *centers,
+ndsplineeval(const struct splinetable *table, const double *x, const int *centers,
     int derivatives)
 {
 	int n;
@@ -455,7 +455,7 @@ ndsplineeval(struct splinetable *table, const double *x, const int *centers,
 }
 
 double
-ndsplineeval_deriv2(struct splinetable *table, const double *x,
+ndsplineeval_deriv2(const struct splinetable *table, const double *x,
     const int *centers, int derivatives)
 {
 	int i, n;
@@ -479,7 +479,7 @@ ndsplineeval_deriv2(struct splinetable *table, const double *x,
 }
 
 double
-ndsplineeval_linalg(struct splinetable *table, const double *x,
+ndsplineeval_linalg(const struct splinetable *table, const double *x,
     const int *centers, int derivatives)
 {
 	int totalcoeff, n;

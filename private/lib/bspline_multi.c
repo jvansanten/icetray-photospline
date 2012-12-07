@@ -194,7 +194,7 @@ bspline_nonzero(const double *knots, const unsigned nknots,
 /* Evaluate the spline surface and all its derivatives at x */
 
 void
-ndsplineeval_gradient(struct splinetable *table, const double *x,
+ndsplineeval_gradient(const struct splinetable *table, const double *x,
     const int *centers, double evaluates[table->ndim + 1])
 {
 	int n, i, j; /* , offset; */

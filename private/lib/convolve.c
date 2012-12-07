@@ -12,14 +12,14 @@
 
 #include "photospline/bspline.h"
 
-static double divdiff(double *x, double *y, size_t n);
+static double divdiff(const double *x, const double *y, size_t n);
 static int factorial(int n);
 static int double_cmp(const void *xa, const void *xb);
-static double convoluted_blossom(double *x, size_t nx, double *y, size_t ny, 
-    double z, double *bags, size_t nbags);
+static double convoluted_blossom(const double *x, size_t nx, const double *y, size_t ny, 
+    double z, const double *bags, size_t nbags);
 
 int
-splinetable_convolve(struct splinetable *table, const int dim, double *knots,
+splinetable_convolve(struct splinetable *table, const int dim, const double *knots,
     size_t n_knots)
 {
 	double *rho, *rho_scratch, **trafo, norm;
@@ -178,8 +178,8 @@ splinetable_convolve(struct splinetable *table, const int dim, double *knots,
  * it's simply not worth the headache.
  */ 
 static double
-convoluted_blossom(double *x, size_t nx, double *y, size_t ny, double z,
-    double *bags, size_t nbags)
+convoluted_blossom(const double *x, size_t nx, const double *y, size_t ny, double z,
+    const double *bags, size_t nbags)
 {
 	double scale, fun_x[nx], fun_y[ny];
 	int i, j, k;
@@ -204,7 +204,7 @@ convoluted_blossom(double *x, size_t nx, double *y, size_t ny, double z,
 }
 
 static double
-divdiff(double *x, double *y, size_t n)
+divdiff(const double *x, const double *y, size_t n)
 {
 	if (n == 1)
 		return y[0];
