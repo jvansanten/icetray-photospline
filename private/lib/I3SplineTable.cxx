@@ -9,6 +9,8 @@ I3SplineTable::I3SplineTable(const std::string &path)
 {
 	if (readsplinefitstable(path.c_str(), &table_) != 0)
 		throw std::runtime_error("Couldn't read spline table " + path);
+	if (splinetable_read_key(&table_, SPLINETABLE_DOUBLE, "BIAS", &bias_))
+		bias_ = 0;
 }
 
 I3SplineTable::~I3SplineTable()
@@ -17,7 +19,7 @@ I3SplineTable::~I3SplineTable()
 }
 
 int
-I3SplineTable::Eval(double *coordinates, double *result)
+I3SplineTable::Eval(double *coordinates, double *result) const
 {
 	int centers[table_.ndim];
 	
@@ -25,6 +27,8 @@ I3SplineTable::Eval(double *coordinates, double *result)
 		*result = ndsplineeval(&table_, coordinates, centers, 0);
 	else
 		return EINVAL;
+	
+	*result -= bias_;
 	
 	return 0;
 }
