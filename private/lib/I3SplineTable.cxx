@@ -33,3 +33,13 @@ I3SplineTable::Eval(double *coordinates, double *result) const
 	return 0;
 }
 
+std::pair<double, double>
+I3SplineTable::GetExtents(int dim) const
+{
+	if (dim < 0 || dim >= table_.ndim)
+		throw std::out_of_range("Dimension index out of range");
+	return std::make_pair(table_.extents[dim][0], table_.extents[dim][1]);
+}
+
+
+

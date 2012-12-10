@@ -15,6 +15,8 @@ public:
 
 	int Eval(double *x, double *result) const;
 
+	unsigned GetNDim() const { return table_.ndim; };
+	std::pair<double, double> GetExtents(int dim) const;
 private:
 	struct splinetable table_;
 	double bias_;
