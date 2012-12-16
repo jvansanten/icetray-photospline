@@ -102,8 +102,6 @@ splinetable_convolve(struct splinetable *table, const int dim, const double *kno
 	
 	coefficients = calloc(sizeof(float), arraysize);
 	
-	/* You are not meant to understand the following. */
-	/* You know that high-concept horror movie "Cube"? This is _hyper_cube. */
 	stride1 = stride2 = 1;
 	for (i = 0; i < table->ndim; i++) {
 		if (i < dim)	
@@ -112,6 +110,10 @@ splinetable_convolve(struct splinetable *table, const int dim, const double *kno
 			stride2 *= naxes[i];
 	}
 
+	/* 
+	 * Multiply each vector of coefficients along dimension *dim*
+	 * by the transformation matrix.
+	 */
 	for (i = 0; i < stride1; i++)
 	  for (j = 0; j < naxes[dim]; j++)
 	    for (l = 0; l < table->naxes[dim]; l++)
