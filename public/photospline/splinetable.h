@@ -20,12 +20,24 @@ struct splinetable {
 	char ***aux;
 };
 
+struct splinetable_buffer {
+	void *data;
+	size_t size;
+	void *(*mem_alloc)(size_t newsize);
+	void *(*mem_realloc)(void *p, size_t newsize);
+};
+
 typedef enum {
 	SPLINETABLE_INT,
 	SPLINETABLE_DOUBLE
 } splinetable_dtype;
 
 int readsplinefitstable(const char *path, struct splinetable *table);
+int readsplinefitstable_mem(struct splinetable_buffer *buffer,
+    struct splinetable *table);
+int writesplinefitstable(const char *path, const struct splinetable *table);
+int writesplinefitstable_mem(struct splinetable_buffer *buffer,
+    const struct splinetable *table);
 void splinetable_free(struct splinetable *table);
 char * splinetable_get_key(struct splinetable *table, const char *key);
 int splinetable_read_key(struct splinetable *table, splinetable_dtype type,

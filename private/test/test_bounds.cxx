@@ -54,8 +54,69 @@ load_splinetable(fs::path &fname)
 	return table;
 }
 
+static void
+compare_tables(struct splinetable *oldtable, struct splinetable *newtable)
+{
+	ENSURE_EQUAL(oldtable->ndim, newtable->ndim, "Number of dimensions match");
+	size_t arraysize = 1;
+	for (int i=0; i < oldtable->ndim; i++) {
+		ENSURE_EQUAL(oldtable->naxes[i], newtable->naxes[i], "Coefficient array sizes match");
+		arraysize *= oldtable->naxes[i];
+		ENSURE_EQUAL(oldtable->order[i], newtable->order[i], "Spline orders match");
+		ENSURE_EQUAL(oldtable->periods[i], newtable->periods[i], "Spline periods match");
+		ENSURE_EQUAL(oldtable->nknots[i], newtable->nknots[i], "Size of knot vectors match");
+		for (int j=0; j < oldtable->nknots[i]; j++)
+			ENSURE_EQUAL(oldtable->knots[i][j], newtable->knots[i][j], "Knot positions match");
+		ENSURE_EQUAL(oldtable->extents[i][0], newtable->extents[i][0], "Lower extents match");
+		ENSURE_EQUAL(oldtable->extents[i][1], newtable->extents[i][1], "Upper extents match");
+	}
+	
+	for (size_t i=0; i < arraysize; i++)
+		ENSURE_EQUAL(oldtable->coefficients[i], newtable->coefficients[i], "Coefficients match");
+	
+	ENSURE_EQUAL(oldtable->naux, newtable->naux, "Number of auxiliary keywords match");
+	for (int i=0; i < oldtable->naux; i++) {
+		ENSURE_EQUAL(std::string(oldtable->aux[i][0]), std::string(newtable->aux[i][0]), "Keys match");
+		ENSURE_EQUAL(std::string(oldtable->aux[i][1]), std::string(newtable->aux[i][1]), "Values match");
+	}
+}
+
 
 TEST_GROUP(BoundaryIssues);
+
+TEST(DiskFile)
+{
+	TableSet tables = get_splinetables();
+	boost::shared_ptr<struct splinetable> oldtable = load_splinetable(tables.abs);
+	
+	fs::path tmp("photospline-write-test.fits");
+	if (fs::exists(tmp))
+		fs::remove(tmp);
+	ENSURE_EQUAL(writesplinefitstable(tmp.string().c_str(), oldtable.get()), 0, "Table can be written");
+	
+	boost::shared_ptr<struct splinetable> newtable = load_splinetable(tmp);
+	
+	compare_tables(oldtable.get(), newtable.get());
+	
+	fs::remove(tmp);
+}
+
+TEST(MemoryFile)
+{
+	TableSet tables = get_splinetables();
+	boost::shared_ptr<struct splinetable> oldtable = load_splinetable(tables.abs);
+	
+	struct splinetable_buffer buf;
+	buf.mem_alloc = &malloc;
+	buf.mem_realloc = &realloc;
+	ENSURE_EQUAL(writesplinefitstable_mem(&buf, oldtable.get()), 0, "Table can be written");
+	
+	boost::shared_ptr<struct splinetable> newtable(new struct splinetable, splinetable_destructor);
+	ENSURE_EQUAL(readsplinefitstable_mem(&buf, newtable.get()), 0, "Table can be read.");
+	free(buf.data);
+	
+	compare_tables(oldtable.get(), newtable.get());
+}
 
 /*
  * Check that analytic convolution works and preserves the monotonicity

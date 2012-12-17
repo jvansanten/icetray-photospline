@@ -24,6 +24,7 @@
 #include "photospline/splinetable.h"
 
 static int parsefitstable(fitsfile *fits, struct splinetable *table);
+static int fillfitstable(fitsfile *fits, const struct splinetable *table);
 
 int
 readsplinefitstable(const char *path, struct splinetable *table)
@@ -41,6 +42,67 @@ readsplinefitstable(const char *path, struct splinetable *table)
 	fits_close_file(fits, &error);
 	fits_report_error(stderr, error);
 
+	return (error);
+}
+
+int
+readsplinefitstable_mem(struct splinetable_buffer *buf,
+    struct splinetable *table)
+{
+	fitsfile *fits;
+	int error = 0;
+
+	memset(table, 0, sizeof(struct splinetable));
+
+	fits_open_memfile(&fits, "", READONLY, &buf->data, &buf->size,
+	    0, NULL, &error);
+	if (error != 0)
+		return (error);
+
+	error = parsefitstable(fits, table);
+	fits_close_file(fits, &error);
+	fits_report_error(stderr, error);
+
+	return (error);
+}
+
+int
+writesplinefitstable(const char *path, const struct splinetable *table)
+{
+	fitsfile *fits;
+	int error = 0;
+	
+	fits_create_diskfile(&fits, path, &error);
+	if (error != 0)
+		return (error);
+	
+	error = fillfitstable(fits, table);
+	fits_close_file(fits, &error);
+	fits_report_error(stderr, error);
+	
+	return (error);
+}
+
+int
+writesplinefitstable_mem(struct splinetable_buffer *buf,
+    const struct splinetable *table)
+{
+	fitsfile *fits;
+	int error = 0;
+	
+	buf->size = 2880;
+	buf->data = buf->mem_alloc(buf->size);
+	if (!buf->data)
+		return (ENOMEM);
+	fits_create_memfile(&fits, &buf->data, &buf->size, 0u,
+	    buf->mem_realloc, &error);
+	if (error != 0)
+		return (error);
+	
+	error = fillfitstable(fits, table);
+	fits_close_file(fits, &error);
+	fits_report_error(stderr, error);
+	
 	return (error);
 }
 
@@ -80,6 +142,117 @@ void splinetable_free(struct splinetable *table)
 		free(table->extents[0]);
 		free(table->extents);
 	}
+}
+
+static int
+fillfitstable(fitsfile *fits, const struct splinetable *table)
+{
+	int error = 0;
+	int i;
+	
+	/*
+	 * Create the coefficient array with transposed axis
+	 * counts, like PyFITS does.
+	 */
+	{
+		long *naxes = malloc(sizeof(long)*table->ndim);
+		for (i = 0; i < table->ndim; i++)
+			naxes[i] = table->naxes[table->ndim - i - 1];
+		
+		fits_create_img(fits, FLOAT_IMG, table->ndim, naxes, &error);
+		free(naxes);
+		
+		if (error != 0)
+			return (error);
+	}
+	
+	/*
+	 * Write coefficient array
+	 */
+	{
+		long *fpixel = malloc(sizeof(long)*table->ndim);
+		long arraysize = 1;
+		for (i = 0; i < table->ndim; i++) {
+			fpixel[i] = 1;
+			arraysize *= table->naxes[i];
+		}
+		
+		fits_write_pix(fits, TFLOAT, fpixel, arraysize,
+		    table->coefficients, &error);
+		free(fpixel);
+		
+		if (error != 0)
+			return (error);
+	}
+	
+	/*
+	 * Write required splinetable keywords
+	 */
+	for (i = 0; i < table->ndim; i++) {
+		char name[255];
+		sprintf(name,"ORDER%d",i);
+		fits_write_key(fits, TINT, name, &table->order[i],
+		    NULL, &error);
+		if (error != 0)
+			return (error);
+		sprintf(name,"PERIOD%d",i);
+		fits_write_key(fits, TINT, name, &table->periods[i],
+		    NULL, &error);
+		if (error != 0)
+			return (error);
+	}
+	
+	/*
+	 * Auxiliary keywords have no imposed type, and were read in as raw records.
+	 * Write them back the same way.
+	 */
+	for (i = 0; i < table->naux; i++) {
+		char card[FLEN_CARD];
+		snprintf(card, FLEN_CARD, "%-8s= %s", table->aux[i][0], table->aux[i][1]);
+		fits_write_record(fits, card, &error);
+		if (error != 0)
+			return (error);
+	}
+	
+	/*
+	 * Write each of the knot vectors in an extension HDU
+	 */
+	for (i = 0; i < table->ndim; i++) {
+		char name[255];
+		long fpixel = 1;
+		sprintf(name,"KNOTS%d",i);
+		fits_create_img(fits, DOUBLE_IMG, 1, &table->nknots[i], &error);
+		if (error != 0)
+			return (error);
+		fits_write_key(fits, TSTRING, "EXTNAME", name,
+		    NULL, &error);
+		if (error != 0)
+			return (error);
+		fits_write_pix(fits, TDOUBLE, &fpixel, table->nknots[i],
+		    table->knots[i], &error);
+		if (error != 0)
+			return (error);
+	}
+	
+	/*
+	 * Write the boundaries of support to an extension HDU
+	 */
+	{
+		long fpixel = 1;
+		long nextents = 2*table->ndim;
+		fits_create_img(fits, DOUBLE_IMG, 1, &nextents, &error);
+		if (error != 0)
+			return (error);
+		fits_write_key(fits, TSTRING, "EXTNAME", "EXTENTS", NULL, &error);
+		if (error != 0)
+			return (error);
+		fits_write_pix(fits, TDOUBLE, &fpixel, nextents,
+		    table->extents[0], &error);
+		if (error != 0)
+			return (error);
+	}
+	
+	return (error);
 }
 
 static int
@@ -125,8 +298,11 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 			if (strncmp("TYPE", key, 4) == 0 ||
 			    strncmp("ORDER", key, 5) == 0 || 
 			    strncmp("NAXIS", key, 5) == 0 ||
+			    strncmp("BITPIX", key, 6) == 0 ||
+			    strncmp("SIMPLE", key, 6) == 0 ||
 			    strncmp("PERIOD", key, 6) == 0 ||
-			    strncmp("EXTEND", key, 6) == 0)
+			    strncmp("EXTEND", key, 6) == 0 ||
+			    strncmp("COMMENT", key, 7) == 0)
 				continue;
 
 			keylen = strlen(key) + 1;
