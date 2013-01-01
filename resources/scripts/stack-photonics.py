@@ -19,16 +19,15 @@ def stack_tables(tablist, order = 2):
 
 		slice.coefficients = slice.coefficients.reshape( \
 		    slice.coefficients.shape + (1,))
-		knotloc = position + 0.5*(order - 1.0)
 		ndim = slice.coefficients.ndim
 
 		if bigtab is None:
 			bigtab = slice
-			bigtab.knots.append([knotloc])
+			bigtab.knots.append([position])
 			bigtab.periods.append(0)
 			bigtab.order.append(order)
 		else:
-			bigtab.knots[ndim - 1].append(knotloc)
+			bigtab.knots[ndim - 1].append(position)
 			bigtab.coefficients = numpy.concatenate(
 			    (bigtab.coefficients, slice.coefficients),
 			    ndim - 1)
