@@ -3,6 +3,14 @@ import pyfits
 import numpy
 
 def write(table,path):
+	"""
+	Write a SplineTable to disk as a FITS file.
+	
+	:param table: the SplineTable to be written
+	:param path: where to save the FITS file.
+	
+	.. warning:: pyfits will fail to write the file if it already exists.
+	"""
 	data = pyfits.PrimaryHDU(table.coefficients)
 	data.header.update('TYPE','Spline Coefficient Table')
 
@@ -46,6 +54,13 @@ def write(table,path):
 	hdulist.writeto(path)
 
 def read(path):
+	"""
+	Read a SplineTable from a FITS file on disk
+	
+	:param path: the filesystem path to read from
+	:returns: SplineTable - the spline surface stored in the given file
+	"""
+	
 	file = pyfits.open(path)
 	table = splinetable.SplineTable()
 
