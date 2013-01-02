@@ -21,6 +21,15 @@ def pbspline(knots, x, i, n, period):
 	return a+b
 
 def bspline(knots, x, i, n):
+	"""
+	Evaluate the ith nth-order B-spline basis function at x.
+	
+	:param knots: a sequence of knot positions
+	:param x: the position at which to evaluate the spline
+	:param i: the index of the basis function
+	:param n: the order of the spline
+	:returns: float - the value of the spline at x
+	"""
 	if n == 0:
 		if (x >= knots[i] and x < knots[i+1]):
 			return 1.
@@ -32,7 +41,14 @@ def bspline(knots, x, i, n):
 	return a+b
 	
 def bspline_nonzero(knots, x, n):
-	"""Calculate the value of the possibly non-zero b-splines at x"""
+	"""
+	Evaluate the possibly non-zero B-splines at x.
+	
+	:param knots: a sequence of knot positions
+	:param x: the position at which to evaluate the splines
+	:param n: the order of spline
+	:returns: ndarray - all non-zero B-splines evaluated at x
+	"""
 	left = numpy.digitize([x], knots)[0] - 1
 	print len(knots), left
 	jhigh = n + 1
@@ -98,9 +114,11 @@ def bspline_deriv_nonzero(knots, x, n):
 	return biatx
 	
 def bsplvb(knots, x, left, jlow, jhigh, biatx, delta_l, delta_r):
-	"""Braindead reimplementation of de Boor's BSPLVB
+	"""
+	Braindead reimplementation of de Boor's BSPLVB
 	(an algorithm for generating the non-zero B-splines from the bottom up
-	without unnecessarily re-calculating terms)"""
+	without unnecessarily re-calculating terms)
+	"""
 	
 	if jlow == 0:
 		biatx[0] = 1.0

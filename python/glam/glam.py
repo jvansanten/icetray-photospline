@@ -34,6 +34,53 @@ def rho(A,B,p):
 
 def fit(z,w,coords,knots,order,smooth,
 		periods=None,penalties={2:None},bases=None,iterations=1,monodim=None,dump=False):
+	"""
+	Fit gridded data to a B-spline surface.
+	
+	:param z: An ndarray containing the data to be fit
+	:param w: An ndarray of weights for each data point. If you don't
+	          want to weight the data points differently from each
+	          other, use uniform weights (e.g. numpy.ones(z.shape)).
+	:param coords: A list of coordinate axes giving the location of
+	               the data points in each dimension. Each coordinate
+	               axis must have the same length as the corresponding
+	               dimension in *z*.
+	:param knots: A sequence of knot vectors, each giving the location
+	              of the B-spline knots in the cooresponding dimension.
+	:param order: The order of the B-spline surface. If this is a single
+	              integer the order will be the same for all dimensions;
+	              you can also pass a list of integers to specify the
+	              order to use in each dimension individually.
+	:param smooth: The global smoothing parameter :math:`\lambda`. This
+	               will be used only if no dimension-specific smoothing
+	               is specified in *penalties*.
+	:param periods: A list of floats, each giving the periodicity of
+	                the corresponding dimension. If the periodicity is
+	                nonzero, the fit will use a periodic B-spline
+	                basis in that dimension where the ends are identical
+	                by construction. This functionality is only
+	                implemented in *glam*; *spglam* will silently ignore
+	                the periodicity of the basis.
+	:param penalties: A dictionary giving the penalty term to apply
+	                  along each dimension. Each key-value pair
+	                  specifies an order of penalty and the coefficient
+	                  of that penalty order in each dimension. For
+	                  example, to apply second-order penalties in the
+	                  first three dimensions and a third-order penalty
+	                  in the fourth (all with :math:`\lambda=1`), you
+	                  would pass ``{2:[1,1,1,0], 3:[0,0,0,1]}``. If the
+	                  coefficient list is ``None`` (as it is by default),
+	                  the :math:`\lambda` specified by *smooth* will be
+	                  used for all dimensions.
+	:param monodim: If set to a non-negative integer, the spline surface
+	                will be forced to be monotonic along the corresponding
+	                dimension.
+	                
+	                .. note:: This involves solving a non-negative least \
+	                   squares problem, and is thus significantly slower \
+	                   than an unconstrained fit.
+	:returns: SplineTable - the fit result
+	"""
 	ndim=z.ndim
 
 	table = splinetable.SplineTable()
@@ -250,6 +297,21 @@ def monotonize(table,monodim=0):
 	return table
 
 def grideval(table, coords, bases=None):
+	"""
+	Evaluate a spline surface on a coordinate grid
+	
+	:param table: The spline surface to be evaluated
+	:param coords: A sequence of coordinate axes, one
+	               for each dimension in the spline table.
+	:returns: an array of values, one for point in the tensor
+	          product of the supplied axes 
+	>>> spline.coefficients.ndim
+	2
+	>>> grideval(spline, [[0, 0.5, 1.0], [0.5, 1.0]])
+	array([[ 1482.110672  ,  4529.49084473],
+	       [ 1517.94447213,  4130.34708567],
+	       [ 1506.64602055,  3425.31209966]])
+	"""
 	results = table.coefficients
 	order = numpy.asarray(table.order,dtype=long)
 	if order.size == 1:
