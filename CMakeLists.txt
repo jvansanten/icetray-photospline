@@ -4,6 +4,7 @@
 
 i3_project(photospline
 	PYTHON_DIR python
+        DOCS_DIR resources/docs
 )
 
 i3_add_library(photospline
