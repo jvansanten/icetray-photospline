@@ -211,6 +211,7 @@ Spline table I/O and manipulation
 		       file is stored, and ``size`` should give its size.
 		       ``mem_alloc`` and ``mem_realloc`` must be set to
 		       valid addresses, but will not be called.
+	
 	Example::
 		
 		struct splinetable table;
@@ -240,6 +241,7 @@ Spline table I/O and manipulation
 	               ``mem_realloc``, which should point to
 	               :c:func:`malloc` and :c:func:`realloc` or
 	               functional equivalents.
+	
 	Example::
 		
 		struct splinetable table;
