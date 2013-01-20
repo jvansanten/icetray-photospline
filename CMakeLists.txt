@@ -17,7 +17,14 @@ i3_add_library(photospline
 	USE_TOOLS cfitsio gsl python blas
 )
 
-add_subdirectory(private/pybindings)
+if(NUMPY_FOUND)
+i3_add_pybindings(photospline
+	private/pybindings/I3SplineTable.cxx
+	private/pybindings/module.cxx
+	USE_TOOLS boost python numpy
+	USE_PROJECTS icetray photospline
+)
+endif(NUMPY_FOUND)
 
 i3_executable(evalsplinefits
 	private/util/evalsplinefits.c
