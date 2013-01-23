@@ -16,7 +16,7 @@ compute, store, and evaluate B-spline representations of such tables.
 .. _`penalized spline technique`: http://dx.doi.org/10.1214/ss/1038425655
 
 Fitting tutorial
-================
+^^^^^^^^^^^^^^^^
 
 .. highlightlang:: python
 
@@ -118,7 +118,7 @@ The result is shown below:
 	the order-2 penalty term produces a straight line.
 
 Python library reference
-========================
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 The interface to the fitting library is entirely in Python, using Numpy
 arrays to as containers for the data, spline coefficients, knot vectors, 
@@ -163,7 +163,7 @@ files that can be loaded and evaluated using the bundled C library.
 .. autofunction:: icecube.photospline.glam.glam.bspline
 
 C library reference
-===================
+^^^^^^^^^^^^^^^^^^^
 
 .. highlightlang:: c
 
