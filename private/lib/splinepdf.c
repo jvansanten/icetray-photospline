@@ -42,7 +42,10 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 		coords[dim] = lastval = (*proposal)(proposal_info);
 
 		lastproppdf = (*proposal_pdf)(lastval,lastval,proposal_info);
-		tablesearchcenters(table, coords, centers);
+		if (tablesearchcenters(table, coords, centers) != 0) {
+			lastval = mint-1;
+			continue;
+		}
 		lastlogpdf = ndsplineeval(table, coords, centers, 0);
 		if (derivatives)
 			lastlogpdf += log(ndsplineeval(table, coords, centers,
@@ -119,10 +122,10 @@ void splinepdf_n_sample(double *result, int results, int burnin,
 	/* Get a fully-supported starting point from the proposal distribution. */
 	do {
 		coords[dim] = lastval = (*proposal)(proposal_info);
-	} while (lastval < mint || lastval > maxt);
+	} while (lastval < mint || lastval > maxt ||
+	    tablesearchcenters(table, coords, centers) != 0);
 
 	lastproppdf = (*proposal_pdf)(lastval,lastval,proposal_info);
-	tablesearchcenters(table, coords, centers);
 	lastpdf = ndsplineeval(table, coords, centers, derivatives);
 
 	for (i = -burnin; i/burnin < results; i++) {
