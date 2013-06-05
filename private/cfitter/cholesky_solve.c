@@ -20,7 +20,7 @@ typedef cpuset_t cpu_set_t;
 #include <pthread.h>
 #include <sched.h>
 
-#include <suitesparse/cholmod.h>
+#include <cholmod.h>
 #include "splineutil.h"
 #include "cholesky_solve.h"
 

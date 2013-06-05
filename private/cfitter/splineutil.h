@@ -1,7 +1,7 @@
 #ifndef SPLINEUTIL_H
 #define SPLINEUTIL_H
 
-#include <suitesparse/cholmod.h>
+#include <cholmod.h>
 
 struct ndsparse {
 	/*

@@ -1,4 +1,4 @@
-#include <suitesparse/cholmod.h>
+#include <cholmod.h>
 #include <math.h>
 
 #include "splineutil.h"

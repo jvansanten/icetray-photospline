@@ -7,7 +7,7 @@
 #ifndef GLAM_H
 #define GLAM_H
 
-#include <suitesparse/cholmod.h>
+#include <cholmod.h>
 
 #include "photospline/splinetable.h"
 #include "splineutil.h"

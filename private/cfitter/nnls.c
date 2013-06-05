@@ -13,8 +13,8 @@
 #include <float.h>
 #include <assert.h>
 
-#include <suitesparse/cholmod.h>
-#include <suitesparse/SuiteSparseQR_C.h>
+#include <cholmod.h>
+#include <SuiteSparseQR_C.h>
 #include "splineutil.h"
 #include "cholesky_solve.h"
 

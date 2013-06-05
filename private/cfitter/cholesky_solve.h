@@ -1,7 +1,7 @@
 #ifndef CHOLESKY_SOLVE_H
 #define CHOLESKY_SOLVE_H
 
-#include <suitesparse/cholmod.h>
+#include <cholmod.h>
 #include <stdbool.h>
 #include <pthread.h>
 
