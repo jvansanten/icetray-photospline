@@ -470,7 +470,7 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 }
 
 char *
-splinetable_get_key(struct splinetable *table, const char *key)
+splinetable_get_key(const struct splinetable *table, const char *key)
 {
 	int i = 0;
 	char *value = NULL;
@@ -485,7 +485,7 @@ splinetable_get_key(struct splinetable *table, const char *key)
 }
 
 int
-splinetable_read_key(struct splinetable *table, splinetable_dtype type,
+splinetable_read_key(const struct splinetable *table, splinetable_dtype type,
     const char *key, void *result)
 {
 	int error = 0;
