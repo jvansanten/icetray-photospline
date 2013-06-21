@@ -1,4 +1,5 @@
 #include <stdexcept>
+#include <sstream>
 #include <photospline/I3SplineTable.h>
 
 extern "C" {
@@ -41,5 +42,17 @@ I3SplineTable::GetExtents(int dim) const
 	return std::make_pair(table_.extents[dim][0], table_.extents[dim][1]);
 }
 
+double
+I3SplineTable::GetField(const std::string &key) const
+{
+	double v = 0;
 
+	if (splinetable_read_key(&table_, SPLINETABLE_DOUBLE, key.c_str(), &v)) {
+		std::ostringstream msg;
+		msg << "Invalid header key " << key;
+		throw std::invalid_argument(msg.str());
+	}
+		
+	return v;
+}
 
