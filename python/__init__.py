@@ -9,15 +9,15 @@ except ImportError:
 	pass
 
 try:
-	from . import splinetable
-	from . import splinefitstable
-	from . import glam
+	from icecube.photospline import splinetable
+	from icecube.photospline import splinefitstable
+	from icecube.photospline import glam
 	try:
-		import spglam
+		from icecube.photospline import spglam
 	except ImportError:
 		pass
-	from . import numpy_extensions
-	from . import photonics
+	from icecube.photospline import numpy_extensions
+	from icecube.photospline import photonics
 except ImportError:
 	pass
 

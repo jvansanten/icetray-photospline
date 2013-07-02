@@ -1,4 +1,5 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python
+from __future__ import print_function
 
 """
 A pure-Python implementation of Kyrre Strom's algorithm for convolutions of
