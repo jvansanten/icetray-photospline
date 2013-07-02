@@ -81,7 +81,7 @@ class Header(object):
 
 assert(Header.size == 328)
 		
-class Efficiency:
+class Efficiency(object):
 	"""Normalization types from photonics.h"""
 	NONE         = 0x00
 	RECEIVER     = 0x01 
@@ -94,7 +94,7 @@ class Efficiency:
 	USER_DEFINED = 0x80
 	DIFFERENTIAL = 0x100
 
-class Geometry:
+class Geometry(object):
 	SPHERICAL   = 1
 	CYLINDRICAL = 2
 	CUBIC       = 3

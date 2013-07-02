@@ -31,8 +31,19 @@ static PyMethodDef methods[] = {
 	{ NULL, NULL }
 };
 
+#if PY_VERSION_HEX >= 0x03000000
+static struct PyModuleDef spglam_module = {
+	PyModuleDef_HEAD_INIT, "spglam", "spglam module", -1, methods
+};
+
+PyObject *PyInit_spglam(void)
+{
+	PyObject *module = PyModule_Create(&spglam_module);
+
+#else
 void initspglam(void)
 {
+#endif
 	import_array();
 
 	/* Look up the splinetable class */
@@ -42,9 +53,16 @@ void initspglam(void)
 	if (splinetable_mod == NULL) {
 		PyErr_SetString(PyExc_ImportError,
 		    "Could not import splinetable module");
+
+#if PY_VERSION_HEX >= 0x03000000
+		return NULL;
+	}
+	return module;
+#else
 		return;
 	}
 	Py_InitModule("spglam", methods);
+#endif
 }
 
 static cholmod_sparse *
@@ -523,12 +541,13 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 		/* Look up the splinetable class */
 		splinetable_cls = PyObject_GetAttrString(splinetable_mod,
 		    "SplineTable");
-		if (splinetable_cls == NULL) {
+		if (splinetable_cls == NULL || !PyType_Check(splinetable_cls)) {
 			PyErr_SetString(PyExc_ImportError,
 			    "Could not find spline table class");
 			goto exit;
 		}
-		result = PyInstance_New(splinetable_cls, NULL, NULL);
+		result = PyType_GenericNew((PyTypeObject *)(splinetable_cls),
+		    NULL, NULL);
 		if (result == NULL) {
 			PyErr_SetString(PyExc_ImportError,
 			    "Could not instantiate spline table class");
@@ -602,7 +621,11 @@ construct_penalty(struct splinetable* out, PyObject* py_penalty,
 	    c);
 
 	while (PyDict_Next(py_penalty, &ppos, &key, &value)) {
+#if PY_VERSION_HEX >= 0x03000000
+		order = PyLong_AsLong(key);
+#else
 		order = PyInt_AsLong(key);
+#endif
 		if (PySequence_Check(value)) {
 			for (j = 0; j < out->ndim; j++) {
 				py_scale = PySequence_GetItem(value,j);

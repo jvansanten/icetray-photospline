@@ -1,4 +1,4 @@
-class SplineTable:
+class SplineTable(object):
 	def __init__(self):
 		# Context information for the fit
 		self.order = 2
