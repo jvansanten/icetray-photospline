@@ -3,6 +3,11 @@ from icecube.photospline.glam import glam
 import Gnuplot
 from icecube.photospline.glam.bspline import *
 
+try:
+	input = raw_input
+except NameError:
+	pass
+
 numpts = 500
 knots=[numpy.linspace(-8,35,30)]
 order=2
@@ -22,4 +27,4 @@ spline = Gnuplot.Data(xfine, [sum([result.coefficients[n] *
     bspline(knots[0], x, n, order) for n in range(0,len(knots[0])-2-1)])
     for x in xfine], with_="lines",title="Spline")
 gp.plot(rawdat,fitdat,spline)
-raw_input("Press ENTER to continue")
+input("Press ENTER to continue")

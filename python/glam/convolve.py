@@ -70,7 +70,7 @@ other unit normalized. """
 	bundle = rho[i:i+k+q+1]
 	bags =  bundle[1:-1]
 		
-	blossoms = numpy.array([convolved_blossom(x[j:j+k+1], y, bundle[0], bags) for j in xrange(nsplines)])
+	blossoms = numpy.array([convolved_blossom(x[j:j+k+1], y, bundle[0], bags) for j in range(nsplines)])
 	if k % 2 != 0:
 		blossoms *= -1
 	
@@ -86,7 +86,7 @@ def pseudogauss_knots(order, sigma):
 	elif order == 1:
 		return 2*sigma*numpy.array([-1, 0, 1])
 	else:
-		raise ValueError, "I don't know how to construct an order-%d spline with variance %f" % (order, sigma)
+		raise ValueError("I don't know how to construct an order-%d spline with variance %f" % (order, sigma))
 
 def slice_axis(a, callback, slices=None, axis=0, current=0):
 	"""Call a function on arbitrary 1-d slices of an array"""
@@ -96,14 +96,14 @@ def slice_axis(a, callback, slices=None, axis=0, current=0):
 		if current == axis:
 			callback(a, slices)
 		else:
-			for i in xrange(a.shape[current]):
+			for i in range(a.shape[current]):
 				myslice = list(slices)
 				myslice[current] = i
 				callback(a, myslice)
 	elif current == axis:
 		slice_axis(a, callback, slices, axis, current+1)
 	else:
-		for i in xrange(a.shape[current]):
+		for i in range(a.shape[current]):
 			myslice = list(slices)
 			myslice[current] = i
 			slice_axis(a, callback, myslice, axis, current+1)
@@ -123,8 +123,8 @@ def convolve(spline, dim = -1, approx_order = 0, sigma = 100, verbose = False):
 	convorder = k + q - 1
 	
 	if verbose:
-		print 'order %d * order %d -> order %d' % (k-1, q-1, convorder)
-		print rho.size - convorder - 1,'splines'
+		print('order %d * order %d -> order %d' % (k-1, q-1, convorder))
+		print(rho.size - convorder - 1,'splines')
 	
 	x = spline.knots[dim]
 	y = pseudogauss_knots(approx_order, sigma)
@@ -147,7 +147,7 @@ def convolve(spline, dim = -1, approx_order = 0, sigma = 100, verbose = False):
 	# Build up a matrix that transforms coefficients on the original knot vector
 	# in the chosen dimension to coefficients on the convolved knot vector
 	trafo = numpy.empty((nsplines_conv, nsplines))
-	for i in xrange(nsplines_conv):
+	for i in range(nsplines_conv):
 		trafo[i] = convolution_row(x, k-1, y, q-1, rho, i)
 
 	# Apply the transformation to each slice of the knot field

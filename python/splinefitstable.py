@@ -1,4 +1,4 @@
-import splinetable
+from . import splinetable
 import pyfits
 import numpy
 
@@ -95,7 +95,7 @@ def read(path):
 		for i in range(0,table.coefficients.ndim):
 			extents += [table.knots[i][order[i]], table.knots[i][-order[i]-1]]
 
-	table.extents = zip(extents[:-1:2], extents[1::2])
+	table.extents = list(zip(extents[:-1:2], extents[1::2]))
 
 	try:
 		table.bias = data.header['BIAS']

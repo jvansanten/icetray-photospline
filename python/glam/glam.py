@@ -1,8 +1,8 @@
 import numpy
 from .. import splinetable
-from bspline import *
+from .bspline import *
 
-import nnls as nnls_mockup
+from . import nnls as nnls_mockup
 from scipy.optimize import nnls
 
 def box(A,B):
@@ -16,7 +16,7 @@ def rho(A,B,p):
 	sa = A.shape
 	sb = B.shape
 
-	newaxes = range(p,B.ndim) + range(0,p)
+	newaxes = list(range(p,B.ndim)) + list(range(0,p))
 
 	B = B.transpose(newaxes)
 	nonp = numpy.prod([B.shape[i] for i in range(1,B.ndim)])
@@ -87,15 +87,15 @@ def fit(z,w,coords,knots,order,smooth,
 	table.knots = knots
 	table.order = order
 
-	order = numpy.asarray(order,dtype=long)
+	order = numpy.asarray(order,dtype=int)
 	if order.size == 1:
-		order = order * numpy.ones(len(knots),dtype=long)
+		order = order * numpy.ones(len(knots),dtype=int)
 	
 	# the user can pass an arbitrary linear combination of penalty orders
-	penorder = [dict() for i in xrange(len(knots))]
+	penorder = [dict() for i in range(len(knots))]
 	for o,coefficients in penalties.items():
 		if int(o) <= 0:
-			raise ValueError, "Penalty order must by > 0 (not %s)" % o
+			raise ValueError("Penalty order must by > 0 (not %s)" % o)
 		if coefficients is None:
 			# if no coefficient is specified, use the smoothness (old behavior)
 			coefficients = smooth
@@ -116,7 +116,7 @@ def fit(z,w,coords,knots,order,smooth,
 		else:
 			nsplines.append(len(knots[i]))		
 
-	print "Calculating spline basis..."
+	print("Calculating spline basis...")
 
 	if bases == None:
 		Basis = [splinebasis(knots[i],order[i],coords[i],periods[i]) for i in range(0,ndim)]
@@ -131,7 +131,7 @@ def fit(z,w,coords,knots,order,smooth,
 		Linv = numpy.linalg.inv(L)
 		Basis[monodim] = numpy.dot(Basis[monodim],L)
 
-	print "Calculating penalty matrix..."
+	print("Calculating penalty matrix...")
 
 	def calcP(nsplines, knots, dim, order, porders):
 		nspl = nsplines[dim]
@@ -189,7 +189,7 @@ def fit(z,w,coords,knots,order,smooth,
 	sidelen = numpy.product(nsplines)
 	a = numpy.reshape(numpy.zeros(sidelen,float),nsplines)
 
-	print "Reticulating splines..."
+	print("Reticulating splines...")
 
 	n = 0
 	while n < iterations:
@@ -198,7 +198,7 @@ def fit(z,w,coords,knots,order,smooth,
 		F = w
 		R = w*z
 		for i in range(0,ndim):
-			print "\tProcessing dimension",i
+			print("\tProcessing dimension",i)
 			F = rho(box(Basis[i],Basis[i]),F,i)
 			R = rho(Basis[i],R,i)
 
@@ -207,7 +207,7 @@ def fit(z,w,coords,knots,order,smooth,
 		F = numpy.reshape(numpy.asarray(F), Fshape)
 
 		# Now transpose F: first the even axes, then the odd
-		Fshape = range(0,F.ndim,2) + range(1,F.ndim,2)
+		Fshape = list(range(0,F.ndim,2)) + list(range(1,F.ndim,2))
 		F = F.transpose(Fshape)
 
 		F = numpy.reshape(F,(sidelen,sidelen))
@@ -215,7 +215,7 @@ def fit(z,w,coords,knots,order,smooth,
 
 		F = F + P
 		
-		print "Computing iteration %d least squares solution..." % n
+		print("Computing iteration %d least squares solution..." % n)
 		
 		if dump:
 			numpy.save('AtA',F)
@@ -226,10 +226,10 @@ def fit(z,w,coords,knots,order,smooth,
 			x = numpy.reshape(a,r.shape)
 			r = numpy.asarray(r - F*x)
 			resid = (r**2).sum()
-			print 'The sum of squared residuals is %e'%resid
+			print('The sum of squared residuals is %e'%resid)
 		
 		if monodim is not None:
-			print '%d negative coefficients' % (a < 0).sum()
+			print('%d negative coefficients' % (a < 0).sum())
 		
 		if monodim is None:
 			result = numpy.linalg.lstsq(F, r)
@@ -259,7 +259,7 @@ def fit(z,w,coords,knots,order,smooth,
 
 def monotonize(table,monodim=0):
 	"""Use the t-spline hammer to enforce monotonicity along one axis"""
-	print "Futzing with t-spline basis"
+	print("Futzing with t-spline basis")
 	
 	nsplines = []
 	for i in range(0,len(table.knots)):
@@ -277,10 +277,10 @@ def monotonize(table,monodim=0):
 	def futz(b_coefficients):
 		# first, convert b-spline coefficients to t-spline coefficients
 		coefficients = numpy.dot(Linv,b_coefficients)
-		for i in xrange(len(coefficients)):
+		for i in range(len(coefficients)):
 			a = coefficients[i]
 			if a < 0:
-				print 't-spline coeff %d = %e' % (i,a)
+				print('t-spline coeff %d = %e' % (i,a))
 				if (i > 0) and (coefficients[i-1]+a >= 0): 
 					# we're coming out of an (over-)ring; add back'erds
 					coefficients[i-1] += a
@@ -313,9 +313,9 @@ def grideval(table, coords, bases=None):
 	       [ 1506.64602055,  3425.31209966]])
 	"""
 	results = table.coefficients
-	order = numpy.asarray(table.order,dtype=long)
+	order = numpy.asarray(table.order,dtype=int)
 	if order.size == 1:
-		order = order * numpy.ones(len(table.knots),dtype=long)
+		order = order * numpy.ones(len(table.knots),dtype=int)
 
 	if bases == None:
 		Basis = [splinebasis(table.knots[i], order[i],coords[i],

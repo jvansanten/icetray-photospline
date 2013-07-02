@@ -1,7 +1,7 @@
 import copy
 import numpy
-import splinefitstable
-from glam import glam, bspline
+from . import splinefitstable
+from .glam import glam, bspline
 
 class TableSlice(object):
 	"""A slice of a photonics table, with spline CDF and PDF evaluates."""
@@ -39,7 +39,7 @@ class TableSlice(object):
 		   for use with matplotlib.
 		"""
 		new = copy.copy(self)
-		ext_dims = [i for i in xrange(len(self.centers)) if len(self.centers[i]) > 1]
+		ext_dims = [i for i in range(len(self.centers)) if len(self.centers[i]) > 1]
 		new.edges = [self.edges[i] for i in ext_dims]
 		new.centers = [self.centers[i] for i in ext_dims]
 		return new
@@ -47,7 +47,7 @@ class TableSlice(object):
 	def flatten(self):
 		"""Flatten grid to columns for use with Gnuplot"""
 		coords = numpy.meshgrid_nd(*self.centers,**{'lex_order':True})
-		coords = numpy.column_stack(map(lambda arr: arr.reshape(arr.size),coords))
+		coords = numpy.column_stack([arr.reshape(arr.size) for arr in coords])
 		bigdat = numpy.column_stack((coords,self.table_cdf.flatten()))
 		if self.table_pdf is not None:
 			bigdat = numpy.column_stack((bigdat,self.table_pdf.flatten()))
@@ -65,7 +65,7 @@ class TableSlice(object):
 			elif self.density > 1: # add extra grid points in between the bin centers
 				gaps = numpy.diff(centers[i])
 				extras = []
-				for j in xrange(1,self.density):
+				for j in range(1,self.density):
 					scale = j/float(self.density)
 					extras.append(centers[i][:-1]+scale*gaps)
 				centers[i] = numpy.concatenate(tuple([centers[i]] + extras))
@@ -98,7 +98,7 @@ class TableSlice(object):
 		if self.table.normed and self.slices[-1] == slice(None): # already normed
 			table_cdf = self.table.values[slices].copy()
 			if timing:
-				print table_cdf.shape, table.bin_widths[-1].size
+				print(table_cdf.shape, table.bin_widths[-1].size)
 				table_pdf = numpy.append([0],
 				    numpy.diff(table_cdf, axis=-1))/table.bin_widths[-1]
 		elif self.table.normed:
@@ -133,7 +133,7 @@ class TableSlice(object):
 				tslices[-1] = slice(None)
 			else:
 				tslices += [slice(None)]
-			print tslices
+			print(tslices)
 			bigslice = self.table.values[tslices]
 			table_cdf = numpy.cumsum(bigslice, axis=-1)
 			# remove integer indexes, since those dimensions are already gone
@@ -170,7 +170,7 @@ class TableSlice(object):
 		vals = glam.grideval(self.spline, self.centers)
 		shape = vals.shape
 		vals = vals[numpy.isfinite(vals)] + self.spline.bias
-		shape = tuple([shape[i] for i in xrange(len(shape)) if shape[i] > 1])
+		shape = tuple([shape[i] for i in range(len(shape)) if shape[i] > 1])
 		vals = vals.reshape(shape)
 		if is_log:
 			vals = numpy.exp(vals)
@@ -187,7 +187,7 @@ class TableSlice(object):
 		if is_log:
 			# chain rule!
 			pdf_vals *= self.spline_cdf
-		shape = tuple([shape[i] for i in xrange(len(shape)) if shape[i] > 1])
+		shape = tuple([shape[i] for i in range(len(shape)) if shape[i] > 1])
 		pdf_vals = pdf_vals.reshape(shape)
 		self.spline_pdf = pdf_vals
 		

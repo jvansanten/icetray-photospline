@@ -75,18 +75,18 @@ def meshgrid_nd(*arrays,**kwargs):
 	        [7, 8, 9]]])
 	
 	"""
-	asarrays = map(numpy.asarray,arrays)
+	asarrays = list(map(numpy.asarray,arrays))
 	for ar in asarrays:
 		if len(ar.shape) != 1: 
-			raise ValueError, "arguments must be 1-d arrays"
-	dims = map(len,asarrays)
+			raise ValueError("arguments must be 1-d arrays")
+	dims = list(map(len,asarrays))
 	out = []
 	nD = len(dims)
-	for i,arr,dim in it.izip(it.count(),asarrays,dims):
+	for i,arr,dim in zip(it.count(),asarrays,dims):
 		shape = [1]*nD
 		shape[nD-1-i] = dim
 		x = arr.reshape(*shape)
-		for j,k in it.izip(xrange(nD),reversed(xrange(nD))):
+		for j,k in it.izip(range(nD),reversed(range(nD))):
 			if k==i: continue
 			x = x.repeat(dims[k],axis=j)
 		if kwargs.get('lex_order',False): x = x.transpose()
@@ -133,7 +133,7 @@ def apply_along_axes(func1d,axis,arrs,*args):
 	apply_over_axes : Apply a function repeatedly over multiple axes.
 
 	"""
-	arrs = map(asarray,arrs)
+	arrs = list(map(asarray,arrs))
 	arr = arrs[0]
 	nd = arr.ndim
 	if axis < 0:
@@ -143,7 +143,7 @@ def apply_along_axes(func1d,axis,arrs,*args):
 			% (axis,nd))
 	ind = [0]*(nd-1)
 	i = zeros(nd,'O')
-	indlist = range(nd)
+	indlist = list(range(nd))
 	indlist.remove(axis)
 	i[axis] = slice(None,None)
 	outshape = asarray(arr.shape).take(indlist)
@@ -151,7 +151,7 @@ def apply_along_axes(func1d,axis,arrs,*args):
 		if tuple(asarray(arr.shape).take(indlist)) != tuple(outshape):
 			raise ValueError("Shape of all input arrays must match in all but the selected dimension.")
 	i.put(indlist, ind)
-	arglist = tuple(map(lambda arr: arr[tuple(i.tolist())],arrs)) + args
+	arglist = tuple([arr[tuple(i.tolist())] for arr in arrs]) + args
 	res = func1d(*arglist)
 	#  if res is a number, then we have a smaller output array
 	if isscalar(res):
@@ -168,7 +168,7 @@ def apply_along_axes(func1d,axis,arrs,*args):
 				ind[n] = 0
 				n -= 1
 			i.put(indlist,ind)
-			arglist = tuple(map(lambda arr: arr[tuple(i.tolist())],arrs)) + args
+			arglist = tuple([arr[tuple(i.tolist())] for arr in arrs]) + args
 			res = func1d(*arglist)
 			outarr[tuple(ind)] = res
 			k += 1
@@ -190,7 +190,7 @@ def apply_along_axes(func1d,axis,arrs,*args):
 				ind[n] = 0
 				n -= 1
 			i.put(indlist, ind)
-			arglist = tuple(map(lambda arr: arr[tuple(i.tolist())],arrs)) + args
+			arglist = tuple([arr[tuple(i.tolist())] for arr in arrs]) + args
 			res = func1d(*arglist)
 			#res = func1d(arr[tuple(i.tolist())],*args)
 			outarr[tuple(i.tolist())] = res

@@ -2,6 +2,11 @@ import numpy
 from icecube.photospline.glam.bspline import *
 import Gnuplot
 
+try:
+	input = raw_input
+except NameError:
+	pass
+
 numpts = 20
 order=3
 
@@ -47,4 +52,4 @@ spline = Gnuplot.Data(xfine, [sum([result[0][n]*bspline(knots, x, n, order) for 
 #gp.set_range("yrange",(-1,17))
 gp.set_range("xrange",(-1,26))
 gp.plot(rawdat,splinterp,spline,knotcoeff)
-raw_input("Press ENTER to continue")
+input("Press ENTER to continue")

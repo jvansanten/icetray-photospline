@@ -9,6 +9,11 @@ import sys
 import os
 import numpy
 
+try:
+	input = raw_input
+except NameError:
+	pass
+
 # Hard-coded params
 
 #nknots =[17, 6, 12, 25] # [r, phi, z, t]  For Nathan/Jakob's binning
@@ -56,7 +61,7 @@ if not opts.prob and not opts.abs:
 
 def check_exists(outputfile):
     if os.path.exists(outputfile):
-        if opts.force or raw_input("File %s exists. Overwrite? (y/n)" % outputfile) == 'y':
+        if opts.force or input("File %s exists. Overwrite? (y/n)" % outputfile) == 'y':
             os.unlink(outputfile)
         else:
             sys.exit()
@@ -91,10 +96,10 @@ int2bin = lambda num, count: "".join([str((num >> y) & 1) for y in range(count-1
 if (table.header['efficiency'] != eff):
 	err = "Unknown normalization %s (expected %s)" % (
 	    int2bin(table.header['efficiency'], 9), int2bin(eff, 9))
-	raise ValueError, err
+	raise ValueError(err)
 
 if (table.header['geometry'] is not Geometry.SPHERICAL):
-	raise ValueError, "This table does not have spherical geometry"
+	raise ValueError("This table does not have spherical geometry")
 
 # Extents for a particular set of spherically-binned tables produced in 2010
 extents = [(0.0, 600.0), (0.0, 180.0), (-1.0, 1.0), (0.0, 7000.)] # r, phi, cos(polar), t
@@ -115,7 +120,7 @@ def construct_knots(nknots = None):
 	if opts.tknots and table.ndim > 3:
 	    nknots[3] = opts.tknots
 	
-	print "Core knots:", nknots
+	print("Core knots:", nknots)
 	
 	radial_extent = extents[0][1]
 	coreknots = [None]*4
@@ -156,11 +161,11 @@ def construct_knots(nknots = None):
 	tknots = numpy.concatenate((coreknots[3], coreknots[3][-1] +
 	    100*numpy.arange(1,4)))
 	
-	print 'knots:'
-	print rknots
-	print thetaknots
-	print zknots
-	print tknots
+	print('knots:')
+	print(rknots)
+	print(thetaknots)
+	print(zknots)
+	print(tknots)
 
 	return [rknots, thetaknots, zknots, tknots]
 
@@ -181,7 +186,7 @@ def spline_spec(ndim):
 table.values = numpy.cumsum(table.values, axis=3)
 table.bin_centers[3] += table.bin_widths[3]/2.
 
-print "Loaded histogram with dimensions ", table.shape
+print("Loaded histogram with dimensions ", table.shape)
 
 norm = table.values[:,:,:,-1]
 
@@ -214,14 +219,14 @@ if opts.abs:
 	bin_widths = [b.copy() for b in table.bin_widths[:3]]
 	axis_scale = rescale_axes(knots, bin_centers, bin_widths)
 
-	print 'Number of knots used: ',[len(a) for a in knots]
-	print "Beginning spline fit for abs table..."
+	print('Number of knots used: ',[len(a) for a in knots])
+	print("Beginning spline fit for abs table...")
 	spline = glam.fit(z,w,bin_centers,knots,order,smooth,penalties=penalties)
 	spline.geometry = Geometry.SPHERICAL
 	spline.extents = extents[:3]
 	spline.ngroup = table.header['n_group']
 
-	print "Saving table to %s..." % abs_outputfile
+	print("Saving table to %s..." % abs_outputfile)
 	spline.knots = [spline.knots[i] * axis_scale[i] for i
 			    in range(0, len(spline.knots))]
 	check_exists(abs_outputfile)
@@ -247,14 +252,14 @@ if opts.prob:
 	# go ahead and remove the table from memory
 	del(table, norm)
 
-	print 'Number of knots used: ',[len(a) for a in knots]
-	print "Beginning spline fit for timing table..."
+	print('Number of knots used: ',[len(a) for a in knots])
+	print("Beginning spline fit for timing table...")
 	spline = glam.fit(z,w,bin_centers,knots,order,smooth,penalties=penalties,monodim=3)
 	spline.geometry = Geometry.SPHERICAL
 	spline.extents = extents
 	spline.ngroup = ngroup
 
-	print "Saving table to %s..." % prob_outputfile
+	print("Saving table to %s..." % prob_outputfile)
 	spline.knots = [spline.knots[i] * axis_scale[i] for i
 			    in range(0, len(spline.knots))]
 	check_exists(prob_outputfile)

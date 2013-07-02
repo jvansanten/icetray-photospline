@@ -9,15 +9,15 @@ except ImportError:
 	pass
 
 try:
-	import splinetable
-	import splinefitstable
-	import glam
+	from . import splinetable
+	from . import splinefitstable
+	from . import glam
 	try:
 		import spglam
 	except ImportError:
 		pass
-	import numpy_extensions
-	import photonics
+	from . import numpy_extensions
+	from . import photonics
 except ImportError:
 	pass
 

@@ -3,6 +3,11 @@ from optparse import OptionParser
 
 from icecube.photospline.photonics import *
 
+try:
+	input = raw_input
+except NameError:
+	pass
+
 import sys
 import os
 import numpy
@@ -46,7 +51,7 @@ if not opts.prob and not opts.abs:
 
 def check_exists(outputfile):
     if os.path.exists(outputfile):
-        if opts.force or raw_input("File %s exists. Overwrite? (y/n)" % outputfile) == 'y':
+        if opts.force or input("File %s exists. Overwrite? (y/n)" % outputfile) == 'y':
             os.unlink(outputfile)
         else:
             sys.exit()
@@ -76,9 +81,9 @@ table.convert_to_level1()
 # that have been applied to the table cells in the 'efficiency' field.
 # NB: We want dP, not dP/dt
 if (Efficiency.DIFFERENTIAL & table.header['efficiency']):
-	raise ValueError, "This appears to be a dP/dt table. Don't do that, okay?"
+	raise ValueError("This appears to be a dP/dt table. Don't do that, okay?")
 if (not Efficiency.N_PHOTON & table.header['efficiency']):
-	raise ValueError, "This table does not appear to be normalized."
+	raise ValueError("This table does not appear to be normalized.")
 
 nknots = [15, 6, 25] # rho, phi, z
 if table.ndim > 3:
@@ -93,7 +98,7 @@ if opts.zknots:
 if opts.tknots and table.ndim > 3:
     nknots[3] = opts.tknots
 
-print "Core knots:", nknots
+print("Core knots:", nknots)
 
 radial_extent = 600
 length_extent = 500
@@ -139,11 +144,11 @@ zknots = numpy.concatenate((coreknots[2][0] - endgap[0]*numpy.arange(2,0,-1),
 # F(0) is identically zero.
 tknots = numpy.concatenate((coreknots[3], 7000 + 100*numpy.arange(1,4)))
 
-print 'knots:'
-print rknots
-print thetaknots
-print zknots
-print tknots
+print('knots:')
+print(rknots)
+print(thetaknots)
+print(zknots)
+print(tknots)
 
 def spline_spec(ndim):
    if ndim > 3:
@@ -162,7 +167,7 @@ def spline_spec(ndim):
 table.values = numpy.cumsum(table.values, axis=3)
 table.bin_centers[3] += table.bin_widths[3]/2.
 
-print "Loaded histogram with dimensions ", table.shape
+print("Loaded histogram with dimensions ", table.shape)
 
 norm = table.values[:,:,:,-1]
 
@@ -196,11 +201,11 @@ if opts.abs:
 
 	order, penalties, knots = spline_spec(3)
 
-	print 'Number of knots used: ',[len(a) for a in knots]
-	print "Beginning spline fit for abs table..."
+	print('Number of knots used: ',[len(a) for a in knots])
+	print("Beginning spline fit for abs table...")
 	spline = glam.fit(z,w,table.bin_centers[:3],knots,order,smooth,penalties=penalties)
 
-	print "Saving table to %s..." % abs_outputfile
+	print("Saving table to %s..." % abs_outputfile)
 	spline.knots = [spline.knots[i] * axis_scale[i] for i
 			    in range(0, len(spline.knots))]
 	splinefitstable.write(spline, abs_outputfile)
@@ -227,11 +232,11 @@ if opts.prob:
 	# go ahead and remove the table from memory
 	del(table, norm)
 
-	print 'Number of knots used: ',[len(a) for a in knots]
-	print "Beginning spline fit for timing table..."
+	print('Number of knots used: ',[len(a) for a in knots])
+	print("Beginning spline fit for timing table...")
 	spline = glam.fit(z,w,centers,knots,order,smooth,penalties=penalties,monodim=3)
 
-	print "Saving table to %s..." % prob_outputfile
+	print("Saving table to %s..." % prob_outputfile)
 	spline.knots = [spline.knots[i] * axis_scale[i] for i
 			    in range(0, len(spline.knots))]
 	splinefitstable.write(spline, prob_outputfile)

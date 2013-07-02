@@ -6,6 +6,11 @@ from glob import glob
 import re, os, sys
 import copy
 
+try:
+	input = raw_input
+except NameError:
+	pass
+
 from optparse import OptionParser
 
 def stack_tables(tablist, order = 2):
@@ -82,20 +87,20 @@ if __name__ == "__main__":
 	                  help="File extension filter to use (e.g. '.diff.fits')")
 
 	if len(sys.argv) < 2:
-		print sys.argv
+		print(sys.argv)
 		sys.argv.append("-h")
 
 	(options, args) = parser.parse_args()
 
 	if len(args) < 1:
-		print "Please supply a source directory name"
+		print("Please supply a source directory name")
 		sys.exit(0)
 	if len(args) < 2:
-		print "Please supply an output file name"
+		print("Please supply an output file name")
 		sys.exit(0)
 
 	if os.path.exists(args[1]):
-		if raw_input("File %s exists. Overwrite (y/n)? " % args[1]) == 'y':
+		if input("File %s exists. Overwrite (y/n)? " % args[1]) == 'y':
 			os.unlink(args[1])
 		else:
 			sys.exit()
@@ -109,9 +114,9 @@ if __name__ == "__main__":
 
 	# Read in all the actual tables
 
-	print 'Table list acquired, reading in tables...',
+	print('Table list acquired, reading in tables...', end=' ')
 	tables = [(splinefitstable.read(i[0]), i[1]) for i in tables]
-	print 'done'
+	print('done')
 
 	depths = unique([tab[1][0] for tab in tables])
 	angles = unique([tab[1][1] for tab in tables])
@@ -124,7 +129,7 @@ if __name__ == "__main__":
 		
 
 	# XXX HACK: provide full support above and below by cloning the end tables
-	print "HACK: cloning tables at %.2f and %.2f" % (depths[0], depths[-1])
+	print("HACK: cloning tables at %.2f and %.2f" % (depths[0], depths[-1]))
 	gap = depths[0] - depths[1]
 	bottom = [(copy.deepcopy(tab[0]), (tab[1][0] + gap, tab[1][1])) for tab in tables if tab[1][0] == tables[0][1][0]]
 	gap = depths[-1] - depths[-2]
@@ -141,15 +146,15 @@ if __name__ == "__main__":
 		       ]
 
 	if len(zpos) < (zpos[len(zpos)-1] - zpos[0]) / options.zstep + 1:
-		print "Error: Some depth steps are missing in table directory."
+		print("Error: Some depth steps are missing in table directory.")
 		sys.exit(1)
 
 	intermedtables = []
 
 	for z in zpos:
-		print 'Stacking tables at z =', z
+		print('Stacking tables at z =', z)
 		# Select all the tables at this z
-		sublist = filter(lambda tab: tab[1][0] == z, tables)
+		sublist = [tab for tab in tables if tab[1][0] == z]
 		# Reformat to just one coordinate for stacking
 		sublist = [(tab[0], tab[1][1]) for tab in sublist]
 		if options.astep:
@@ -160,8 +165,8 @@ if __name__ == "__main__":
 			                            options.astep)
 			          ]
 			if len(sublist) < (sublist[len(sublist)-1][1] - sublist[0][1]) / options.astep + 1:
-				print "Error: Some azimuth steps are missing in table directory."
-				print "Just stopping at z=%d" % z
+				print("Error: Some azimuth steps are missing in table directory.")
+				print("Just stopping at z=%d" % z)
 				break
 				sys.exit(1)
 
@@ -169,15 +174,15 @@ if __name__ == "__main__":
 		# angle bins (e.g. 170 and 10 deg) to the outside
 		# (e.g. 190 and -10) so that 0 and 180 will have
 		# support
-		print '\tExtending angular range...',
+		print('\tExtending angular range...', end=' ')
 		lowmirror  = [(copy.deepcopy(sublist[ 1][0]), -sublist[ 1][1])]
 		highmirror = [(copy.deepcopy(sublist[-2][0]),  sublist[-1][1] + (sublist[-1][1] - sublist[-2][1]))]
 		sublist = lowmirror + sublist + highmirror
-		print 'done'
+		print('done')
 
-		print '\tStacking...',
+		print('\tStacking...', end=' ')
 		intermedtables.append((stack_tables(sublist), z))
-		print 'done'
+		print('done')
 
 	# We no longer need to original tables
 	del tables
@@ -196,8 +201,8 @@ if __name__ == "__main__":
 
 	try:
 		splinefitstable.write(finaltab, targetfile)
-		print "Output written to", targetfile
-	except Exception, inst:
-		print inst
+		print("Output written to", targetfile)
+	except Exception as inst:
+		print(inst)
 
 

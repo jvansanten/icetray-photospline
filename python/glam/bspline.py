@@ -50,7 +50,7 @@ def bspline_nonzero(knots, x, n):
 	:returns: ndarray - all non-zero B-splines evaluated at x
 	"""
 	left = numpy.digitize([x], knots)[0] - 1
-	print len(knots), left
+	print(len(knots), left)
 	jhigh = n + 1
 	biatx = numpy.zeros(jhigh)
 	delta_l = numpy.zeros(jhigh)
@@ -62,12 +62,12 @@ def bspline_nonzero(knots, x, n):
 	# handle the partial support cases
 	if (left < n):
 		i = n-left
-		for j in xrange(n-i+1):
+		for j in range(n-i+1):
 			biatx[j] = biatx[j+i]
 		biatx[n-i+1:] = 0
 	elif (left > len(knots)-n-2):
 		i = left+jhigh+1-len(knots)
-		for j in xrange(n, i-1, -1):
+		for j in range(n, i-1, -1):
 			biatx[j] = biatx[j-i]
 		biatx[:i] = 0
 		
@@ -92,7 +92,7 @@ def bspline_deriv_nonzero(knots, x, n):
 	# spline, only the i+1th order n-1th order spline is nonzero.
 	biatx[0] =  - n*temp / ((knots[left+1] - knots[left+1-n]))
 	# now, both the ith and i+1th n-1th order splines contribute
-	for i in xrange(1, n):
+	for i in range(1, n):
 		a = n*temp/((knots[left+i] - knots[left+i-n]))
 		b = n*biatx[i]/(knots[left+i+1] - knots[left+i+1-n])
 		temp = biatx[i]
@@ -103,12 +103,12 @@ def bspline_deriv_nonzero(knots, x, n):
 	# handle the partial support cases
 	if (left < n):
 		i = n-left
-		for j in xrange(n-i+1):
+		for j in range(n-i+1):
 			biatx[j] = biatx[j+i]
 		biatx[n-i+1:] = 0
 	elif (left > len(knots)-n-2):
 		i = left+jhigh+1-len(knots)
-		for j in xrange(n, i-1, -1):
+		for j in range(n, i-1, -1):
 			biatx[j] = biatx[j-i]
 		biatx[:i] = 0
 	return biatx
@@ -124,7 +124,7 @@ def bsplvb(knots, x, left, jlow, jhigh, biatx, delta_l, delta_r):
 		biatx[0] = 1.0
 		# biatx[left] = 1.0
 	
-	for j in xrange(jlow, jhigh - 1):
+	for j in range(jlow, jhigh - 1):
 		
 		delta_r[j] = knots[left+j+1] - x
 		delta_l[j] = x - knots[left-j]
@@ -136,7 +136,7 @@ def bsplvb(knots, x, left, jlow, jhigh, biatx, delta_l, delta_r):
 		
 		saved = 0.0
 		
-		for i in xrange(j+1):
+		for i in range(j+1):
 			term = biatx[i] / (delta_r[i] + delta_l[j-i])
 			biatx[i] = saved + delta_r[i]*term
 			saved = delta_l[j-i]*term

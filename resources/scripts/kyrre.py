@@ -80,7 +80,7 @@ the raw blossoms and multiply by the coefficients of each un-convolved spline la
 	bundle = rho[i:i+k+q+1]
 	bags =  bundle[1:-1]
 	
-	blossoms = n.array([cbar_simple(x[j:j+k+1], y, bundle[0], bags) for j in xrange(nsplines)])
+	blossoms = n.array([cbar_simple(x[j:j+k+1], y, bundle[0], bags) for j in range(nsplines)])
 	if k % 2 != 0:
 		blossoms *= -1
 	
@@ -108,7 +108,7 @@ def convolved_coefficient(x, xorder, y, yorder, rho, i):
 	
 	nsplines = len(x) - xorder - 1
 	
-	cbar_vec = n.array([cbar_simple(xknots[j:j+k+1], yknots, bundle[0], bags) for j in xrange(nsplines)])
+	cbar_vec = n.array([cbar_simple(xknots[j:j+k+1], yknots, bundle[0], bags) for j in range(nsplines)])
 	# print cbar_vec.shape
 	# cbar = n.dot(xcoefficients.flatten(), cbar_vec)
 
@@ -148,7 +148,7 @@ def pseudogauss_knots(order, sigma):
 	elif order == 1:
 		return 2*sigma*n.array([-1, 0, 1])
 	else:
-		raise ValueError, "I don't know how to construct an order-%d spline with variance %f" % (order, sigma)
+		raise ValueError("I don't know how to construct an order-%d spline with variance %f" % (order, sigma))
 
 def twiddle(spline, dim = -1, approx_order = 0, sigma = 100):
 	
@@ -168,11 +168,11 @@ def twiddle(spline, dim = -1, approx_order = 0, sigma = 100):
 	q = len(y) - 1
 	
 	convorder = k + q - 1
-	print 'order %d * order %d -> order %d' % (k-1, q-1, convorder)
+	print('order %d * order %d -> order %d' % (k-1, q-1, convorder))
 	
 	matrix = []
-	print rho.size - convorder - 1,'splines'
-	for i in xrange(rho.size - convorder - 1):
+	print(rho.size - convorder - 1,'splines')
+	for i in range(rho.size - convorder - 1):
 		matrix.append(convolution_row(x, k-1, y, q-1, rho, i))
 	# matrix = scale*norm.reshape((1,norm.size))*n.array(matrix)
 	matrix = n.array(matrix)
@@ -191,14 +191,14 @@ def twiddle(spline, dim = -1, approx_order = 0, sigma = 100):
 			if current == axis:
 				callback(a, slices)
 			else:
-				for i in xrange(a.shape[current]):
+				for i in range(a.shape[current]):
 					myslice = list(slices)
 					myslice[current] = i
 					callback(a, myslice)
 		elif current == axis:
 			slice_axis(a, callback, slices, axis, current+1)
 		else:
-			for i in xrange(a.shape[current]):
+			for i in range(a.shape[current]):
 				myslice = list(slices)
 				myslice[current] = i
 				slice_axis(a, callback, myslice, axis, current+1)
@@ -269,7 +269,7 @@ def test_pandel():
 	
 	p.plot(t, convo_delay, label='Convoluted spline')
 	
-	print "Norm: %e -> %e" % ((delay[1:]*n.diff(t)).sum(), (convo_delay[1:]*n.diff(t)).sum())
+	print("Norm: %e -> %e" % ((delay[1:]*n.diff(t)).sum(), (convo_delay[1:]*n.diff(t)).sum()))
 	
 	p.legend()
 	
@@ -311,15 +311,15 @@ def test():
 	z = n.linspace(min(x.min(),y.min()), max(x.max(),y.max())+1, 500)
 	
 	convorder = k + q - 1
-	print 'order %d * order %d -> order %d' % (k-1, q-1, convorder)
+	print('order %d * order %d -> order %d' % (k-1, q-1, convorder))
 	# convolution product is a spline of degree k+q
 	nsplines = rho.size - convorder - 1
-	print nsplines,'splines'
+	print(nsplines,'splines')
 	coeffs = []
 	
 	# scale = (factorial(k)*factorial(q)/factorial(k+q-1))/(k+q)
 	matty = []
-	for i in xrange(nsplines):
+	for i in range(nsplines):
 		matty.append(convolution_row(x, k-1, y, q-1, rho, i))
 		# coeffs.append(coeff)
 	matty = n.array(matty)
@@ -358,7 +358,7 @@ def test():
 	fint = (xbasis.sum(axis=1)[1:]*n.diff(z)).sum()
 	spliffint = (spliff.flatten()[1:]*n.diff(z)).sum()
 	
-	print "integral %f -> %f" % (fint, spliffint)
+	print("integral %f -> %f" % (fint, spliffint))
 	
 	p.title('Analytic spline convolution at work')
 	p.legend()	

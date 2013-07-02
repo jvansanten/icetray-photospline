@@ -42,19 +42,19 @@ table = Table(args[0], mmap=False)
 table.remove_nans_and_infinites()
 table.normalize()
 
-print "Loaded histogram with dimensions ",table.shape
+print("Loaded histogram with dimensions ",table.shape)
 
 three_d = False
 xdim = None
 ydim = None
 idim = None
 axes = [opts.dim0, opts.dim1, opts.dim2, opts.dim3]
-free_axes = range(table.ndim)
+free_axes = list(range(table.ndim))
 
 if 'y' in axes:
     ydim = axes.index('y') 
     if ydim >= table.ndim:
-        print ydim,"-> y: Table only has dimensions", range(table.ndim)
+        print(ydim,"-> y: Table only has dimensions", list(range(table.ndim)))
         sys.exit()
     free_axes.remove(ydim)
     three_d = True
@@ -62,7 +62,7 @@ if 'y' in axes:
 if 'x' in axes:
     xdim = axes.index('x')
     if xdim >= table.ndim:
-        print xdim,"-> x: Table only has dimensions", range(table.ndim)
+        print(xdim,"-> x: Table only has dimensions", list(range(table.ndim)))
         sys.exit()
 else:
     xdim = max(free_axes)
@@ -71,7 +71,7 @@ free_axes.remove(xdim)
 if 'i' in axes:
     idim = axes.index('i')
     if idim >= table.ndim:
-        print idim,"-> i: Table only has dimensions", range(table.ndim)
+        print(idim,"-> i: Table only has dimensions", list(range(table.ndim)))
         sys.exit()
 else:
     idim = max(free_axes)
@@ -108,7 +108,7 @@ elif table.ph_header.geo == Geometry.SPHERICAL:
 	axis_labels[0] = AxisDesc('r', 'Source-observer distance', 'm')
 	axis_labels[2] = AxisDesc('cos(z)', 'Observervation angle (wrt source axis)', None)
 else:
-	print 'Unknown table geometry %d!' % table.ph_header.geo
+	print('Unknown table geometry %d!' % table.ph_header.geo)
 
 #print 'x:', xdim, '   y:', ydim, '   i:', idim, 'free:', free_axes
 
@@ -124,11 +124,11 @@ for file in args[1:]:
 # ---------------------------------------------------------------------------
 
 def printdiffstats(a,b):
-    print "Fit Statistics:"
-    print "\tMaximum Deviation from Data:",numpy.max(numpy.abs(a - b))
-    print "\tRMS Deviation from Data:",numpy.sqrt(numpy.mean((a - b)**2))
-    print "\tMax Fractional Deviation from Data:",numpy.max(numpy.abs((a - b)/b))
-    print "\tMean Fractional Deviation from Data:",numpy.mean(numpy.abs((a - b)/b))
+    print("Fit Statistics:")
+    print("\tMaximum Deviation from Data:",numpy.max(numpy.abs(a - b)))
+    print("\tRMS Deviation from Data:",numpy.sqrt(numpy.mean((a - b)**2)))
+    print("\tMax Fractional Deviation from Data:",numpy.max(numpy.abs((a - b)/b)))
+    print("\tMean Fractional Deviation from Data:",numpy.mean(numpy.abs((a - b)/b)))
 
 
 gp = Gnuplot.Gnuplot()
@@ -149,7 +149,7 @@ for i,icenter in enumerate(table.bin_centers[idim]):
                 bin = int(len(table.bin_centers[d])/2.)
             slices[d] = bin
             title += ", %s" % (axis_labels[d].format(table.bin_centers[d][bin]))
-        print "Building data set..."
+        print("Building data set...")
         if len(splines) == 1:
             sample = TableSlice(table, spline, slices, opts.density).flatten()
         else:
@@ -232,4 +232,4 @@ for i,icenter in enumerate(table.bin_centers[idim]):
             gp.interact()
             #raw_input('Press Enter to continue')
     except AssertionError:
-        print 'Skipping   slice at  (no raw data)' % i
+        print('Skipping   slice at  (no raw data)' % i)

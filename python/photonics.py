@@ -49,10 +49,10 @@ class Header(object):
 		self.limits = []
 		self.maxes = []
 		pos = 23
-		for i in xrange(6):
+		for i in range(6):
 			self.limits.append(v[pos:pos+2])
 			pos += 2
-		for i in xrange(6):
+		for i in range(6):
 			self.maxes.append(v[pos:pos+2])
 			pos += 2
 		self.depth       = v[47]
@@ -165,7 +165,7 @@ class Table(object):
 		if (eff & Efficiency.DIFFERENTIAL):
 			# Someone has made this a dP/dt table. Undo their work.
 			if self.values.ndim != 4:
-				raise ValueError, "This table is weird, man."
+				raise ValueError("This table is weird, man.")
 			shape = [1]*len(self.values.shape)
 			shape[-1] = self.values.shape[-1]
 			dt = self.bin_widths[-1].reshape(shape)
@@ -216,7 +216,7 @@ class Table(object):
 		header = Header(open(filename))
 		
 		if header.MetaHead.level == 2:
-			raise ValueError, "I don't know how to read level-2 tables!"
+			raise ValueError("I don't know how to read level-2 tables!")
 		self.values = numpy.squeeze(numpy.memmap(filename, shape=header.n, dtype=numpy.float32, offset=Header.size, mode=mode))
 		if header.record_errors:
 			offset = Header.size + self.values.itemsize*self.values.size
@@ -247,11 +247,11 @@ class Table(object):
 			trafos[-1] = numpy.sqrt
 			itrafos[-1] = lambda a: a**2
 		
-		for i in xrange(len(header.limits)):
+		for i in range(len(header.limits)):
 			steps = header.n[i]+1
 			if steps == 2:
 				continue
-			lo, hi = map(trafos[i], header.limits[i])
+			lo, hi = list(map(trafos[i], header.limits[i]))
 			edges = itrafos[i](numpy.linspace(lo, hi, steps))
 			self.bin_centers.append(0.5*(edges[1:]+edges[:-1]))
 			self.bin_widths.append(numpy.diff(edges))
@@ -317,7 +317,7 @@ class Table(object):
 
 			return 1
             
-		print "Don't know how to convert table with level", self.level
+		print("Don't know how to convert table with level", self.level)
 		return 0
             
 	def convert_to_level2(self):
@@ -345,7 +345,7 @@ class Table(object):
             
 			return 1
             
-		print "Don't know how to convert table with level", self.level
+		print("Don't know how to convert table with level", self.level)
 		return 0
 
 	def mirror(self,n_rho=0,n_phi=0):
@@ -355,9 +355,9 @@ class Table(object):
 			return None
 
 		if abs(self.bin_widths[1].sum() - 180) > 1e-12:
-			raise ValueError, "Only half-cylindrical tables can \
+			raise ValueError("Only half-cylindrical tables can \
 			    be mirrored. Perhaps mirror() has already been \
-			    called?"
+			    called?")
 
 		## XXX only phi mirroring for now
 		new_shape = list(self.values.shape)
@@ -393,17 +393,17 @@ class Table(object):
 				lst[i] = new
 
 		# mirror left edge
-		source_slice[1] = [2*n_phi - 1 - i for i in xrange(n_phi)]
+		source_slice[1] = [2*n_phi - 1 - i for i in range(n_phi)]
 		target_slice[0] = slice(None)
-		target_slice[1] = range(n_phi)
+		target_slice[1] = list(range(n_phi))
 		for array in (self.values, self.weights):
 			array[target_slice] = array[source_slice]
 		for lst in (self.bin_centers, self.bin_widths):
 			lst[1][target_slice[1]] = -(lst[1][source_slice[1]])
 
 		# mirror right edge
-		source_slice[1] = [-(2*n_phi - i) for i in xrange(n_phi)]
-		target_slice[1] = [-(i+1) for i in xrange(n_phi)]
+		source_slice[1] = [-(2*n_phi - i) for i in range(n_phi)]
+		target_slice[1] = [-(i+1) for i in range(n_phi)]
 		for array in (self.values, self.weights):
 			array[target_slice] = array[source_slice]
 		for lst in (self.bin_centers, self.bin_widths):
@@ -411,13 +411,13 @@ class Table(object):
 
 		# mirror radial slices
 		# negative radii are mirrored, so in reverse order
-		source_slice[0] = range(2*n_rho - 1, n_rho - 1, -1)
-		target_slice[0] = range(n_rho)
+		source_slice[0] = list(range(2*n_rho - 1, n_rho - 1, -1))
+		target_slice[0] = list(range(n_rho))
 		for lst in (self.bin_centers, self.bin_widths):
 			lst[0][target_slice[0]] = -(lst[0][source_slice[0]])
 
 		# mirror the radial slice at each azimuth to negative radii
-		for i in xrange(self.bin_centers[1].size):
+		for i in range(self.bin_centers[1].size):
 			# find the opposite slice
 			opposite = 180 + self.bin_centers[1][i]
 			if opposite > 180: opposite -= 2*(180 - opposite)
@@ -434,17 +434,17 @@ class Table(object):
 def melonball(table, weights = None, radius = 1):
 	"""Set weights inside a given radius to zero."""
 	if table.header['geometry'] != Geometry.CYLINDRICAL:
-		raise ValueError, "Can't handle non-cylindrical tables"
+		raise ValueError("Can't handle non-cylindrical tables")
 	Rho, Z = numpy.meshgrid_nd(table.bin_centers[0], table.bin_centers[2], lex_order=True)
 	mask = Rho**2 + Z**2 < radius**2
 	if weights is None:
 		weights = table.weights
 	shape = weights.shape
-	for i in xrange(shape[1]):
+	for i in range(shape[1]):
 		if weights.ndim == 3:
 			weights[:,i,:][mask] = 0
 		else:
-			for j in xrange(shape[3]):
+			for j in range(shape[3]):
 				weights[:,i,:,j][mask] = 0
 				
 def scalp(table, weights = None, low = -820, high = 820):
@@ -461,7 +461,7 @@ def scalp(table, weights = None, low = -820, high = 820):
 		Rho = numpy.sqrt(R**2 - L**2)
 		del R, CosPolar
 	else:
-		raise ValueError, "Unknown geometry type %d" % geo
+		raise ValueError("Unknown geometry type %d" % geo)
 	Phi *= (numpy.pi/180.0)
 		
 	z = L*numpy.cos(zenith) + Rho*numpy.sin(zenith)*(numpy.cos(Phi) + numpy.sin(Phi))

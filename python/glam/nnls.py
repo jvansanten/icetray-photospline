@@ -27,14 +27,14 @@ def nnls(A,b,verbose=True):
 	b = n.asarray(b).reshape(b.size)
 	# step 0
 	F = [] # passive (solved for) set
-	G = range(A.shape[0]) # active (clamped to zero) set
+	G = list(range(A.shape[0])) # active (clamped to zero) set
 	x = n.zeros(A.shape[0])
 	
 	y = -n.dot(A.transpose(),b)
 	
 	if verbose:
 		def log(mesg):
-			print mesg
+			print(mesg)
 	else:
 		def log(mesg):
 			pass
@@ -95,12 +95,12 @@ def nnls_normal(AtA,Atb,verbose=True):
 	maxiter = 3*nvar
 	# step 0
 	F = [] # passive (solved by unconstrained least squares) set
-	G = range(nvar) # active (clamped to zero) set
+	G = list(range(nvar)) # active (clamped to zero) set
 	x = n.zeros(nvar)
 
 	if verbose:
 		def log(mesg):
-			print mesg
+			print(mesg)
 	else:
 		def log(mesg):
 			pass
@@ -189,14 +189,14 @@ def nnls_normal_block(AtA,Atb,verbose=True):
 	
 	if verbose:
 		def log(mesg):
-			print mesg
+			print(mesg)
 	else:
 		def log(mesg):
 			pass
 	
 	# step 0
 	F = [] # passive (solved by unconstrained least squares) set
-	G = range(nvar) # active (clamped to zero) set
+	G = list(range(nvar)) # active (clamped to zero) set
 	x = n.zeros(nvar)
 	y = -Atb
 	
@@ -242,7 +242,7 @@ def nnls_normal_block(AtA,Atb,verbose=True):
 		y[F] = 0
 		y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[:,G]
 	if iterations == maxiter:
-		print 'Hooo boy, this turned out badly'
+		print('Hooo boy, this turned out badly')
 	return x
 	
 def nnls_normal_block3(AtA,Atb,verbose=True):
@@ -261,7 +261,7 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 
 	if verbose:
 		def log(mesg):
-			print mesg
+			print(mesg)
 	else:
 		def log(mesg):
 			pass
@@ -336,10 +336,10 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 			log("Unconstrained solve for %d of %d coefficients" % (len(F),nvar))
 			log("\tRecomputing factorization from scratch (F[%d], G[%d], H1[%d], H2[%d)"%(len(F), len(G), len(H1), len(H2)))
 			# update factorization state (clearing H1 and H2)
-			print 'F',F
-			print 'G',G
-			print 'H1',H1
-			print 'H2',H2
+			print('F',F)
+			print('G',G)
+			print('H1',H1)
+			print('H2',H2)
 			modify_factor(F, G, H1, H2)
 			AtA_F = AtA[:,F][F,:]
 			Atb_F = Atb[:,F]
@@ -439,7 +439,7 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 		#print "x_full: " + " ".join(["%- .1e"%f for f in x])
 		#print "y_full: " + " ".join(["%- .1e"%f for f in y])
 	if iterations == maxiter:
-		print 'Hooo boy, this turned out badly'
+		print('Hooo boy, this turned out badly')
 	return x
 		   
 def nnls_normal_block4(AtA,Atb,verbose=True):
@@ -460,7 +460,7 @@ def nnls_normal_block4(AtA,Atb,verbose=True):
 
 	if verbose:
 		def log(mesg):
-			print mesg
+			print(mesg)
 	else:
 		def log(mesg):
 			pass
@@ -570,7 +570,7 @@ def nnls_normal_block4(AtA,Atb,verbose=True):
 		x[G] = 0
 		y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[:,G]
 	if iterations == maxiter:
-		print 'Hooo boy, this turned out badly'
+		print('Hooo boy, this turned out badly')
 	return x
 
 def test(size=5):
