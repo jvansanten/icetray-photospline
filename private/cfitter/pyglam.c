@@ -31,7 +31,7 @@ static PyMethodDef methods[] = {
 	{ NULL, NULL }
 };
 
-#if PY_VERSION_HEX >= 0x03000000
+#if PY_MAJOR_VERSION >= 3
 static struct PyModuleDef spglam_module = {
 	PyModuleDef_HEAD_INIT, "spglam", "spglam module", -1, methods
 };
@@ -54,7 +54,7 @@ void initspglam(void)
 		PyErr_SetString(PyExc_ImportError,
 		    "Could not import splinetable module");
 
-#if PY_VERSION_HEX >= 0x03000000
+#if PY_MAJOR_VERSION >= 3
 		return NULL;
 	}
 	return module;
@@ -621,7 +621,7 @@ construct_penalty(struct splinetable* out, PyObject* py_penalty,
 	    c);
 
 	while (PyDict_Next(py_penalty, &ppos, &key, &value)) {
-#if PY_VERSION_HEX >= 0x03000000
+#if PY_MAJOR_VERSION >= 3
 		order = PyLong_AsLong(key);
 #else
 		order = PyInt_AsLong(key);
