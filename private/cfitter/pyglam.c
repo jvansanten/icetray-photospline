@@ -1,4 +1,8 @@
 #include <Python.h>
+#include <numpy/numpyconfig.h>
+#ifdef NPY_1_7_API_VERSION
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#endif
 #include <numpy/ndarrayobject.h>
 #include <stdio.h>
 #include <limits.h>
@@ -71,11 +75,11 @@ numpy2d_to_sparse(PyArrayObject *a, cholmod_common *c)
 	cholmod_dense ad;
 	cholmod_sparse *sp, *spt;
 
-	ad.nrow = a->dimensions[1];
-	ad.ncol = a->dimensions[0];
+	ad.nrow = PyArray_DIM(a, 1);
+	ad.ncol = PyArray_DIM(a, 0);
 	ad.nzmax = ad.nrow * ad.ncol;
 	ad.d = ad.nrow;
-	ad.x = a->data;
+	ad.x = PyArray_DATA(a);
 	ad.z = NULL;
 	ad.xtype = CHOLMOD_REAL;
 	ad.dtype = CHOLMOD_DOUBLE;
@@ -99,13 +103,12 @@ numpy_sparse_to_2d(cholmod_sparse *a, cholmod_common *c)
 
 	dimensions[0] = a->nrow;
 	dimensions[1] = a->ncol;
-	out = (PyArrayObject *)PyArray_SimpleNew(2, dimensions,
-	    PyArray_DOUBLE);
+	out = (PyArrayObject *)PyArray_SimpleNew(2, dimensions, NPY_DOUBLE);
 
 	at = cholmod_l_transpose(a, 1, c); /* Fix row-major/column-major */
 	ad = cholmod_l_sparse_to_dense(at, c);
 	cholmod_l_free_sparse(&at, c);
-	memcpy(out->data, ad->x, sizeof(double) * ad->nrow * ad->ncol);
+	memcpy(PyArray_DATA(out), ad->x, sizeof(double) * ad->nrow * ad->ncol);
 	cholmod_l_free_dense(&ad, c);
 
 	return out;
@@ -118,21 +121,21 @@ numpynd_to_ndsparse(PyObject *in, struct ndsparse *out)
 	int i, j, elements, coord, currow;
 	int *moduli;
 
-	inar = (PyArrayObject *)PyArray_ContiguousFromObject(in,
-	    PyArray_DOUBLE, 1, INT_MAX);
+	inar = (PyArrayObject *)PyArray_ContiguousFromObject(in, NPY_DOUBLE, 1,
+	    INT_MAX);
 	if (inar == NULL)
 		return -1;
 
 	out->rows = 0;
-	out->ndim = inar->nd;
+	out->ndim = PyArray_NDIM(inar);
 	out->ranges = malloc(sizeof(int)*out->ndim);
 	out->i = malloc(sizeof(int *)*out->ndim);
 	moduli = malloc(sizeof(int)*out->ndim);
 
 	elements = 1;
-	for (i = 0; i < inar->nd; i++) {
-		out->ranges[i] = inar->dimensions[i];
-		elements *= inar->dimensions[i];
+	for (i = 0; i < PyArray_NDIM(inar); i++) {
+		out->ranges[i] = PyArray_DIM(inar, i);
+		elements *= PyArray_DIM(inar, i);
 	}
 
 	moduli[out->ndim-1] = 1;
@@ -141,23 +144,23 @@ numpynd_to_ndsparse(PyObject *in, struct ndsparse *out)
 	
 	/* Find how many non-zeros we have */
 	for (i = 0; i < elements; i++) {
-		if (((double *)(inar->data))[i] != 0.0)
+		if (((double *)(PyArray_DATA(inar)))[i] != 0.0)
 			out->rows++;
 	}
 
 	/* Init coordinates */
-	for (i = 0; i < inar->nd; i++)
+	for (i = 0; i < PyArray_NDIM(inar); i++)
 		out->i[i] = malloc(sizeof(int)*out->rows);
 	out->x = malloc(sizeof(double)*out->rows);
 
 	currow = 0;
 	for (i = 0; i < elements; i++)  {
-		if (((double *)(inar->data))[i] == 0)
+		if (((double *)(PyArray_DATA(inar)))[i] == 0)
 			continue;
-		out->x[currow] = ((double *)(inar->data))[i];
+		out->x[currow] = ((double *)(PyArray_DATA(inar)))[i];
 
 		coord = i;
-		for (j = 0; j < inar->nd; j++) {
+		for (j = 0; j < PyArray_NDIM(inar); j++) {
 			out->i[j][currow] = coord / moduli[j];
 			coord = coord % moduli[j];
 		}
@@ -184,14 +187,14 @@ numpy_ndsparse_to_ndarray(struct ndsparse *a)
 		dimensions[i] = a->ranges[i];
 
 	out = (PyArrayObject *)PyArray_SimpleNew(a->ndim, dimensions,
-	    PyArray_DOUBLE);
+	    NPY_DOUBLE);
 
 	moduli[a->ndim-1] = 1;
 	for (i = a->ndim-2; i >= 0; i--)
 		moduli[i] = moduli[i+1]*a->ranges[i+1];
 
 	/* Find and initialize the data array to zero */
-	x = (double *)out->data;
+	x = (double *)PyArray_DATA(out);
 	elements = 1;
 	for (i = 0; i < a->ndim; i++) 
 		elements *= a->ranges[i];
@@ -219,9 +222,9 @@ static PyObject *pybox(PyObject *self, PyObject *args)
 		return NULL;
 
 	a = (PyArrayObject *)PyArray_ContiguousFromObject(xa,
-	    PyArray_DOUBLE, 2, 2);
+	    NPY_DOUBLE, 2, 2);
 	b = (PyArrayObject *)PyArray_ContiguousFromObject(xb,
-	    PyArray_DOUBLE, 2, 2);
+	    NPY_DOUBLE, 2, 2);
 
 	if (a == NULL || b == NULL) {
 		PyErr_SetString(PyExc_ValueError,
@@ -313,7 +316,7 @@ static PyObject *pyrho(PyObject *self, PyObject *args)
 		return NULL;
 
 	a = (PyArrayObject *)PyArray_ContiguousFromObject(xa,
-	    PyArray_DOUBLE, 2, 2);
+	    NPY_DOUBLE, 2, 2);
 	if (a == NULL || numpynd_to_ndsparse(xb, &nd) != 0) {
 		if (a != NULL) {
 			Py_DECREF(a);
@@ -385,7 +388,7 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 	err = numpynd_to_ndsparse(w, &data);
 	if (err == 0)
 		z_arr = (PyArrayObject *)PyArray_ContiguousFromObject(z,
-		    PyArray_DOUBLE, data.ndim, data.ndim);
+		    NPY_DOUBLE, data.ndim, data.ndim);
 
 	if (err != 0 || z_arr == NULL) {
 		PyErr_SetString(PyExc_ValueError,
@@ -397,7 +400,7 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 
 	result = NULL;
 	for (i = 0; i < data.ndim; i++) {
-		if (z_arr->dimensions[i] != data.ranges[i]) {
+		if (PyArray_DIM(z_arr, i) != data.ranges[i]) {
 			Py_DECREF(z_arr);
 			PyErr_SetString(PyExc_ValueError,
 			    "weight and data array dimensions do not match");
@@ -416,7 +419,7 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 		k = 0;
 		for (j = 0; j < data.ndim; j++)
 			k += moduli[j]*data.i[j][i];
-		data_arr[i] = ((double *)(z_arr->data))[k];
+		data_arr[i] = ((double *)(PyArray_DATA(z_arr)))[k];
 	}
 	free(moduli);
 
@@ -449,7 +452,7 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 		PyArrayObject *knot_vec;
 		knot_vec = (PyArrayObject *)PyArray_ContiguousFromObject(
 		    PySequence_GetItem(knots, i),
-		    PyArray_DOUBLE, 1, 1);
+		    NPY_DOUBLE, 1, 1);
 
 		if (knot_vec == NULL) {
 			PyErr_SetString(PyExc_TypeError,
@@ -457,9 +460,9 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 			goto exit;
 		}
 
-		out.nknots[i] = knot_vec->dimensions[0];
+		out.nknots[i] = PyArray_DIM(knot_vec, 0);
 		out.knots[i] = calloc(out.nknots[i], sizeof(double));
-		memcpy(out.knots[i], knot_vec->data,
+		memcpy(out.knots[i], PyArray_DATA(knot_vec),
 		    out.nknots[i] * sizeof(double));
 
 		Py_DECREF(knot_vec);
@@ -486,7 +489,7 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 		PyArrayObject *coord_vec;
 		coord_vec = (PyArrayObject *)PyArray_ContiguousFromObject(
 		    PySequence_GetItem(coords, i),
-		    PyArray_DOUBLE, 1, 1);
+		    NPY_DOUBLE, 1, 1);
 
 		if (coord_vec == NULL) {
 			PyErr_SetString(PyExc_TypeError,
@@ -494,7 +497,7 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 			goto exit;
 		}
 
-		if (coord_vec->dimensions[0] != data.ranges[i]) {
+		if (PyArray_DIM(coord_vec, 0) != data.ranges[i]) {
 			PyErr_SetString(PyExc_ValueError,
 			    "wrong number of coords");
 			Py_DECREF(coord_vec);
@@ -502,7 +505,7 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 		}
 
 		c_coords[i] = calloc(data.ranges[i], sizeof(double));
-		memcpy(c_coords[i], coord_vec->data,
+		memcpy(c_coords[i], PyArray_DATA(coord_vec),
 		    data.ranges[i] * sizeof(double));
 
 		Py_DECREF(coord_vec);
@@ -530,12 +533,12 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 	for (i = 0; i < out.ndim; i++)
 		elements *= out.naxes[i];
 	result_arr = (PyArrayObject *)PyArray_SimpleNew(out.ndim, out.naxes,
-	    PyArray_FLOAT);
+	    NPY_FLOAT);
 
 	if (result_arr != NULL) {
 		PyObject *splinetable_cls;
 
-		memcpy(result_arr->data, out.coefficients,
+		memcpy(PyArray_DATA(result_arr), out.coefficients,
 		    elements*sizeof(float));
 
 		/* Look up the splinetable class */
@@ -560,7 +563,7 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 			npy_intp dim;
 
 			dim = out.ndim;
-			periods = PyArray_ZEROS(1, &dim, PyArray_INT, 0);
+			periods = PyArray_ZEROS(1, &dim, NPY_INT, 0);
 			PyObject_SetAttrString(result, "periods", periods);
 			Py_DECREF(periods);
 		} else {
@@ -686,18 +689,19 @@ pygrideval(PyObject *self, PyObject *args)
 
 		coord_vec = (PyArrayObject *)PyArray_ContiguousFromObject(
 		    PySequence_GetItem(coords, i),
-		    PyArray_DOUBLE, 1, 1);
+		    NPY_DOUBLE, 1, 1);
 		knots_vec = (PyArrayObject *)PyArray_ContiguousFromObject(
 		    PySequence_GetItem(knots, i),
-		    PyArray_DOUBLE, 1, 1);
+		    NPY_DOUBLE, 1, 1);
 		if (PySequence_Check(order_obj))
 			order = PyLong_AsLong(PySequence_GetItem(order_obj,i));
 		else
 			order = PyLong_AsLong(order_obj);
 		
-		basis = bsplinebasis((double *)knots_vec->data,
-		    knots_vec->dimensions[0], (double *)coord_vec->data,
-		    coord_vec->dimensions[0], order, &c);
+		basis = bsplinebasis((double *)PyArray_DATA(knots_vec),
+		    PyArray_DIM(knots_vec, 0),
+		    (double *)PyArray_DATA(coord_vec),
+		    PyArray_DIM(coord_vec, 0), order, &c);
 		basist = cholmod_l_transpose(basis, 1, &c);
 		cholmod_l_free_sparse(&basis, &c);
 
@@ -748,9 +752,9 @@ static PyObject *pynnls(PyObject *self, PyObject *args, PyObject *kw)
 	}
 
 	a = (PyArrayObject *)PyArray_ContiguousFromObject(xa,
-	    PyArray_DOUBLE, 2, 2);
+	    NPY_DOUBLE, 2, 2);
 	b = (PyArrayObject *)PyArray_ContiguousFromObject(xb,
-	    PyArray_DOUBLE, 1, 1);
+	    NPY_DOUBLE, 1, 1);
 
 	if (a == NULL || b == NULL) {
 		PyErr_SetString(PyExc_ValueError,
@@ -761,9 +765,9 @@ static PyObject *pynnls(PyObject *self, PyObject *args, PyObject *kw)
 	cholmod_l_start(&c);
 
 	am = numpy2d_to_sparse(a, &c);
-	bm = cholmod_l_allocate_dense(b->dimensions[0], 1, b->dimensions[0],
+	bm = cholmod_l_allocate_dense(PyArray_DIM(b, 0), 1, PyArray_DIM(b, 0),
 	    CHOLMOD_REAL, &c);
-	memcpy(bm->x, b->data, b->dimensions[0]*sizeof(double));
+	memcpy(bm->x, PyArray_DATA(b), PyArray_DIM(b, 0)*sizeof(double));
 
 	Py_DECREF(a);
 	Py_DECREF(b);
@@ -792,8 +796,9 @@ static PyObject *pynnls(PyObject *self, PyObject *args, PyObject *kw)
 	cholmod_l_free_sparse(&am, &c);
 
 	result_array = (PyArrayObject *)PyArray_SimpleNew(1, dimensions,
-	    PyArray_DOUBLE);
-	memcpy(result_array->data, result->x, dimensions[0]*sizeof(double));
+	    NPY_DOUBLE);
+	memcpy(PyArray_DATA(result_array), result->x,
+	    dimensions[0]*sizeof(double));
 
 	cholmod_l_free_dense(&result, &c);
 	cholmod_l_finish(&c);
