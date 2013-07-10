@@ -1,5 +1,9 @@
 import numpy
-from icecube.photospline.glam import glam
+try:
+	from icecube.photospline import spglam as glam
+except ImportError:
+	print("Could not get SPGLAM, falling back")
+	from icecube.photospline.glam import glam
 import Gnuplot
 from icecube.photospline.glam.bspline import *
 
