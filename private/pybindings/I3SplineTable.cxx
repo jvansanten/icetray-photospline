@@ -1,6 +1,10 @@
 
 #define NO_IMPORT_ARRAY /* Just use the headers */
 #define PY_ARRAY_UNIQUE_SYMBOL photospline_PyArray_API
+#include <numpy/numpyconfig.h>
+#ifdef NPY_1_7_API_VERSION
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#endif
 #include <numpy/ndarrayobject.h>
 
 #include "photospline/I3SplineTable.h"
@@ -23,7 +27,7 @@ splinetableeval(I3SplineTable &self, bp::object coordinates)
 		    "'%s' to an array of doubles!", PY_TYPESTRING(coordinates));
 		bp::throw_error_already_set();
 	}
-	coord_ptr = (double*)PyArray_DATA(coords);
+	coord_ptr = (double*)PyArray_DATA((PyArrayObject *)coords);
 	
 	self.Eval(coord_ptr, &retvalue);
 

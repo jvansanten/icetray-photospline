@@ -2,6 +2,10 @@
 #define PY_ARRAY_UNIQUE_SYMBOL photospline_PyArray_API
 
 #include <icetray/load_project.h>
+#include <numpy/numpyconfig.h>
+#ifdef NPY_1_7_API_VERSION
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#endif
 #include <numpy/ndarrayobject.h>
 
 void register_I3SplineTable();
