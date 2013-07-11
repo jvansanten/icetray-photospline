@@ -39,6 +39,7 @@ int writesplinefitstable(const char *path, const struct splinetable *table);
 int writesplinefitstable_mem(struct splinetable_buffer *buffer,
     const struct splinetable *table);
 void splinetable_free(struct splinetable *table);
+void splinetable_permute(struct splinetable *table, int *permutation);
 char * splinetable_get_key(const struct splinetable *table, const char *key);
 int splinetable_read_key(const struct splinetable *table, splinetable_dtype type,
     const char *key, void *result);

@@ -144,6 +144,78 @@ void splinetable_free(struct splinetable *table)
 	}
 }
 
+/* Re-order the dimensions of a spline table */
+void
+splinetable_permute(struct splinetable *table, int *permutation)
+{
+	int i, j;
+	int iperm[table->ndim];
+	unsigned long pos, npos;
+	unsigned long total_size;
+	int *order;
+	unsigned long *strides;
+	long *naxes, *nknots;
+	double **extents, **knots;
+	float *coefficients;
+	
+	order   = malloc(sizeof(table->order[0])*table->ndim);
+	naxes   = malloc(sizeof(table->naxes[0])*table->ndim);
+	strides = malloc(sizeof(table->strides[0])*table->ndim);
+	nknots  = malloc(sizeof(table->nknots[0])*table->ndim);
+	knots   = malloc(sizeof(table->knots[0])*table->ndim);
+	extents = malloc(sizeof(table->extents[0])*table->ndim);
+	extents[0] = malloc(sizeof(table->extents[0][0])*2*table->ndim);
+	for (i = 1; i < table->ndim; i++) {
+		extents[i] = &extents[0][2*i];
+	}
+	
+	/* Permute various per-axis properties */
+	for (i = 0; i < table->ndim; i++) {
+		j = permutation[i];
+		iperm[j] = i;
+		order[i] = table->order[j];
+		naxes[i] = table->naxes[j];
+		nknots[i] = table->nknots[j];
+		knots[i] = table->knots[j];
+		extents[i][0] = table->extents[j][0];
+		extents[i][1] = table->extents[j][1];
+	}
+	
+	/* Compute new strides */
+	total_size = 1;
+	for (i = table->ndim-1; i >= 0; i--) {
+		strides[i] = total_size;
+		total_size *= naxes[i];
+	}
+	
+	/* Re-order coefficient array */
+	coefficients = malloc(sizeof(table->coefficients[0])*total_size);
+	for (pos = 0; pos < total_size; pos++) {
+		npos = 0;
+		/* Multiply index of point in old shape by new stride */
+		for (i = 0; i < table->ndim; i++)
+			npos += (pos / table->strides[i] % table->naxes[i])*strides[iperm[i]];
+		coefficients[npos] = table->coefficients[pos];
+	}
+	
+	free(table->coefficients);
+	free(table->order);
+	free(table->naxes);
+	free(table->strides);
+	free(table->nknots);
+	free(table->knots);
+	free(table->extents[0]);
+	free(table->extents);
+	
+	table->coefficients = coefficients;
+	table->order = order;
+	table->naxes = naxes;
+	table->strides = strides;
+	table->nknots = nknots;
+	table->knots = knots;
+	table->extents = extents;
+}
+
 static int
 fillfitstable(fitsfile *fits, const struct splinetable *table)
 {
