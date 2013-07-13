@@ -1,5 +1,5 @@
 
-import numpy, numpy_extensions, warnings, struct
+import numpy, warnings, struct
 
 class MetaHead(object):
 	"""
