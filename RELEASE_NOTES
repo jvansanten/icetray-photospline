@@ -3,6 +3,25 @@
 # $Date$
 #
 
+August 21, 2013 Meike de With (meike.de.with@desy.de)
+--------------------------------------------------------------------
+Release V00-07-00
+
+- Check the return value of tablesearchcenters() in the sampler
+- Make project compatible with Python 3
+- Remove some deprecated API warnings and update to new numpy API
+- Use spglam instead of glam if it is available
+  -- Nathan Whitehorn
+
+- Fix SuiteSparse header paths following cmake update
+- Add some 'const's 
+- Allow header keywords to be read through I3SplineTable
+- Add doxygen comments
+- Add a function to permute the dimensions of a spline table
+- Actually call the SplineTable constructor, making spglam work
+  -- Jakob van Santen
+
+
 February 21, 2013 Emanuel Jacobi  (emanuel.jacobi@desy.de)
 --------------------------------------------------------------------
 Release V00-06-00
