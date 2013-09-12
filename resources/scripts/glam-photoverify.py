@@ -37,8 +37,15 @@ if len(args) < 2:
     print(usage)
     sys.exit(1)
 
-# Load original table
-table = Table(args[0], mmap=False)
+# Load original table. If it fails, try another format.
+try:
+	table = Table(args[0], mmap=False)
+	geo = table.ph_header.geo
+except:
+	from icecube.clsim.tablemaker.tabulator import PhotoTable
+	table = PhotoTable.load(args[0])
+	geo = table.header['geometry']
+	
 table.remove_nans_and_infinites()
 table.normalize()
 
@@ -102,13 +109,13 @@ axis_labels = [
 ]
 
 # Label axes appropriately
-if table.ph_header.geo == Geometry.CYLINDRICAL:
+if geo == Geometry.CYLINDRICAL:
 	pass
-elif table.ph_header.geo == Geometry.SPHERICAL:
+elif geo == Geometry.SPHERICAL:
 	axis_labels[0] = AxisDesc('r', 'Source-observer distance', 'm')
 	axis_labels[2] = AxisDesc('cos(z)', 'Observervation angle (wrt source axis)', None)
 else:
-	print('Unknown table geometry %d!' % table.ph_header.geo)
+	print('Unknown table geometry %d!' % geo)
 
 #print 'x:', xdim, '   y:', ydim, '   i:', idim, 'free:', free_axes
 
@@ -197,7 +204,10 @@ for i,icenter in enumerate(table.bin_centers[idim]):
                     plots.append(Gnuplot.Data(sample[:,xdim],
                                           sample[:,plot+1],
                                           title="%s PDF" % fit_labels[(plot - ndim - offset)/offset], axes='x1y2', with_='lines lc %d' % pcolor))
-            plots.append(Gnuplot.Data(sample[:,xdim]+xshift, sample[:,ndim],   title="Raw CDF", axes='x1y1', with_='points lc 1', every=opts.density))
+
+            # mask out non-finite values to keep Gnuplot happy
+            dmask = numpy.isfinite(sample[:,ndim])
+            plots.append(Gnuplot.Data(sample[dmask,xdim]+xshift[dmask], sample[dmask,ndim],   title="Raw CDF", axes='x1y1', with_='points lc 1', every=opts.density))
             if showpdf:
                 plots.append(Gnuplot.Data(sample[:,xdim], sample[:,ndim+1], title="Raw PDF", axes='x1y2', with_='points lc 3', every=opts.density))
             if timing:
