@@ -99,6 +99,10 @@ class Geometry(object):
 	CYLINDRICAL = 2
 	CUBIC       = 3
 
+class Parity(object):
+	EVEN	    = 0
+	ODD	    = 1
+
 # Class for reading IceCube photonics tables
 class Table(object):
 	level = -1

@@ -29,6 +29,7 @@ def write(table,path):
 	data.header.update('LEVEL',table.level)
 	data.header.update('GEOTYPE',table.geotype)
 	data.header.update('NGROUP',table.ngroup)
+	data.header.update('PARITY',table.parity)
 
 	hdulist = pyfits.HDUList([data])
 
@@ -117,6 +118,10 @@ def read(path):
 		table.ngroup = data.header['NGROUP']
 	except KeyError:
 		pass
+        try:
+                table.parity = data.header['PARITY']
+        except KeyError:
+                pass
 
 	return table
 

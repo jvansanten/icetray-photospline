@@ -14,6 +14,9 @@ class SplineTable(object):
 		# extent of supported region
 		self.extents = []
 
+		# parity
+		self.parity = 0
+
 		# geometry type
 		self.geometry = 2
 		# geometry class of photonics table (0 is point souce,
