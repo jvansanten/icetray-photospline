@@ -3,10 +3,7 @@
 #define PHOTOSPLINE_I3SPLINETABLE_H_INCLUDED
 
 #include <string>
-
-extern "C" {
-	#include <photospline/splinetable.h>
-}
+#include <photospline/splinetable.h>
 
 class I3SplineTable {
 public:
@@ -32,6 +29,8 @@ public:
 	/** Retrieve a value stored in the FITS header */
 	double GetField(const std::string &key) const;
 private:
+	I3SplineTable(const I3SplineTable&);
+	
 	struct splinetable table_;
 	double bias_;
 };

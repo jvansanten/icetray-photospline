@@ -1,6 +1,10 @@
 #ifndef _SPLINE_TABLE_H
 #define _SPLINE_TABLE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct splinetable {
 	int ndim;
 	int *order;
@@ -44,6 +48,9 @@ char * splinetable_get_key(const struct splinetable *table, const char *key);
 int splinetable_read_key(const struct splinetable *table, splinetable_dtype type,
     const char *key, void *result);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _SPLINE_TABLE_H */
 

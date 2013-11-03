@@ -35,7 +35,7 @@ splinetableeval(I3SplineTable &self, bp::object coordinates)
 }
 
 void register_I3SplineTable() {
-	bp::class_<I3SplineTable, boost::shared_ptr<I3SplineTable> >
+	bp::class_<I3SplineTable, boost::shared_ptr<I3SplineTable>, boost::noncopyable>
 	    ("I3SplineTable", bp::init<const std::string&>(bp::arg("path")))
 	    .def("eval", splinetableeval, bp::args("coordinates"), "Evaluate "
 	        "the spline surface at the given coordinates.")

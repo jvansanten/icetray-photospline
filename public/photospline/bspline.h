@@ -3,6 +3,10 @@
 
 #include "splinetable.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Compute the value of the ith nth-order basis spline of a set
  * defined by knots at the point x.
@@ -84,5 +88,8 @@ void ndsplineeval_gradient(const struct splinetable *table, const double *x,
 int splinetable_convolve(struct splinetable *table, const int dim,
     const double *knots, size_t n_knots);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _BSPLINE_H */

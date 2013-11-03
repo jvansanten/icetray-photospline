@@ -1,10 +1,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <photospline/I3SplineTable.h>
-
-extern "C" {
-	#include <photospline/bspline.h>
-}
+#include <photospline/bspline.h>
 
 I3SplineTable::I3SplineTable(const std::string &path)
 {
