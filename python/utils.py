@@ -51,9 +51,9 @@ class TableSlice(object):
 		bigdat = numpy.column_stack((coords,self.table_cdf.flatten()))
 		if self.table_pdf is not None:
 			bigdat = numpy.column_stack((bigdat,self.table_pdf.flatten()))
-    		bigdat = numpy.column_stack((bigdat,self.spline_cdf.flatten()))
+		bigdat = numpy.column_stack((bigdat,self.spline_cdf.flatten()))
 		if self.spline_pdf is not None:
-    			bigdat = numpy.column_stack((bigdat,self.spline_pdf.flatten()))
+			bigdat = numpy.column_stack((bigdat,self.spline_pdf.flatten()))
 		return bigdat
 
 	def make_grid(self, density = 1):

@@ -73,12 +73,12 @@ def default_path(input):
 if len(args) < 2:
     abs_outputfile, prob_outputfile = default_path(args[0])
 else:
-    if opts.prob and opts.abs:
-	# Output must be base name
-	abs_outputfile, prob_outputfile = default_path(args[1])
-    else:
-	# Name whichever the exact name
-	abs_outputfile = prob_outputfile = args[1]
+	if opts.prob and opts.abs:
+		# Output must be base name
+		abs_outputfile, prob_outputfile = default_path(args[1])
+	else:
+		# Name whichever the exact name
+		abs_outputfile = prob_outputfile = args[1]
 
 smooth = opts.smooth
 

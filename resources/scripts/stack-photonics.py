@@ -57,7 +57,7 @@ def unique(seq, idfun=None):
 	seen = {} 
 	result = []
 	for item in seq: 
-       		marker = idfun(item) 
+		marker = idfun(item) 
 		# in old Python versions: 
 		# if seen.has_key(marker) 
 		# but in new ones: 

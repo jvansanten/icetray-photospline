@@ -118,10 +118,10 @@ def read(path):
 		table.ngroup = data.header['NGROUP']
 	except KeyError:
 		pass
-        try:
-                table.parity = data.header['PARITY']
-        except KeyError:
-                pass
+	try:
+		table.parity = data.header['PARITY']
+	except KeyError:
+		pass
 
 	return table
 
