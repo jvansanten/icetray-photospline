@@ -65,60 +65,68 @@ maxorder(int *order, int ndim)
 }
 
 static void 
-localbasis_multisub(const struct splinetable *table, const int *centers,
-    int n, int *restrict pos, unsigned long stride,
-    const v4sf **restrict localbasis[table->ndim], v4sf *restrict acc)
+ndsplineeval_multicore(const struct splinetable *table, const int *centers,
+    const v4sf **restrict localbasis[table->ndim], v4sf *restrict result)
 {
-	int i, k;
-	#if (defined(__i386__) || defined (__x86_64__)) && defined(__ELF__)
-		/*
-		 * Workaround GCC ABI-compliance issue with SSE on x86 by
-		 * forcibly realigning the stack to a 16-byte boundary.
-		 */
-		volatile register unsigned long sp __asm("esp");
-		if (__builtin_expect(sp & 15UL, 0))
-			(void)alloca(16 - (sp & 15UL));
-	#endif
-	v4sf acc_local[NVECS];
+#if (defined(__i386__) || defined (__x86_64__)) && defined(__ELF__)
+	/*
+	 * Workaround GCC ABI-compliance issue with SSE on x86 by
+	 * forcibly realigning the stack to a 16-byte boundary.
+	 */
+	volatile register unsigned long sp __asm("esp");
+	if (__builtin_expect(sp & 15UL, 0))
+		(void)alloca(16 - (sp & 15UL));
+#endif
+	int i, j, k, n, tablepos;
+	v4sf basis_tree[table->ndim+1][NVECS];
+	int nchunks;
+	int decomposedposition[table->ndim];
+
+	tablepos = 0;
+	for (n = 0; n < table->ndim; n++) {
+		decomposedposition[n] = 0;
+		tablepos += (centers[n] - table->order[n])*table->strides[n];
+	}
 	
-	if (n+1 == table->ndim) {
-		/*
-		 * If we are at the last recursion level, the weights are
-		 * linear in memory, so grab the row-level basis functions
-		 * and multiply by the weights. Hopefully the compiler
-		 * vector optimizations pick up on this code.
-		 */
-		
-		const int woff = stride + centers[n] - table->order[n];
-		const v4sf *row;
-		v4sf weight_vec;
+	for (k = 0; k < NVECS; k++) {
+		v4sf_init(basis_tree[0][k], 1);
+		for (n = 0; n < table->ndim; n++)
+			basis_tree[n+1][k] = basis_tree[n][k]*localbasis[n][0][k];
+	}
+	
+	nchunks = 1;
+	for (n = 0; n < table->ndim - 1; n++)
+		nchunks *= (table->order[n] + 1);
 
-		for (k = 0; k <= table->order[n]; k++) {
-			row = localbasis[n][k];
-			v4sf_init(weight_vec, table->coefficients[woff+k]);
-			for (i = 0; i < NVECS; i++)
-				acc[i] += row[i]*weight_vec;
+	n = 0;
+	while (1) {
+		for (i = 0; __builtin_expect(i < table->order[table->ndim-1] +
+		    1, 1); i++) {
+			v4sf weights;
+			v4sf_init(weights, table->coefficients[tablepos + i]);
+			for (k = 0; k < NVECS; k++)
+				result[k] += basis_tree[table->ndim-1][k]*
+				    localbasis[table->ndim-1][i][k]*weights;
 		}
-	} else {
-		for (k = -table->order[n]; k <= 0; k++) {
-			/*
-			 * If we are not at the last dimension, record where we
-			 * are, multiply in the row basis value, and recurse.
-			 */
 
-			const v4sf *basis_row = localbasis[n][k+table->order[n]];
-/* 			const float *basis_row_ptr = */
-/* 			    (float*)localbasis[n][k+table->order[n]]; */
-			pos[n] = centers[n] + k;
-			for (i = 0; i < NVECS; i++)
-				v4sf_init(acc_local[i], 0);
-				
-			localbasis_multisub(table, centers, n+1, pos,
-			    stride + pos[n]*table->strides[n], localbasis,
-			    acc_local);
-			for (i = 0; i < NVECS; i++) 
-				acc[i] += acc_local[i] * basis_row[i];
+		if (__builtin_expect(++n == nchunks, 0))
+			break;
+
+		tablepos += table->strides[table->ndim-2];
+		decomposedposition[table->ndim-2]++;
+
+		/* Carry to higher dimensions */
+		for (i = table->ndim-2;
+		    decomposedposition[i] > table->order[i]; i--) {
+			decomposedposition[i-1]++;
+			tablepos += (table->strides[i-1]
+			    - decomposedposition[i]*table->strides[i]);
+			decomposedposition[i] = 0;
 		}
+		for (j = i; __builtin_expect(j < table->ndim-1, 1); j++)
+			for (k = 0; k < NVECS; k++)
+				basis_tree[j+1][k] = basis_tree[j][k]*
+				    localbasis[j][decomposedposition[j]][k];
 	}
 }
 
@@ -128,6 +136,7 @@ bspline_nonzero(const double *knots, const unsigned nknots,
     float *restrict values, float *restrict derivs)
 {
 	int i, j;
+	double temp, a;
 	double delta_r[n+1], delta_l[n+1];
 	
 	/* Special case for constant splines */
@@ -151,24 +160,29 @@ bspline_nonzero(const double *knots, const unsigned nknots,
 	/* 
 	 * Now, form the derivatives of the nth order B-splines from
 	 * linear combinations of the lower-order splines.
+	 *
+	 * NB: bspline_deriv_nonzero() uses double-precision
+	 *     temporaries, so we do the same here to ensure that
+	 *     the results are identical.
 	 */
 	
 	/* 
 	 * On the last supported segment of the ith nth order spline,
 	 * only the i+1th n-1th order spline is nonzero.
 	 */
-	derivs[0] =  - n*values[0] / ((knots[left+1] - knots[left+1-n]));
-	
+	temp = values[0];
+	derivs[0] =  - n*temp / ((knots[left+1] - knots[left+1-n]));
 	/* On the middle segments, both the ith and i+1th splines contribute. */
 	for (i = 1; i < n; i++) {
-		derivs[i] = n*(values[i-1]/((knots[left+i] - knots[left+i-n]))
-		    - values[i]/(knots[left+i+1] - knots[left+i+1-n]));
+		a = n*temp/((knots[left+i] - knots[left+i-n]));
+		temp = values[i];
+		derivs[i] = a - n*temp/(knots[left+i+1] - knots[left+i+1-n]);
 	}
 	/*
 	 * On the first supported segment of the i+nth nth order spline,
 	 * only the ith n-1th order spline is nonzero.
 	 */
-	derivs[n] = n*values[n-1]/((knots[left+n] - knots[left]));
+	derivs[n] = n*temp/((knots[left+n] - knots[left]));
 	
 	/* Now, continue to the non-zero nth order B-splines at x */
 	bsplvb(knots, x, left, n-1, n+1, values, delta_r, delta_l);
@@ -245,7 +259,7 @@ ndsplineeval_gradient(const struct splinetable *table, const double *x,
 	for (i = 0; i < nbases; i++)
 		acc_ptr[i] = 0;
 
-	localbasis_multisub(table, centers, 0, pos, 0, localbasis_ptr, acc);
+	ndsplineeval_multicore(table, centers, localbasis_ptr, acc);
 
 	for (i = 0; i < nbases; i++)
 		evaluates[i] = acc_ptr[i];

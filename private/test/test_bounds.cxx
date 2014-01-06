@@ -299,6 +299,38 @@ TEST(QuantileContinuity)
 	    "(slope is less than FLOAT_EPSILON/DBL_EPSILON)");
 }
 
+TEST(ndssplineeval_vs_ndssplineeval_gradient)
+{
+	srand(42);
+	
+	TableSet tables = get_splinetables();
+	boost::shared_ptr<struct splinetable> table = load_splinetable(tables.prob);
+	
+	const int ndim = table->ndim;
+	ENSURE(ndim < 6);
+	for (int i=0; i < 1000; i++) {
+		/* Generate coordinates uniformly in the support of the spline */
+		double x[ndim];
+		int centers[ndim];
+		for (int j=0; j < ndim; j++) {
+			double p = double(rand())/double(RAND_MAX);
+			x[j] = table->extents[j][0] + p*(table->extents[j][1]-table->extents[j][0]);
+		}
+		ENSURE_EQUAL(tablesearchcenters(table.get(), x, centers), 0);
+		double evaluate;
+		double evaluate_with_gradient[ndim+1];
+		evaluate = ndsplineeval(table.get(), x, centers, 0);
+		ndsplineeval_gradient(table.get(), x, centers, evaluate_with_gradient);
+		ENSURE_EQUAL(evaluate, evaluate_with_gradient[0],
+		    "ndsplineeval() and ndssplineeval_gradient() yield identical evaluates");
+		for (int j=0; j < ndim; j++) {
+			evaluate = ndsplineeval(table.get(), x, centers, 1 << j);
+			ENSURE_EQUAL(evaluate, evaluate_with_gradient[1+j],
+			    "ndsplineeval() and ndssplineeval_gradient() yield identical derivatives");
+		}
+	}
+}
+
 /*
  * bsplvb_simple() can be made to return sensical values anywhere
  * in the knot field.
@@ -576,6 +608,98 @@ TEST(bspline_nonzero_vs_bspline)
 			ENSURE_DISTANCE(localbasis_bspline[offset], localbasis_bsplvb[offset], tol);
 			ENSURE_DISTANCE(localbasis_bspline_deriv[offset], localbasis_bsplvb_deriv[offset], tol);
 			
+		}
+	}
+}
+
+/*
+ * bspline_nonzero() gives the same result as bsplvb_simple(), ergo the
+ * value bases used in ndsplineeval() and ndsplineeval_gradient() are
+ * identical. Roundoff error in the derivative basis calculation
+ * scales with the spline order, so we use a large number here.
+ */
+
+TEST(single_basis_vs_multi)
+{
+	unsigned i;
+	const unsigned n_knots = 100;
+	const int order = 5;
+	double x, *knots;
+	int center, offset;
+	float localbasis_bspline_nonzero[order+1], localbasis_bspline_nonzero_deriv[order+1],
+	    localbasis_bsplvb_simple[order+1], localbasis_bspline_deriv_nonzero[order+1];
+	struct timeval thetime;
+	std::vector<double> knotvec;
+	
+	/* Seed our crappy little PSRNG. */
+	gettimeofday(&thetime, NULL);
+	srand(thetime.tv_sec);
+	srand(0);
+	/* Generate a random knot field. */
+	for (i = 0; i < n_knots; i++)
+		knotvec.push_back(double(rand())/double(RAND_MAX));
+	std::sort(knotvec.begin(), knotvec.end());
+	knots = &knotvec.front();
+
+	/* Before the first fully-supported knot. */
+	for (i = 0; i < order+1; i++) {
+		x = (knots[i]+knots[i+1])/2.0; /* Less than fully-supported */
+		center = order; /* First fully-supported spline. */
+	
+		ENSURE(int(i) <= center);
+	
+		/* As used in ndssplineeval_gradient() */
+		bspline_nonzero(knots, n_knots, x, center /* left */,
+		    order /* jhigh */, localbasis_bspline_nonzero, localbasis_bspline_nonzero_deriv);
+		/* As used in ndsplineeval() */
+		bsplvb_simple(knots, n_knots, x, center /* left */,
+		    order + 1 /* jhigh */, localbasis_bsplvb_simple);
+		bspline_deriv_nonzero(knots, n_knots, x, center,
+		    order, localbasis_bspline_deriv_nonzero);
+		
+		for (offset = 0; offset < order+1; offset++) {
+			ENSURE_EQUAL(localbasis_bspline_nonzero[offset], localbasis_bsplvb_simple[offset]);
+			ENSURE_EQUAL(localbasis_bspline_nonzero_deriv[offset], localbasis_bspline_deriv_nonzero[offset]);
+		
+		}
+
+	}
+
+	/* Within the support. */
+	for (i = order+1; i < n_knots-order-1; i++) {
+		x = (knots[i]+knots[i+1])/2.0;
+		center = i;
+		
+		bspline_nonzero(knots, n_knots, x, center /* left */,
+		    order /* jhigh */, localbasis_bspline_nonzero, localbasis_bspline_nonzero_deriv);
+		bsplvb_simple(knots, n_knots, x, center /* left */,
+		    order + 1 /* jhigh */, localbasis_bsplvb_simple);
+		bspline_deriv_nonzero(knots, n_knots, x, center,
+		    order, localbasis_bspline_deriv_nonzero);		
+		
+		for (offset = 0; offset < order+1; offset++) {
+			ENSURE_EQUAL(localbasis_bspline_nonzero[offset], localbasis_bsplvb_simple[offset]);
+			ENSURE_EQUAL(localbasis_bspline_nonzero_deriv[offset], localbasis_bspline_deriv_nonzero[offset]);
+		}
+	}
+
+	/* After the last first fully-supported knot. */
+	for (i = n_knots-order-1; i < n_knots-2; i++) {
+		x = (knots[i]+knots[i+1])/2.0; /* Less than fully-supported */
+		center = n_knots-order-2; /* Last fully-supported spline. */
+	
+		ENSURE(int(i) >= center);
+	
+		bspline_nonzero(knots, n_knots, x, center /* left */,
+		    order /* jhigh */, localbasis_bspline_nonzero, localbasis_bspline_nonzero_deriv);
+		bsplvb_simple(knots, n_knots, x, center /* left */,
+		    order + 1 /* jhigh */, localbasis_bsplvb_simple);
+		bspline_deriv_nonzero(knots, n_knots, x, center,
+		    order, localbasis_bspline_deriv_nonzero);		
+		
+		for (offset = 0; offset < order+1; offset++) {
+			ENSURE_EQUAL(localbasis_bspline_nonzero[offset], localbasis_bsplvb_simple[offset]);
+			ENSURE_EQUAL(localbasis_bspline_nonzero_deriv[offset], localbasis_bspline_deriv_nonzero[offset]);
 		}
 	}
 }
