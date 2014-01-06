@@ -65,7 +65,7 @@ maxorder(int *order, int ndim)
 }
 
 static void 
-ndsplineeval_multicore(const struct splinetable *table, const int *centers,
+ndsplineeval_multibasis_core(const struct splinetable *table, const int *centers,
     const v4sf **restrict localbasis[table->ndim], v4sf *restrict result)
 {
 #if (defined(__i386__) || defined (__x86_64__)) && defined(__ELF__)
@@ -259,7 +259,7 @@ ndsplineeval_gradient(const struct splinetable *table, const double *x,
 	for (i = 0; i < nbases; i++)
 		acc_ptr[i] = 0;
 
-	ndsplineeval_multicore(table, centers, localbasis_ptr, acc);
+	ndsplineeval_multibasis_core(table, centers, localbasis_ptr, acc);
 
 	for (i = 0; i < nbases; i++)
 		evaluates[i] = acc_ptr[i];
