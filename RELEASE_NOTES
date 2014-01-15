@@ -3,6 +3,25 @@
 # $Date$
 #
 
+January 15, 2014 Meike de With (meike.de.with@desy.de)
+--------------------------------------------------------------------
+Release V00-08-00
+
+- Fall back to clsim PhotoTable if loading the original table fails
+- Mask out non-finite values before passing them to Gnuplot
+- Make I3SplineTable noncopyable
+- Specify C linkage in C headers
+- Refactor ndsplineeval_gradient() to use the same non-recursive algorithm
+  as ndsplineeval() and bspline_nonzero() to use temporaries of the same
+  precision as bspline_deriv_nonzero()
+- Add two new unit tests to ensure that ndsplineeval_gradient() and
+  ndsplineeval() return bit-for-bit identical results 
+  -- Jakob van Santen
+
+- Include parity in spline tables
+  -- Marcel Usner
+
+
 August 21, 2013 Meike de With (meike.de.with@desy.de)
 --------------------------------------------------------------------
 Release V00-07-00
