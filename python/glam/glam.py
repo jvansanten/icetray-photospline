@@ -225,7 +225,7 @@ def fit(z,w,coords,knots,order,smooth,
 		if n > 1:
 			# fit for residual on further iterations
 			x = numpy.reshape(a,r.shape)
-			r = numpy.asarray(r - F*x)
+			r = numpy.asarray(r - numpy.dot(F,x))
 			resid = (r**2).sum()
 			print('The sum of squared residuals is %e'%resid)
 		
