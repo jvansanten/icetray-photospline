@@ -53,7 +53,7 @@ if(NOT DEFINED PHOTOSPLINE_CFLAGS)
 	# we'd love to use -march=native, but that's only available on
 	# GCC >= 4.2 and only on some architectures.
 	if(CMAKE_SYSTEM_PROCESSOR MATCHES "^i.86$")
-		SET(PHOTOSPLINE_CFLAGS "${PHOTOSPLINE_CFLAGS} -msse2")
+		SET(PHOTOSPLINE_CFLAGS "${PHOTOSPLINE_CFLAGS} -msse2 -mfpmath=sse")
 	elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(powerpc|ppc)")
 		SET(PHOTOSPLINE_CFLAGS "${PHOTOSPLINE_CFLAGS} -maltivec")
 	elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^sparc")
