@@ -7,6 +7,10 @@ i3_project(photospline
         DOCS_DIR resources/docs
 )
 
+if(BLAS_FOUND)
+	set(PHOTOSPLINE_EXTRA_TOOLS blas)
+endif(BLAS_FOUND)
+
 i3_add_library(photospline
 	private/lib/bspline.c
 	private/lib/bspline_multi.c
@@ -14,7 +18,7 @@ i3_add_library(photospline
 	private/lib/fitstable.c
 	private/lib/splinepdf.c
 	private/lib/I3SplineTable.cxx
-	USE_TOOLS cfitsio gsl python blas
+	USE_TOOLS cfitsio gsl python ${PHOTOSPLINE_EXTRA_TOOLS}
 )
 
 if(NUMPY_FOUND)
