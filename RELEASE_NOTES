@@ -3,6 +3,22 @@
 # $Date$
 #
 
+April 22, 2014 Meike de With (meike.de.with@desy.de)
+--------------------------------------------------------------------
+Release V00-08-01
+
+- Only use gcc flags for gcc
+  -- Chris Weaver
+
+- Change F*x to numpy.dot(F,x) in glam.py
+- Force IEEE 754-compliant SSE math for all floating-point operations,
+  keeping vector and scalar calculations exactly identical (which was
+  already the case for x86_64 platforms, but has to be explicitly
+  specified for i686)
+- Only try to link to BLAS if it can actually be found
+  -- Jakob van Santen
+
+
 January 15, 2014 Meike de With (meike.de.with@desy.de)
 --------------------------------------------------------------------
 Release V00-08-00
