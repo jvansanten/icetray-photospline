@@ -3,6 +3,14 @@ import numpy
 from . import splinefitstable
 from .glam import glam, bspline
 
+def pad_knots(knots, order=2):
+	"""
+	Pad knots out for full support at the boundaries
+	"""
+	pre = knots[0] - (knots[1]-knots[0])*numpy.arange(order, 0, -1)
+	post = knots[-1] + (knots[-1]-knots[-2])*numpy.arange(1, order+1)
+	return numpy.concatenate((pre, knots, post))
+
 class TableSlice(object):
 	"""A slice of a photonics table, with spline CDF and PDF evaluates."""
 	table_pdf = None
