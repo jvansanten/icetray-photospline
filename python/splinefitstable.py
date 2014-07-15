@@ -54,15 +54,16 @@ def write(table,path):
 
 	hdulist.writeto(path)
 
-def read(path):
+def read(path, memmap=False):
 	"""
 	Read a SplineTable from a FITS file on disk
 	
 	:param path: the filesystem path to read from
+	:param memmap: memmap the underlying fits file this causes the underlying file handle to remain open indefinitely
 	:returns: SplineTable - the spline surface stored in the given file
 	"""
 	
-	file = pyfits.open(path)
+	file = pyfits.open(path, memmap=memmap)
 	table = splinetable.SplineTable()
 
 	data = file[0]
