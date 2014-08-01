@@ -30,6 +30,7 @@ splinetableeval(I3SplineTable &self, bp::object coordinates)
 	coord_ptr = (double*)PyArray_DATA((PyArrayObject *)coords);
 	
 	self.Eval(coord_ptr, &retvalue);
+	Py_XDECREF(coords);
 
 	return retvalue;
 }
