@@ -353,7 +353,7 @@ Spline evaluation
 		double x[table.ndim];
 		double v;
 		
-		if (tablesearchcenters(&table, &x, &centers) != 0)
+		if (tablesearchcenters(&table, &x, &centers) == 0)
 			v = ndsplineeval(&table, &x, &centers, 0);
 		else
 			v = 0;
