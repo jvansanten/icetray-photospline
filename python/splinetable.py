@@ -15,7 +15,7 @@ class SplineTable(object):
 		self.extents = []
 
 		# parity
-		self.parity = 0
+		self.parity = 1
 
 		# geometry type
 		self.geometry = 2
