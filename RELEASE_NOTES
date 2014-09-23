@@ -3,6 +3,22 @@
 # $Date$
 #
 
+September 23, 2014 Meike de With (meike.de.with@desy.de)
+--------------------------------------------------------------------
+Release V00-09-00
+
+- Add a utility function to extend the support of the knot vector
+- Fix memory leak in I3SplineTable pybindings
+- Switch default parity to the actual default
+  -- Jakob van Santen
+
+- Work around file handle limits
+  -- Moriah Tobin
+
+- Correct example code
+  -- Chris Weaver
+
+
 April 22, 2014 Meike de With (meike.de.with@desy.de)
 --------------------------------------------------------------------
 Release V00-08-01
