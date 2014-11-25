@@ -17,12 +17,12 @@ I3SplineTable::~I3SplineTable()
 }
 
 int
-I3SplineTable::Eval(double *coordinates, double *result) const
+I3SplineTable::Eval(double *coordinates, double *result, int derivatives) const
 {
 	int centers[table_.ndim];
 	
 	if (tablesearchcenters(&table_, coordinates, centers) == 0)
-		*result = ndsplineeval(&table_, coordinates, centers, 0);
+		*result = ndsplineeval(&table_, coordinates, centers, derivatives);
 	else
 		return EINVAL;
 	

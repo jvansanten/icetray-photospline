@@ -17,9 +17,16 @@ public:
 	 * 
 	 * @param[in]       x N-dimensonal coordinates at which to evaluate
 	 * @param[out] result Value of spline surface at coordinates
+	 * @param[in] derivatives A bitmask indicating the type of basis to use
+	                          in each dimension. If the bit corresponding to
+	                          a dimension is set, the basis in that
+	                          dimension will consist of the derivatives of
+	                          the usual B-spline basis, and result
+	                          will be the gradient of the surface in that
+	                          dimension.
 	 * @returns 0 on success, non-zero otherwise
 	 */
-	int Eval(double *x, double *result) const;
+	int Eval(double *x, double *result, int derivatives=0) const;
 
 	/** Get the number of dimensions */
 	unsigned GetNDim() const { return table_.ndim; };

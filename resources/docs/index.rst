@@ -293,7 +293,7 @@ Spline table I/O and manipulation
 			SPLINETABLE_DOUBLE
 		} splinetable_dtype;
 
-.. c:function: int splinetable_convolve(struct splinetable *table, const int dim, const double *knots, size_t n_knots)
+.. c:function:: int splinetable_convolve(struct splinetable *table, const int dim, const double *knots, size_t n_knots)
 	
 	Convolve a table with the spline defined on a set of knots
 	along a given dimension and store the spline expansion of the
@@ -384,3 +384,34 @@ Spline evaluation
 	result, this version is much faster than sequential calls to
 	:c:func:`ndsplineeval` in applications like maximum-likelihood
 	fitting where both the value and entire gradient are required.
+
+C++ library reference
+^^^^^^^^^^^^^^^^^^^^^
+
+.. highlightlang:: cpp
+
+While the photospline evaluation routines are implemented in C, the library
+also provides a C++ wrapper interface for simple use cases.
+
+.. cpp:class:: I3SplineTable
+	
+		An N-dimensional tensor-product B-spline surface
+	
+	.. cpp:function:: unsigned GetNDim() const
+	
+		:returns: The number of dimensions in this spline table
+	
+	.. cpp:function:: int Eval(const double *coordinates, double *result, int gradients=0) const
+		
+		Evaluate the spline surface at the given coordinates
+		
+		:param coordinates: N-dimensional array of coordinates at which to evaluate the spline
+		:param result: Where to store the result
+		:param gradients: A bitmask indicating the type of basis to use
+		                  in each dimension. If the bit corresponding to
+		                  a dimension is set, the basis in that
+		                  dimension will consist of the derivatives of
+		                  the usual B-spline basis, and result
+		                  will be the gradient of the surface in that
+		                  dimension.
+		:returns: 0 on success, non-zero otherwise

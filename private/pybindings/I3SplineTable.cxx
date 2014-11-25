@@ -15,7 +15,7 @@ namespace bp = boost::python;
 	pyobj.ptr()->ob_type->tp_name
 
 static double
-splinetableeval(I3SplineTable &self, bp::object coordinates)
+splinetableeval(I3SplineTable &self, bp::object coordinates, int derivatives)
 {
 	double retvalue(NAN);
 	double *coord_ptr;
@@ -29,7 +29,7 @@ splinetableeval(I3SplineTable &self, bp::object coordinates)
 	}
 	coord_ptr = (double*)PyArray_DATA((PyArrayObject *)coords);
 	
-	self.Eval(coord_ptr, &retvalue);
+	self.Eval(coord_ptr, &retvalue, derivatives);
 	Py_XDECREF(coords);
 
 	return retvalue;
@@ -38,8 +38,16 @@ splinetableeval(I3SplineTable &self, bp::object coordinates)
 void register_I3SplineTable() {
 	bp::class_<I3SplineTable, boost::shared_ptr<I3SplineTable>, boost::noncopyable>
 	    ("I3SplineTable", bp::init<const std::string&>(bp::arg("path")))
-	    .def("eval", splinetableeval, bp::args("coordinates"), "Evaluate "
-	        "the spline surface at the given coordinates.")
+	    .def("eval", splinetableeval, (bp::args("coordinates"), bp::arg("derivatives")=0),
+	        "Evaluate the spline surface at the given coordinates.\n\n"
+	        ":param coordinates: N-dimensonal coordinates at which to evaluate\n"
+	        ":param derivatives: A bitmask indicating the type of basis to use "
+	                          "in each dimension. If the bit corresponding to "
+	                          "a dimension is set, the basis in that "
+	                          "dimension will consist of the derivatives of "
+	                          "the usual B-spline basis, and result "
+	                          "will be the gradient of the surface in that "
+	                          "dimension.")
 	;
 }
 
