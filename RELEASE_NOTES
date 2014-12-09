@@ -3,6 +3,17 @@
 # $Date$
 #
 
+December 9, 2014 Meike de With (meike.de.with@desy.de)
+--------------------------------------------------------------------
+Release V00-09-01
+
+- Disable doxygen until its cyclic dependency can be fixed
+  -- Don la Dieu
+
+- Expose gradient evaluation in I3SplineTable and document it
+  -- Jakob van Santen
+
+
 September 23, 2014 Meike de With (meike.de.with@desy.de)
 --------------------------------------------------------------------
 Release V00-09-00
