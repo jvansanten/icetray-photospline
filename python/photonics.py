@@ -435,6 +435,129 @@ class Table(object):
 	
 		return None
 
+class FITSTable(Table):
+	"""
+	Same content as a photonics table, but using the FITS-based file format
+	produced by the clsim tabulator.
+	"""
+	
+	# A default header. This contains the same keys as the one created in photo2numpy from photospline.
+	empty_header = {
+		'n_photons':         0,
+		'efficiency':        Efficiency.NONE,
+		'geometry':          Geometry.SPHERICAL,
+		'parity':            Parity.EVEN,
+		'zenith':            0.,
+		'z':                 0.,
+		'energy':            0.,
+		'type':              0,
+		'level':             1,
+		'n_group':           numpy.nan,
+		'n_phase':           numpy.nan,
+	}
+	
+	def __init__(self, binedges, values, weights, header=empty_header):
+		self.bin_edges = binedges
+		self.values = values
+		self.weights = weights
+		self.bin_centers = [(edges[1:]+edges[:-1])/2. for edges in self.bin_edges]
+		self.bin_widths = [numpy.diff(edges) for edges in self.bin_edges]
+		self.header = header
+		
+	def __iadd__(self, other):
+		self.raise_if_incompatible(other)
+		self.values += other.values
+		self.weights += other.weights
+		self.header['n_photons'] += other.header['n_photons']
+		
+		return self
+
+	def __idiv__(self, num):
+		return self.__imul__(1./num)
+		
+	def __imul__(self, num):
+		self.values *= num
+		self.weights *= num*num
+		
+		return self
+		
+	def raise_if_incompatible(self, other):
+		"""
+		Check for generalized brokenness.
+		"""
+		if not isinstance(other, self.__class__):
+			raise TypeError("Can't combine a %s with this %s" % (other.__class__.__name__, self.__class__.__name__))
+		if self.values.shape != other.values.shape:
+			raise ValueError("Shape mismatch in data arrays!")
+		nans = self.values.size - numpy.isfinite(self.values).sum()
+		if nans != 0:
+			raise ValueError("This table has %d NaN values. You might want to see to that.")
+		nans = other.values.size - numpy.isfinite(other.values).sum()
+		if nans != 0:
+			raise ValueError("Other table has %d NaN values. You might want to see to that.")
+		for k, v in self.header.items():
+			if k == 'n_photons':
+				continue
+			if other.header[k] != v:
+				raise ValueError("Can't combine tables with %s=%s and %s" % (k, v, other.header[k]))
+		
+	def normalize(self):
+		if not self.header['efficiency'] & Efficiency.N_PHOTON:
+			self /= self.header['n_photons']
+			self.header['efficiency'] |= Efficiency.N_PHOTON
+		
+	def save(self, fname, overwrite=False):
+		import pyfits, os
+		
+		if os.path.exists(fname):
+			if overwrite:
+				os.unlink(fname)
+			else:
+				raise IOError("File '%s' exists!" % fname)
+		
+		data = pyfits.PrimaryHDU(self.values)
+		data.header.update('TYPE', 'Photon detection probability table')
+		
+		for k, v in self.header.items():
+			# work around 8-char limit in FITS keywords
+			tag = 'hierarch _i3_' + k
+			data.header.update(tag, v)
+		
+		hdulist = pyfits.HDUList([data])
+		
+		if self.weights is not None:
+			errors = pyfits.ImageHDU(self.weights, name='ERRORS')
+			hdulist.append(errors)
+		
+		for i in range(self.values.ndim):
+			edgehdu = pyfits.ImageHDU(self.bin_edges[i],name='EDGES%d' % i)
+			hdulist.append(edgehdu)
+			
+		hdulist.writeto(fname)
+		
+	@classmethod
+	def load(cls, fname):
+		import pyfits
+		
+		hdulist = pyfits.open(fname)
+		data = hdulist[0]
+		values = data.data
+		binedges = []
+		for i in range(values.ndim):
+			binedges.append(hdulist['EDGES%d' % i].data)
+		
+		try:
+			weights = hdulist['ERRORS'].data
+		except KeyError:
+			weights = None
+		
+		header = dict()
+		for k in map(str.lower, data.header.keys()):
+			if k.startswith('_i3_'):
+				header[k[4:]] = data.header[k]
+			
+		return cls(binedges, values, weights, header)
+
 def melonball(table, weights = None, radius = 1):
 	"""Set weights inside a given radius to zero."""
 	if table.header['geometry'] != Geometry.CYLINDRICAL:
