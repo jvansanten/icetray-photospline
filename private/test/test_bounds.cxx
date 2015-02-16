@@ -27,13 +27,13 @@ splinetable_destructor(struct splinetable *table) {
 static TableSet
 get_splinetables()
 {
-	ENSURE(getenv("I3_SRC") != NULL,
-	    "I3_SRC must be defined in the parent shell.");
+	ENSURE(getenv("I3_TESTDATA") != NULL,
+	    "I3_TESTDATA must be defined in the parent shell.");
 
-	const std::string I3_SRC(getenv("I3_SRC"));
+	const std::string I3_TESTDATA(getenv("I3_TESTDATA"));
 	
-	fs::path abs_table(I3_SRC + "/photospline/private/test/ems_z0_a0.pt.abs.fits");
-	fs::path prob_table(I3_SRC + "/photospline/private/test/ems_z0_a0.pt.prob.fits");
+	fs::path abs_table(I3_TESTDATA + "/photospline/ems_z0_a0.pt.abs.fits");
+	fs::path prob_table(I3_TESTDATA + "/photospline/ems_z0_a0.pt.prob.fits");
 		
 	ENSURE(fs::exists(abs_table), "Amplitude table exists.");
 	ENSURE(fs::exists(prob_table), "Quantile table exists.");
