@@ -128,7 +128,7 @@ bsplvb_simple(const double *knots, const unsigned nknots,
 void
 bsplvb(const double *knots, const double x, const int left, const int jlow,
     const int jhigh, float *restrict biatx,
-    double *restrict delta_l, double *restrict delta_r)
+       double *restrict delta_l, double *restrict delta_r, const unsigned nknots)
 {
 	int i, j;
 	double saved, term;
@@ -137,7 +137,10 @@ bsplvb(const double *knots, const double x, const int left, const int jlow,
 		biatx[0] = 1.0;
 		
 	for (j = jlow; j < jhigh-1; j++) {
+                assert(left+j+1 < nknots && "let's try to avoid segfaults");
 		delta_r[j] = knots[left+j+1] - x;
+
+                assert(left-j < nknots && "let's try to avoid segfaults");
 		delta_l[j] = x - knots[left-j];
 		
 		saved = 0.0;
@@ -178,7 +181,7 @@ bspline_deriv_nonzero(const double *knots, const unsigned nknots,
 	
 	/* Get the non-zero n-1th order B-splines at x */
 	bsplvb(knots, x, left, 0 /* jlow */, n /* jhigh */,
-	    biatx, delta_l, delta_r);
+               biatx, delta_l, delta_r, nknots);
 	
 	/* 
 	 * Now, form the derivatives of the nth order B-splines from

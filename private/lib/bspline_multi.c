@@ -155,7 +155,7 @@ bspline_nonzero(const double *knots, const unsigned nknots,
 			left++;
 	
 	/* Get the non-zero n-1th order B-splines at x */
-	bsplvb(knots, x, left, 0, n, values, delta_r, delta_l);
+	bsplvb(knots, x, left, 0, n, values, delta_r, delta_l, nknots);
 	
 	/* 
 	 * Now, form the derivatives of the nth order B-splines from
@@ -185,7 +185,7 @@ bspline_nonzero(const double *knots, const unsigned nknots,
 	derivs[n] = n*temp/((knots[left+n] - knots[left]));
 	
 	/* Now, continue to the non-zero nth order B-splines at x */
-	bsplvb(knots, x, left, n-1, n+1, values, delta_r, delta_l);
+	bsplvb(knots, x, left, n-1, n+1, values, delta_r, delta_l, nknots);
 	
 	/* Rearrange for partially-supported points. */
 	if ((i = n-left) > 0) {

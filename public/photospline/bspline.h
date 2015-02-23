@@ -37,7 +37,7 @@ void bsplvb_simple(const double *knots, const unsigned nknots,
     double x, int left, int jhigh, float *biatx);
 void bsplvb(const double *knots, const double x, const int left, const int jlow,
     const int jhigh, float *biatx,
-    double *delta_l, double *delta_r);
+            double *delta_l, double *delta_r, const unsigned nknots);
 void bspline_nonzero(const double *knots, const unsigned nknots,
     const double x, int left, const int n, float *values, float *derivs);
 void bspline_deriv_nonzero(const double *knots, const unsigned nknots,
