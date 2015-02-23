@@ -35,8 +35,8 @@ get_splinetables()
 	fs::path abs_table(I3_TESTDATA + "/photospline/ems_z0_a0.pt.abs.fits");
 	fs::path prob_table(I3_TESTDATA + "/photospline/ems_z0_a0.pt.prob.fits");
 		
-	ENSURE(fs::exists(abs_table), "Amplitude table exists.");
-	ENSURE(fs::exists(prob_table), "Quantile table exists.");
+	ENSURE(fs::exists(abs_table), "Amplitude table does not exist.");
+	ENSURE(fs::exists(prob_table), "Quantile table does not exists.");
 	
 	TableSet tabset;
 	tabset.abs = abs_table;
