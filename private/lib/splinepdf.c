@@ -19,7 +19,7 @@ void logsplinepdf_n_sample(double *result, int results, int burnin,
 	int i;
 	int centers[table->ndim];
 	double val, lastval;
-	double lastlogpdf, logpdf;
+	double lastlogpdf = -INFINITY, logpdf;
 	double lastproppdf, proppdf;
 	double odds;
 	double mint, maxt;

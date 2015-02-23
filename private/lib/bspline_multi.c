@@ -214,7 +214,6 @@ ndsplineeval_gradient(const struct splinetable *table, const double *x,
 	int n, i, j; /* , offset; */
 	int maxdegree = maxorder(table->order, table->ndim) + 1;
 	int nbases = table->ndim + 1;
-	int pos[table->ndim];
 	v4sf acc[NVECS];
 	float valbasis[maxdegree];
 	float gradbasis[maxdegree];
