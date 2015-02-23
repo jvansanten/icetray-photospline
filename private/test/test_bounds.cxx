@@ -628,18 +628,16 @@ TEST(single_basis_vs_multi)
 	int center, offset;
 	float localbasis_bspline_nonzero[order+1], localbasis_bspline_nonzero_deriv[order+1],
 	    localbasis_bsplvb_simple[order+1], localbasis_bspline_deriv_nonzero[order+1];
-	struct timeval thetime;
-	std::vector<double> knotvec;
+	// bsplvb() may access up to *order* elements off either end
+	// Pad accordingly.
+	std::vector<double> knotvec(n_knots + 2*order, 0.);
 	
-	/* Seed our crappy little PSRNG. */
-	gettimeofday(&thetime, NULL);
-	srand(thetime.tv_sec);
 	srand(0);
 	/* Generate a random knot field. */
 	for (i = 0; i < n_knots; i++)
-		knotvec.push_back(double(rand())/double(RAND_MAX));
-	std::sort(knotvec.begin(), knotvec.end());
-	knots = &knotvec.front();
+		knotvec[i+order] = (double(rand())/double(RAND_MAX));
+	std::sort(knotvec.begin()+order, knotvec.end()-order);
+	knots = &knotvec[order];
 
 	/* Before the first fully-supported knot. */
 	for (i = 0; i < order+1; i++) {
