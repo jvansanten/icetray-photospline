@@ -467,7 +467,8 @@ class FITSTable(Table):
 	def __iadd__(self, other):
 		self.raise_if_incompatible(other)
 		self.values += other.values
-		self.weights += other.weights
+		if self.weights is not None:
+			self.weights += other.weights
 		self.header['n_photons'] += other.header['n_photons']
 		
 		return self
@@ -477,7 +478,8 @@ class FITSTable(Table):
 		
 	def __imul__(self, num):
 		self.values *= num
-		self.weights *= num*num
+		if self.weights is not None:
+			self.weights *= num*num
 		
 		return self
 		
@@ -557,6 +559,16 @@ class FITSTable(Table):
 				header[k[4:]] = data.header[k]
 			
 		return cls(binedges, values, weights, header)
+
+	@classmethod
+	def stack(cls, outfile, *fnames):
+		import os
+		assert(not os.path.exists(outfile))
+		target = cls.load(fnames[0])
+		for fn in fnames[1:]:
+			target += cls.load(fn)
+		target.save(outfile)
+		
 
 def melonball(table, weights = None, radius = 1):
 	"""Set weights inside a given radius to zero."""
