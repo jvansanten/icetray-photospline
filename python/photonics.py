@@ -463,7 +463,20 @@ class FITSTable(Table):
 		self.bin_centers = [(edges[1:]+edges[:-1])/2. for edges in self.bin_edges]
 		self.bin_widths = [numpy.diff(edges) for edges in self.bin_edges]
 		self.header = header
-		
+	
+	def __getitem__(self, slice_):
+		for i in slice_:
+			if not (isinstance(i, int) or i == slice(None)):
+				# print(slice_)
+				print(i, isinstance(i, int), i == slice(None))
+				raise ValueError("Only dimension-reducing slices are implemented")
+		edges = [e for i, e in enumerate(self.bin_edges) if slice_[i] == slice(None)]
+		if self.weights is None:
+			w = None
+		else:
+			w = self.weights[slice_]
+		return FITSTable(edges, self.values[slice_], w, self.header)
+	
 	def __iadd__(self, other):
 		self.raise_if_incompatible(other)
 		self.values += other.values
