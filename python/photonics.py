@@ -99,6 +99,10 @@ class Geometry(object):
 	CYLINDRICAL = 2
 	CUBIC       = 3
 
+class GeometryType(object):
+	POINTSOURCE = 0
+	INFINITEMUON = 1
+
 class Parity(object):
 	EVEN	    = 0
 	ODD	    = 1
