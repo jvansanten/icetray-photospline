@@ -3,6 +3,23 @@
 # $Date$
 #
 
+April 3, 2015 Meike de With (meike.de.with@desy.de)
+--------------------------------------------------------------------
+Release V00-10-00
+
+- Make it possible to import FITStable from clsim
+- Pad out knots vector as done in readsplinefitstable(), fixing a rare
+  segfault in test_single_basis_vs_multi
+- Small code changes to fix warnings
+- Keep track of the GeometryType enum
+  -- Jakob van Santen
+
+- Move the .fits tables to I3_TESTDATA and find them there
+  -- Don la Dieu
+
+- Fix error message in test
+  -- Alex Olivas
+
 December 9, 2014 Meike de With (meike.de.with@desy.de)
 --------------------------------------------------------------------
 Release V00-09-01
