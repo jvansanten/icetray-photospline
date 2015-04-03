@@ -3,20 +3,6 @@
 # $Date$
 #
 
-April 3, 2015 Meike de With (meike.de.with@desy.de)
---------------------------------------------------------------------
-Release V00-09-02
-
-- Recognize I3_TESTDATA
-  -- Alex Olivas
-
-- Rename parameter p-frameName to pframeName, better for python
-  -- Kai Krings
-
-- Small code cleanups to suppress warnings
-  -- Don la Dieu
-
-
 December 9, 2014 Meike de With (meike.de.with@desy.de)
 --------------------------------------------------------------------
 Release V00-09-01
