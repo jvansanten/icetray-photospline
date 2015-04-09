@@ -125,6 +125,9 @@ numpynd_to_ndsparse(PyObject *in, struct ndsparse *out)
 	    INT_MAX);
 	if (inar == NULL)
 		return -1;
+	for (i = 0; i < PyArray_SIZE(inar); i++)
+		if (isnan(((double *)(PyArray_DATA(inar)))[i]))
+			return -2;
 
 	out->rows = 0;
 	out->ndim = PyArray_NDIM(inar);
@@ -389,6 +392,10 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 	if (err == 0)
 		z_arr = (PyArrayObject *)PyArray_ContiguousFromObject(z,
 		    NPY_DOUBLE, data.ndim, data.ndim);
+	else if (err == -2) {
+		PyErr_SetString(PyExc_ValueError, "weights contain NaNs!");
+		return NULL;
+	}
 
 	if (err != 0 || z_arr == NULL) {
 		PyErr_SetString(PyExc_ValueError,
@@ -420,6 +427,14 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 		for (j = 0; j < data.ndim; j++)
 			k += moduli[j]*data.i[j][i];
 		data_arr[i] = ((double *)(PyArray_DATA(z_arr)))[k];
+		if (isnan(data_arr[i])) {
+			free(moduli);
+			free(data_arr);
+			Py_DECREF(z_arr);
+			PyErr_SetString(PyExc_ValueError, 
+			    "data array contains NaNs!");
+			goto exit;
+		}
 	}
 	free(moduli);
 
