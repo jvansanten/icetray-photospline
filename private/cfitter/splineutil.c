@@ -95,7 +95,7 @@ slicemultiply(struct ndsparse *a, cholmod_sparse *b, int dim,
 	section->nnz = a->rows;
 
 	/* We rotate the array so that dim is at the front, then flatten. */
-
+	assert(a->ndim > 0);
 	for (i = 0; i < a->rows; i++) {
 		/* The flattened row number is straightforward: it is
 		 * the dim'th coordinate. */
@@ -321,6 +321,7 @@ box(cholmod_sparse *a, cholmod_sparse *b, cholmod_common *c)
 			free(tmp);
 		}
 	}
+	free(brows);
 
 	final = cholmod_l_triplet_to_sparse(tf, 0, c);
 

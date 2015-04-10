@@ -22,14 +22,14 @@ int
 splinetable_convolve(struct splinetable *table, const int dim, const double *knots,
     size_t n_knots)
 {
-	double *rho, *rho_scratch, *trafo, norm;
+	double *rho, *rho_scratch, norm;
 	float *coefficients;
 	size_t n_rho, arraysize;
 	unsigned long *strides;
 	long *naxes;
 	unsigned convorder;
 	long stride1, stride2;
-	int i, j, k, l, q;
+	int i, i1, i2, j, k, q;
 		
 	/* Construct the new knot field. */
 	n_rho = 0;
@@ -106,30 +106,25 @@ splinetable_convolve(struct splinetable *table, const int dim, const double *kno
 			stride2 *= naxes[i];
 	}
 
-	assert(naxes[dim] > 0);
-	trafo = malloc(sizeof(double)*naxes[dim]*table->naxes[dim]);
-	for (i = 0; i < naxes[dim]; i++) {
-		for (j = 0; j < table->naxes[dim]; j++) {
-			trafo[i*table->naxes[dim] + j] = norm*convoluted_blossom(&table->knots[dim][j],
-			    k+1, knots, n_knots, rho[i], &rho[i+1], k+q-1);
-		}
-	}
-
 	/* 
 	 * Multiply each vector of coefficients along dimension *dim*
 	 * by the transformation matrix.
 	 */
-	for (i = 0; i < stride1; i++)
-	  for (j = 0; j < naxes[dim]; j++)
-	    for (l = 0; l < table->naxes[dim]; l++)
-	      for (k = 0; k < stride2; k++)
-                  coefficients[i*stride2*naxes[dim] + j*stride2 + k] +=
-	              trafo[j*table->naxes[dim] + l] * 
-	              table->coefficients[i*stride2*table->naxes[dim] + 
-	              l*stride2 + k];
-	
-	/* Free the transformation matrix. */
-	free(trafo);
+	for (i1 = 0; i < stride1; i1++) {
+	  for (i = 0; i < naxes[dim]; i++) {
+	    for (j = 0; j < table->naxes[dim]; j++) {
+	    /* an element of the transformation matrix */
+	        double trafo = norm*convoluted_blossom(&table->knots[dim][j],
+	            k+1, knots, n_knots, rho[i], &rho[i+1], k+q-1);
+	        for (i2 = 0; i2 < stride2; i2++) {
+	            coefficients[i1*stride2*naxes[dim] + i*stride2 + i2] +=
+	                trafo *
+	                table->coefficients[i1*stride2*table->naxes[dim] +
+	                j*stride2 + i2];
+	        }
+	    }
+	  }
+	}
 	
 	/* Swap out the new components of the table */
 	free(table->coefficients);

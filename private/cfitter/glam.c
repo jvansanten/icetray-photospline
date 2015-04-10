@@ -74,6 +74,7 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 	long *nsplines;
 	long i, j, k;
 
+	assert(data->ndim > 0);
 	nsplines = calloc(data->ndim,sizeof(long));
 
 	/*
@@ -128,10 +129,10 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 	R.ndim = F.ndim = data->ndim;
 	F.x = malloc(data->rows * sizeof(double));
 	F.i = malloc(2*data->ndim * sizeof(int *));
-	F.ranges = malloc(2*data->ndim * sizeof(int));
+	F.ranges = malloc(2*data->ndim * sizeof(unsigned));
 	R.x = malloc(data->rows * sizeof(double));
 	R.i = malloc(data->ndim * sizeof(int *));
-	R.ranges = malloc(data->ndim * sizeof(int));
+	R.ranges = malloc(data->ndim * sizeof(unsigned));
 
 	for (i = 0; i < data->ndim; i++) {
 		F.i[i] = malloc(data->rows * sizeof(int));
@@ -211,12 +212,14 @@ glamfit_complex(struct ndsparse *data, double *weights, double **coords,
 
 	/* Reorder dimensions of F so that the even-numbered axes come first */
 	{
-		int **oldi, *oldranges;
+		int **oldi;
+		unsigned *oldranges;
 
 		oldi = F.i;
 		oldranges = F.ranges;
+		assert(F.ndim > 0);
 		F.i = malloc(F.ndim * sizeof(int *));
-		F.ranges = malloc(F.ndim * sizeof(int));
+		F.ranges = malloc(F.ndim * sizeof(unsigned));
 		for (i = 0; i < F.ndim; i++) {
 			if (i % 2 == 0) {
 				F.i[i/2] = oldi[i];
@@ -358,6 +361,7 @@ static cholmod_sparse *
 flatten_ndarray_to_sparse(struct ndsparse *array, size_t nrow, size_t ncol,
     cholmod_common *c)
 {
+	assert(array->ndim > 0);
 	cholmod_triplet *trip;
 	cholmod_sparse *sparse;
 	long moduli[array->ndim];

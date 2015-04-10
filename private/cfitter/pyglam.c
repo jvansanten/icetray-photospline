@@ -119,7 +119,7 @@ numpynd_to_ndsparse(PyObject *in, struct ndsparse *out)
 {
 	PyArrayObject *inar;
 	int i, j, elements, coord, currow;
-	int *moduli;
+	unsigned *moduli;
 
 	inar = (PyArrayObject *)PyArray_ContiguousFromObject(in, NPY_DOUBLE, 1,
 	    INT_MAX);
@@ -131,9 +131,9 @@ numpynd_to_ndsparse(PyObject *in, struct ndsparse *out)
 
 	out->rows = 0;
 	out->ndim = PyArray_NDIM(inar);
-	out->ranges = malloc(sizeof(int)*out->ndim);
+	out->ranges = malloc(sizeof(unsigned)*out->ndim);
 	out->i = malloc(sizeof(int *)*out->ndim);
-	moduli = malloc(sizeof(int)*out->ndim);
+	moduli = malloc(sizeof(unsigned)*out->ndim);
 
 	elements = 1;
 	for (i = 0; i < PyArray_NDIM(inar); i++) {
@@ -150,6 +150,7 @@ numpynd_to_ndsparse(PyObject *in, struct ndsparse *out)
 		if (((double *)(PyArray_DATA(inar)))[i] != 0.0)
 			out->rows++;
 	}
+	assert(out->rows > 0);
 
 	/* Init coordinates */
 	for (i = 0; i < PyArray_NDIM(inar); i++)
@@ -181,7 +182,7 @@ numpy_ndsparse_to_ndarray(struct ndsparse *a)
 {
 	double *x;
 	PyArrayObject *out;
-	int moduli[a->ndim];
+	unsigned moduli[a->ndim];
 	npy_intp dimensions[a->ndim];
 	int i, j, k, elements;
 
@@ -294,8 +295,8 @@ void printndsparse(struct ndsparse *a) {
 	}
 
 	for (i = 0; i < elements; i++) {
-		if (i % moduli[0] == 0 && i != 0) printf("\n");
-		if (i % moduli[1] == 0 && i != 0) printf("\n");
+		if (a->ndim > 0 && i % moduli[0] == 0 && i != 0) printf("\n");
+		if (a->ndim > 1 && i % moduli[1] == 0 && i != 0) printf("\n");
 		printf("%lf\t",x[i]);
 	}
 	printf("\n");
@@ -375,6 +376,7 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 	moduli = NULL;
 	weights = NULL;
 	z_arr = NULL;
+	c_coords = NULL;
 	result = NULL;
 	periods = NULL;
 	penorder_py = NULL;
@@ -413,6 +415,12 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 			    "weight and data array dimensions do not match");
 			goto exit;
 		}
+	}
+	if (data.ndim == 0) {
+		Py_DECREF(z_arr);
+		PyErr_SetString(PyExc_ValueError,
+		   "data must be at least one-dimensional");
+		goto exit;
 	}
 
 	/* Set up the data array */
@@ -500,6 +508,8 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 	}
 	
 	c_coords = malloc(sizeof(double *)*out.ndim);
+	for (i = 0; i < out.ndim; i++)
+		c_coords[i] = NULL;
 	for (i = 0; i < PySequence_Length(coords); i++) {
 		PyArrayObject *coord_vec;
 		coord_vec = (PyArrayObject *)PyArray_ContiguousFromObject(
@@ -595,15 +605,25 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 		free(data.i[i]);
 	free(data.x); free(data.ranges);
 	if (weights) free(weights);
-	if (out.knots) {
-		free(out.nknots);
+	if (c_coords != NULL) {
+		for (i = 0; i < data.ndim; i++)
+			if (c_coords[i])
+				free(c_coords[i]);
+		free(c_coords);
+	}
+	if (penorder)
+		free(penorder);
+	if (out.periods)
 		free(out.periods);
+	if (out.knots) {
 		for (i = 0; i < out.ndim; i++)
 			free(out.knots[i]);
 		free(out.knots);
-		free(out.order);
-		free(penorder);
 	}
+	if (out.nknots)
+		free(out.nknots);
+	if (out.order)
+		free(out.order);
 	if (out.coefficients) {
 		free(out.naxes);
 		free(out.coefficients);
@@ -733,7 +753,9 @@ pygrideval(PyObject *self, PyObject *args)
 	result = numpy_ndsparse_to_ndarray(&nd);
 	for (i = 0; i < nd.ndim; i++)
 		free(nd.i[i]);
-	free(nd.x); free(nd.ranges);
+	free(nd.i);
+	free(nd.x);
+	free(nd.ranges);
 
 	return ((PyObject *)result);
 }

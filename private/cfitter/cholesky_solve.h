@@ -13,8 +13,8 @@ get_column(cholmod_sparse *A, long k, long *iPerm,
     long *Fset, long nF, cholmod_common *c);
 
 cholmod_sparse *
-submatrix_symm(cholmod_sparse *A, long *rows, long nrows,
-    long *cols, long ncols, cholmod_common *c);
+submatrix_symm(cholmod_sparse *A, long *rows, unsigned long nrows,
+    long *cols, unsigned long ncols, cholmod_common *c);
 
 cholmod_factor * 
 modify_factor(cholmod_sparse* A, cholmod_factor *L,
@@ -28,7 +28,7 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 
 cholmod_factor * 
 recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
-    long *F, long nF, cholmod_common *c);
+    long *F, unsigned long nF, cholmod_common *c);
 
 double
 calc_residual(cholmod_sparse *AtA, cholmod_dense *Atb, cholmod_dense *x,

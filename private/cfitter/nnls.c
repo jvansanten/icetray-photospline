@@ -33,13 +33,13 @@ static int intcmp(const void *xa, const void *xb);
 
 cholmod_dense *
 nnls_lawson_hanson(cholmod_sparse *A, cholmod_dense *y, double tolerance,
-    int min_iterations, int max_iterations, int npos, int normaleq,
+    int min_iterations, int max_iterations, unsigned npos, int normaleq,
     int verbose, cholmod_common *c)
 {
 	cholmod_dense *x, *w, *p, *yp;
 	cholmod_sparse *Ap;
 	long P[A->ncol], Z[A->ncol];
-	int nP, nZ;
+	unsigned nP, nZ;
 	double wmax, wpmin, alpha, qtemp;
 	int i, j, n, t, qmax;
 	int last_freed = -1;
@@ -108,6 +108,7 @@ nnls_lawson_hanson(cholmod_sparse *A, cholmod_dense *y, double tolerance,
 			if (nP == 0)
 				break;
 			
+			assert(nP > 0);
 			wpmin = ((double *)(w->x))[P[0]];
 			for (i = 1; i < nP; i++) {
 				if (((double *)(w->x))[P[i]] < wpmin)
@@ -803,7 +804,7 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 	H2 = (long*)malloc(sizeof(long)*nvar);
 
 	nF = nG = nH1 = nH2 = 0;
-	nFprime = nGprime = -1;
+	nGprime = -1;
 
 	t0 = clock();
 
@@ -927,7 +928,6 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 			printf("Iteration %d Infeasibles: %ld Residual: %.20e\n",
 			    iter, ninf, residual);
 
-		nFprime = nGprime = -1;
 		feasible = false;
 		while (!feasible) {
 

@@ -427,15 +427,17 @@ modify_factor_p(cholmod_sparse *A, cholmod_factor *L,
 
 cholmod_factor * 
 recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
-    long *F, long nF, cholmod_common *c)
+    long *F, unsigned long nF, cholmod_common *c)
 {
-	long *iF, *FPerm, *Lrows;
+	long *iF, *FPerm; 
+	unsigned long *Lrows;
 	long *LPerm, *LColCount, *L_FColCount;
 	long *Li, *Lp, *Lnz, *Lnext, *L_Fi, *L_Fp, *L_Fnz;
 	double *Lx, *L_Fx;
 	cholmod_sparse *A_F;
 	cholmod_factor *L_F;
-	int i, j, nz, nFPerm, common_nmethods, Astype;
+	unsigned long i, j, nz, nFPerm;
+	int common_nmethods, Astype;
 	bool common_postorder;
 
 	/* 
@@ -459,8 +461,9 @@ recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
 
 	/* Permute F to match L->Perm */
 	nFPerm = 0;
+	assert(nF > 0);
 	FPerm = (long*)malloc(sizeof(long)*nF);
-	Lrows = (long*)malloc(sizeof(long)*nF);
+	Lrows = (unsigned long*)malloc(sizeof(unsigned long)*nF);
 	if (iPerm != NULL) {
 		/* calculate the permuation as it applies to subset F */
 		for (i = 0; i < L->n; i++) {
@@ -484,6 +487,7 @@ recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
 			nFPerm++;
 		}
 	}
+	assert(nFPerm == nF);
 
 	Astype = A->stype;
 	assert( Astype != 0);
@@ -610,8 +614,8 @@ recompute_factor(cholmod_sparse *A, cholmod_factor *L, long *iPerm,
 }
 
 cholmod_sparse *
-submatrix_symm(cholmod_sparse *A, long *rows, long nrows,
-    long *cols, long ncols, cholmod_common *c)
+submatrix_symm(cholmod_sparse *A, long *rows, unsigned long nrows,
+    long *cols, unsigned long ncols, cholmod_common *c)
 {
 	cholmod_sparse *C;
 	int i, j, pend, pstart, last;
@@ -625,6 +629,7 @@ submatrix_symm(cholmod_sparse *A, long *rows, long nrows,
 	assert( A->stype != 0 );
 	assert( A->nrow == A->ncol );
 	assert( A->sorted );
+	assert( ncols <= A->ncol );
 
 	Ap = (long*)(A->p);
 	Ai = (long*)(A->i);
@@ -648,6 +653,9 @@ submatrix_symm(cholmod_sparse *A, long *rows, long nrows,
 	nz = 0;
 	csorted = true;
 	for (i = 0; i < A->ncol; i++) {
+		/* Redundant with the assert above, but keeps
+		 * clang-analyzer happy */
+		assert(i < A->nrow);
 		if (icols[i] < 0) continue;
 
 		pend = (A->packed) ? Ap[i+1] : Anz[i];

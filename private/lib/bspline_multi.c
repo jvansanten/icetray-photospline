@@ -140,8 +140,11 @@ bspline_nonzero(const double *knots, const unsigned nknots,
 	double delta_r[n+1], delta_l[n+1];
 	
 	/* Special case for constant splines */
-	if (n == 0)
+	if (n == 0) {
+		values[0] = 1;
+		derivs[0] = 0;
 		return;
+	}
 	
 	/*
 	 * Handle the (rare) cases where x is outside the full

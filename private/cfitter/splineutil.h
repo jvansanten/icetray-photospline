@@ -15,7 +15,7 @@ struct ndsparse {
 	/* i contains coordinates, x the data values */
 	double *x;
 	int **i;
-	int *ranges; /* Index ranges for each column */
+	unsigned *ranges; /* Index ranges for each column */
 };
 
 cholmod_sparse *bsplinebasis(double *knots, size_t nknots, double *x,
@@ -29,7 +29,7 @@ cholmod_sparse *box(cholmod_sparse *a, cholmod_sparse *b, cholmod_common *c);
 cholmod_sparse *cholmod_tril(int dim, cholmod_common *c);
 
 cholmod_dense *nnls_lawson_hanson(cholmod_sparse *A, cholmod_dense *y,
-    double tolerance, int min_iterations, int max_iterations, int npos,
+    double tolerance, int min_iterations, int max_iterations, unsigned npos,
     int normaleq, int verbose, cholmod_common *c);
 cholmod_dense *nnls_normal_block(cholmod_sparse *AtA, cholmod_dense *Atb,
    int verbose, cholmod_common *c);

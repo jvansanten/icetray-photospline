@@ -135,7 +135,7 @@ bsplvb(const double *knots, const double x, const int left, const int jlow,
 
 	if (jlow == 0)
 		biatx[0] = 1.0;
-		
+	
 	for (j = jlow; j < jhigh-1; j++) {
 		delta_r[j] = knots[left+j+1] - x;
 		delta_l[j] = x - knots[left-j];
