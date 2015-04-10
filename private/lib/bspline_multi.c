@@ -147,6 +147,7 @@ bspline_nonzero(const double *knots, const unsigned nknots,
 	 * Handle the (rare) cases where x is outside the full
 	 * support of the spline surface.
 	 */
+	assert(left >= n && left <= nknots-n-2);
 	if (left == n)
 		while (left >= 0 && x < knots[left])
 			left--;
@@ -222,6 +223,7 @@ ndsplineeval_gradient(const struct splinetable *table, const double *x,
 	const v4sf *localbasis_rowptr[table->ndim][maxdegree];
 	const v4sf **localbasis_ptr[table->ndim];
 
+	assert(table->ndim > 0);
 	if (table->ndim+1 > MAXDIM) {
 		fprintf(stderr, "Error: ndsplineeval_gradient() can only "
 		    "process up to %d-dimensional tables. Adjust MAXDIM in "
@@ -231,6 +233,11 @@ ndsplineeval_gradient(const struct splinetable *table, const double *x,
 
 		
 	for (n = 0; n < table->ndim; n++) {
+
+		/* 
+		 * Compute the values and derivatives of the table->order[n]+1 non-zero
+		 * splines at x[n], filling them into valbasis and gradbasis.
+		 */
 		bspline_nonzero(table->knots[n], table->nknots[n],
 		    x[n], centers[n], table->order[n], valbasis, gradbasis);
 	

@@ -129,7 +129,8 @@ void splinetable_free(struct splinetable *table)
 	splinetable_free_aux(table);
 	if (table->knots) {
 		for (i = 0; i < table->ndim; i++)
-			free(table->knots[i]-table->order[i]);
+			if (table->knots[i])
+				free(table->knots[i]-table->order[i]);
 		free(table->knots);
 	}
 	free(table->nknots);
@@ -158,6 +159,7 @@ splinetable_permute(struct splinetable *table, int *permutation)
 	double **extents, **knots;
 	float *coefficients;
 	
+	assert(table->ndim >= 1);
 	order   = malloc(sizeof(table->order[0])*table->ndim);
 	naxes   = malloc(sizeof(table->naxes[0])*table->ndim);
 	strides = malloc(sizeof(table->strides[0])*table->ndim);
@@ -350,6 +352,7 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 	fits_get_img_dim(fits, &table->ndim, &error);
 	if (error != 0)
 		return (error);
+	assert(table->ndim >= 1);
 
 	/*
 	 * Read in any auxiliary keywords.
@@ -403,8 +406,10 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 			sprintf(name,"ORDER%d",i);
 			fits_read_key(fits, TINT, name, &table->order[i],
 			    NULL, &error);
+			assert(table->order[i] > 0);
 		}
 	} else {
+		assert(table->order[0] > 0);
 		for (i = 1; i < table->ndim; i++)
 			table->order[i] = table->order[0];
 	}
@@ -482,6 +487,8 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 	 */
 
 	table->knots = malloc(sizeof(table->knots[0])*table->ndim);
+	for (i = 0; i < table->ndim; i++)
+		table->knots[i] = NULL;
 	table->nknots = malloc(sizeof(table->nknots[0])*table->ndim);
 
 	for (i = 0; i < table->ndim; i++) {
@@ -506,6 +513,10 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 		table->knots[i] = knot_scratch + table->order[i];
 		fits_read_pix(fits, TDOUBLE, &fpix, table->nknots[i], NULL,
 		    table->knots[i], NULL, &error);
+	}
+	if (error != 0) {
+		splinetable_free(table);
+		return (error);
 	}
 
 	/*

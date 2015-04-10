@@ -486,6 +486,7 @@ ndsplineeval_linalg(const struct splinetable *table, const double *x,
 	int coeffstrides[table->ndim];
 	gsl_matrix_float *basis1, *basis2, *basis_elem;
 
+	assert(table->ndim > 0);
 	coeffstrides[table->ndim - 1] = totalcoeff = 1;
         for (n = table->ndim-1; n >= 0; n--) {
                 totalcoeff *= (table->order[n] + 1);

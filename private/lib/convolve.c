@@ -22,7 +22,7 @@ int
 splinetable_convolve(struct splinetable *table, const int dim, const double *knots,
     size_t n_knots)
 {
-	double *rho, *rho_scratch, **trafo, norm;
+	double *rho, *rho_scratch, *trafo, norm;
 	float *coefficients;
 	size_t n_rho, arraysize;
 	unsigned long *strides;
@@ -36,6 +36,7 @@ splinetable_convolve(struct splinetable *table, const int dim, const double *kno
 	convorder = table->order[dim] + n_knots - 1;
 	rho_scratch = malloc(sizeof(double)*
 		(table->nknots[dim]*n_knots + 2*convorder));
+	assert(rho_scratch != NULL);
 	rho = rho_scratch + convorder;
 	for (i = 0; i < table->nknots[dim]; i++)
 		for (j = 0; j < n_knots; j++)
@@ -52,8 +53,11 @@ splinetable_convolve(struct splinetable *table, const int dim, const double *kno
 	}
 	
 	/* Set up space for the convolved coefficients */
+	assert(table->ndim > 0);
 	naxes = malloc(sizeof(long)*table->ndim);
+	assert(naxes != NULL);
 	strides = malloc(sizeof(unsigned long)*table->ndim);
+	assert(strides != NULL);
 	
 	memcpy(naxes, table->naxes, sizeof(long)*table->ndim);
 	naxes[dim] = n_rho - convorder - 1;
@@ -90,17 +94,9 @@ splinetable_convolve(struct splinetable *table, const int dim, const double *kno
 	norm = ((double)(factorial(q)*factorial(k-1)))/((double)factorial(k+q-1));
 	if (k % 2 != 0)
 		norm *= -1;
-
-	trafo = malloc(sizeof(double*)*naxes[dim]);
-	for (i = 0; i < naxes[dim]; i++) {
-		trafo[i] = malloc(sizeof(double)*table->naxes[dim]);
-		for (j = 0; j < table->naxes[dim]; j++) {
-			trafo[i][j] = norm*convoluted_blossom(&table->knots[dim][j],
-			    k+1, knots, n_knots, rho[i], &rho[i+1], k+q-1);
-		}
-	}
 	
 	coefficients = calloc(sizeof(float), arraysize);
+	assert(coefficients != NULL);
 	
 	stride1 = stride2 = 1;
 	for (i = 0; i < table->ndim; i++) {
@@ -108,6 +104,15 @@ splinetable_convolve(struct splinetable *table, const int dim, const double *kno
 			stride1 *= naxes[i];
 		else if (i > dim)
 			stride2 *= naxes[i];
+	}
+
+	assert(naxes[dim] > 0);
+	trafo = malloc(sizeof(double)*naxes[dim]*table->naxes[dim]);
+	for (i = 0; i < naxes[dim]; i++) {
+		for (j = 0; j < table->naxes[dim]; j++) {
+			trafo[i*table->naxes[dim] + j] = norm*convoluted_blossom(&table->knots[dim][j],
+			    k+1, knots, n_knots, rho[i], &rho[i+1], k+q-1);
+		}
 	}
 
 	/* 
@@ -119,13 +124,11 @@ splinetable_convolve(struct splinetable *table, const int dim, const double *kno
 	    for (l = 0; l < table->naxes[dim]; l++)
 	      for (k = 0; k < stride2; k++)
                   coefficients[i*stride2*naxes[dim] + j*stride2 + k] +=
-	              trafo[j][l] * 
+	              trafo[j*table->naxes[dim] + l] * 
 	              table->coefficients[i*stride2*table->naxes[dim] + 
 	              l*stride2 + k];
 	
 	/* Free the transformation matrix. */
-	for (i = 0; i < naxes[dim]; i++)
-		free(trafo[i]);
 	free(trafo);
 	
 	/* Swap out the new components of the table */
@@ -133,6 +136,14 @@ splinetable_convolve(struct splinetable *table, const int dim, const double *kno
 	free(table->naxes);
 	free(table->strides);
 	free(table->knots[dim] - table->order[dim]);
+	
+	table->coefficients = coefficients;
+	table->naxes = naxes;
+	table->strides = strides;
+	table->knots[dim] = rho;
+	
+	table->nknots[dim] = n_rho;
+	table->order[dim] = convorder;
 	
 	/* 
 	 * If the extent already had partial support at the lower end,
@@ -152,14 +163,6 @@ splinetable_convolve(struct splinetable *table, const int dim, const double *kno
 	 * that the surface will remain monotonic over its full extent.
 	 */
 	table->extents[dim][1] += knots[0];
-	
-	table->coefficients = coefficients;
-	table->naxes = naxes;
-	table->strides = strides;
-	table->knots[dim] = rho;
-	
-	table->nknots[dim] = n_rho;
-	table->order[dim] = convorder;
 	
 	return (0);
 }
@@ -218,6 +221,7 @@ divdiff(const double *x, const double *y, size_t n)
 static int
 factorial(int n)
 {
+	assert(n > 0);
 	int i = n-1;
 	int acc = n;
 	
