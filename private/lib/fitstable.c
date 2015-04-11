@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <assert.h>
 #include <fitsio.h>
 #include <fitsio2.h>
 

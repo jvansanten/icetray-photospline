@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #if defined(__i386__) || defined (__x86_64__)
 #ifdef __GLIBC__
