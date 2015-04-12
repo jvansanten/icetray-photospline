@@ -22,14 +22,14 @@ int
 splinetable_convolve(struct splinetable *table, const int dim, const double *knots,
     size_t n_knots)
 {
-	double *rho, *rho_scratch, **trafo, norm;
+	double *rho, *rho_scratch, norm;
 	float *coefficients;
 	size_t n_rho, arraysize;
 	unsigned long *strides;
 	long *naxes;
 	unsigned convorder;
 	long stride1, stride2;
-	int i, j, k, l, q;
+	int i, i1, i2, j, k, q;
 		
 	/* Construct the new knot field. */
 	n_rho = 0;
@@ -90,15 +90,6 @@ splinetable_convolve(struct splinetable *table, const int dim, const double *kno
 	norm = ((double)(factorial(q)*factorial(k-1)))/((double)factorial(k+q-1));
 	if (k % 2 != 0)
 		norm *= -1;
-
-	trafo = malloc(sizeof(double*)*naxes[dim]);
-	for (i = 0; i < naxes[dim]; i++) {
-		trafo[i] = malloc(sizeof(double)*table->naxes[dim]);
-		for (j = 0; j < table->naxes[dim]; j++) {
-			trafo[i][j] = norm*convoluted_blossom(&table->knots[dim][j],
-			    k+1, knots, n_knots, rho[i], &rho[i+1], k+q-1);
-		}
-	}
 	
 	coefficients = calloc(sizeof(float), arraysize);
 	
@@ -114,19 +105,21 @@ splinetable_convolve(struct splinetable *table, const int dim, const double *kno
 	 * Multiply each vector of coefficients along dimension *dim*
 	 * by the transformation matrix.
 	 */
-	for (i = 0; i < stride1; i++)
-	  for (j = 0; j < naxes[dim]; j++)
-	    for (l = 0; l < table->naxes[dim]; l++)
-	      for (k = 0; k < stride2; k++)
-                  coefficients[i*stride2*naxes[dim] + j*stride2 + k] +=
-	              trafo[j][l] * 
-	              table->coefficients[i*stride2*table->naxes[dim] + 
-	              l*stride2 + k];
-	
-	/* Free the transformation matrix. */
-	for (i = 0; i < naxes[dim]; i++)
-		free(trafo[i]);
-	free(trafo);
+	for (i1 = 0; i1 < stride1; i1++) {
+	  for (i = 0; i < naxes[dim]; i++) {
+	    for (j = 0; j < table->naxes[dim]; j++) {
+	      /* An element of the transformation matrix */
+	      double trafo = norm*convoluted_blossom(&table->knots[dim][j],
+	          k+1, knots, n_knots, rho[i], &rho[i+1], k+q-1);
+	      for (i2 = 0; i2 < stride2; i2++) {
+                  coefficients[i1*stride2*naxes[dim] + i*stride2 + i2] +=
+	              trafo * 
+	              table->coefficients[i1*stride2*table->naxes[dim] + 
+	              j*stride2 + i2];
+	      }
+	    }
+	  }
+	}
 	
 	/* 
 	 * If the extent already had partial support at the lower end,
