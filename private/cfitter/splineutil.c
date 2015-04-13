@@ -1,5 +1,6 @@
 #include <cholmod.h>
 #include <math.h>
+#include <assert.h>
 
 #include "splineutil.h"
 #include "photospline/bspline.h"
