@@ -24,12 +24,11 @@ def write(table,path):
 	for i in range(0,len(table.periods)):
 		data.header.update('PERIOD%d' % i,table.periods[i])
 
-	data.header.update('BIAS',table.bias)
-	data.header.update('GEOMETRY',table.geometry)
-	data.header.update('LEVEL',table.level)
-	data.header.update('GEOTYPE',table.geotype)
-	data.header.update('NGROUP',table.ngroup)
-	data.header.update('PARITY',table.parity)
+	base_keys = set(['coefficients', 'order', 'knots', 'extents', 'periods'])
+	for k in dir(table):
+		if k.startswith('_') or k in base_keys:
+			continue
+		data.header.update(k.upper(), getattr(table, k))
 
 	hdulist = pyfits.HDUList([data])
 
@@ -99,30 +98,11 @@ def read(path, memmap=False):
 
 	table.extents = list(zip(extents[:-1:2], extents[1::2]))
 
-	try:
-		table.bias = data.header['BIAS']
-	except KeyError:
-		pass
-	try:
-		table.geometry = data.header['GEOMETRY']
-	except KeyError:
-		pass
-	try:
-		table.level = data.header['LEVEL']
-	except KeyError:
-		pass
-	try:
-		table.geotype = data.header['GEOTYPE']
-	except KeyError:
-		pass
-	try:
-		table.ngroup = data.header['NGROUP']
-	except KeyError:
-		pass
-	try:
-		table.parity = data.header['PARITY']
-	except KeyError:
-		pass
+	base_keys = set(('SIMPLE', 'BITPIX', 'EXTEND', 'TYPE'))
+	for k in data.header.keys():
+		if k in base_keys or any((k.startswith(prefix) for prefix in ('NAXIS', 'ORDER', 'PERIOD'))):
+			continue
+		setattr(table, k.lower(), data.header[k])
 
 	return table
 
