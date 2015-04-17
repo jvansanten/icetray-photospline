@@ -41,8 +41,8 @@ int main(int argc, char **argv) {
 	if (argc < 2+table.ndim)
 		usage();
 
-	x = malloc(sizeof(double)*table.ndim);
-	centers = malloc(sizeof(double)*table.ndim);
+	x = malloc(table.ndim*sizeof(double));
+	centers = malloc(table.ndim*sizeof(double));
 	iterdim = -1;
 	for (i = 0; i < table.ndim; i++) { 
 		sscanf(argv[i+2],"%lf",&x[i]);
