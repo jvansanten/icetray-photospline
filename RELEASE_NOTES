@@ -3,6 +3,18 @@
 # $Date$
 #
 
+April 18, 2015 Meike de With (meike.de.with@desy.de)
+--------------------------------------------------------------------
+Release V00-10-01
+
+- Deal with NaN data in pyglam
+- Small code changes to fix warnings
+- Fix memory leaks in spglam
+- Rewrite blossom convolution in a slightly more memory-efficient way
+- Save all attributes as header keys instead of only a few
+  -- Jakob van Santen
+
+
 April 3, 2015 Meike de With (meike.de.with@desy.de)
 --------------------------------------------------------------------
 Release V00-10-00
