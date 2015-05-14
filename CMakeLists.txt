@@ -49,12 +49,14 @@ SET_TARGET_PROPERTIES(photospline-evalsplinefits
 if(NOT DEFINED PHOTOSPLINE_CFLAGS)
 	# all the goodies of -ffast-math, minus -funsafe-math-optimizations
 	SET(_ffast_math "-fno-math-errno -fno-trapping-math -ffinite-math-only")
+	# only use fno-signaling-nans with gcc
+	if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
+		SET(_ffast_math "${_ffast_math} -fno-signaling-nans")
+	endif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
 	SET(PHOTOSPLINE_CFLAGS "-O3 ${_ffast_math} -std=c99")
 	# fpeel-loops is only valid for gcc, not clang or pgcc
-	# likewise fno-signaling-nans
 	if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
 		SET(PHOTOSPLINE_CFLAGS "${PHOTOSPLINE_CFLAGS} -fpeel-loops")
-		SET(_ffast_math "${_ffast_math} -fno-signaling-nans")
 	endif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
 	# add flags to enable the vector units present on the host processor
 	# we'd love to use -march=native, but that's only available on
