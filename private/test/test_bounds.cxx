@@ -702,3 +702,35 @@ TEST(single_basis_vs_multi)
 	}
 }
 
+TEST(deriv2)
+{
+	splinetable spline;
+	// Synthesize a completely constant spline surface
+	std::string fname = "constant.fits";
+	std::string cmd;
+	{
+		std::ostringstream ss;
+		ss << "python " << getenv("I3_BUILD") << "/photospline/resources/test/make_constant_spline.py";
+		cmd = ss.str();
+		printf("%s\n", cmd.c_str());
+	}
+	if (fs::exists(fname))
+		fs::remove(fname);
+	ENSURE_EQUAL(system(cmd.c_str()), 0);
+	
+	ENSURE_EQUAL(readsplinefitstable(fname.c_str(), &spline), 0);
+	
+	int centers[2];
+	double x[2] = {0.5, 0.5};
+	
+	ENSURE_EQUAL(tablesearchcenters(&spline, x, centers), 0);
+	
+	ENSURE_EQUAL(ndsplineeval_deriv2(&spline, x, centers, 0), 1.);
+	// Second derivatives must be zero
+	ENSURE_EQUAL(ndsplineeval_deriv2(&spline, x, centers, 1 << 0), 0.);
+	ENSURE_EQUAL(ndsplineeval_deriv2(&spline, x, centers, 1 << 1), 0.);
+	
+	splinetable_free(&spline);
+	fs::remove(fname);
+}
+

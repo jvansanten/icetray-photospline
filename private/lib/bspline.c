@@ -465,10 +465,11 @@ ndsplineeval_deriv2(const struct splinetable *table, const double *x,
 	
 	for (n = 0; n < table->ndim; n++) {
 		if (derivatives & (1 << n)) {
-			for (i = -table->order[n]; i <= 0; i++)
+			for (i = 0; i <= table->order[n]; i++)
 				localbasis[n][i] = bspline_deriv_2(
 				    table->knots[n], x[n],
-				    centers[n] + i, table->order[n]);
+				    centers[n] - table->order[n] + i,
+				    table->order[n]);
 		} else {
 			bsplvb_simple(table->knots[n], table->nknots[n],
 			    x[n], centers[n], table->order[n] + 1,
