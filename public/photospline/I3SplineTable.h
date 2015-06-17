@@ -27,6 +27,7 @@ public:
 	 * @returns 0 on success, non-zero otherwise
 	 */
 	int Eval(double *x, double *result, int derivatives=0) const;
+	int EvalDeriv2(double *x, double *result, int derivatives=0) const;
 
 	/** Get the number of dimensions */
 	unsigned GetNDim() const { return table_.ndim; };

@@ -31,6 +31,21 @@ I3SplineTable::Eval(double *coordinates, double *result, int derivatives) const
 	return 0;
 }
 
+int
+I3SplineTable::EvalDeriv2(double *coordinates, double *result, int derivatives) const
+{
+	int centers[table_.ndim];
+	
+	if (tablesearchcenters(&table_, coordinates, centers) == 0)
+		*result = ndsplineeval_deriv2(&table_, coordinates, centers, derivatives);
+	else
+		return EINVAL;
+	
+	*result -= bias_;
+	
+	return 0;
+}
+
 std::pair<double, double>
 I3SplineTable::GetExtents(int dim) const
 {

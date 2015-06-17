@@ -35,6 +35,27 @@ splinetableeval(I3SplineTable &self, bp::object coordinates, int derivatives)
 	return retvalue;
 }
 
+static double
+splinetableeval_deriv2(I3SplineTable &self, bp::object coordinates, int derivatives)
+{
+	double retvalue(NAN);
+	double *coord_ptr;
+
+	PyObject *coords;	
+	coords = PyArray_ContiguousFromObject(coordinates.ptr(), NPY_DOUBLE, 0, 0);
+	if (!coords) {
+		PyErr_Format(PyExc_ValueError, "Can't convert object of type"
+		    "'%s' to an array of doubles!", PY_TYPESTRING(coordinates));
+		bp::throw_error_already_set();
+	}
+	coord_ptr = (double*)PyArray_DATA((PyArrayObject *)coords);
+	
+	self.EvalDeriv2(coord_ptr, &retvalue, derivatives);
+	Py_XDECREF(coords);
+
+	return retvalue;
+}
+
 void register_I3SplineTable() {
 	bp::class_<I3SplineTable, boost::shared_ptr<I3SplineTable>, boost::noncopyable>
 	    ("I3SplineTable", bp::init<const std::string&>(bp::arg("path")))
@@ -48,6 +69,7 @@ void register_I3SplineTable() {
 	                          "the usual B-spline basis, and result "
 	                          "will be the gradient of the surface in that "
 	                          "dimension.")
+	    .def("eval_deriv2", splinetableeval_deriv2, (bp::args("coordinates"), bp::arg("derivatives")=0))
 	;
 }
 
