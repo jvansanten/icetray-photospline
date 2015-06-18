@@ -92,7 +92,7 @@ i3_test_executable(test
 execute_process(COMMAND ${PYTHON_EXECUTABLE} "-c" "import pyfits" RESULT_VARIABLE PYFITS_FOUND)
 if (PYFITS_FOUND)
 	i3_test_scripts(resources/test/deriv2.py)
-endif (PYTFITS_FOUND)
+endif (PYFITS_FOUND)
 
 include(CheckIncludeFile)
 
