@@ -1,5 +1,8 @@
 from . import splinetable
-import pyfits
+try:
+	import pyfits
+except ImportError:
+	import astropy.io.fits as pyfits
 import numpy
 
 def write(table,path):
@@ -12,23 +15,23 @@ def write(table,path):
 	.. warning:: pyfits will fail to write the file if it already exists.
 	"""
 	data = pyfits.PrimaryHDU(table.coefficients)
-	data.header.update('TYPE','Spline Coefficient Table')
+	data.header.set('TYPE','Spline Coefficient Table')
 
 	if getattr(table.order,'__iter__',False):
 		for i in range(0,len(table.order)):
-			data.header.update('ORDER%d' % i,table.order[i],
+			data.header.set('ORDER%d' % i,table.order[i],
 			    'B-Spline Order')
 	else:
-		data.header.update('ORDER',table.order,'B-Spline Order')
+		data.header.set('ORDER',table.order,'B-Spline Order')
 
 	for i in range(0,len(table.periods)):
-		data.header.update('PERIOD%d' % i,table.periods[i])
+		data.header.set('PERIOD%d' % i,table.periods[i])
 
 	base_keys = set(['coefficients', 'order', 'knots', 'extents', 'periods'])
 	for k in dir(table):
 		if k.startswith('_') or k in base_keys:
 			continue
-		data.header.update(k.upper(), getattr(table, k))
+		data.header.set(k.upper(), getattr(table, k))
 
 	hdulist = pyfits.HDUList([data])
 
@@ -104,5 +107,6 @@ def read(path, memmap=False):
 			continue
 		setattr(table, k.lower(), data.header[k])
 
+	file.close()
 	return table
 

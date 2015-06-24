@@ -89,7 +89,7 @@ i3_test_executable(test
 	USE_PROJECTS photospline icetray
 )
 
-execute_process(COMMAND ${PYTHON_EXECUTABLE} "-c" "import pyfits" RESULT_VARIABLE PYFITS_FOUND)
+execute_process(COMMAND ${PYTHON_EXECUTABLE} "resources/test/find_pyfits.py" RESULT_VARIABLE PYFITS_FOUND)
 if (PYFITS_FOUND)
 	i3_test_scripts(resources/test/deriv2.py)
 endif (PYFITS_FOUND)

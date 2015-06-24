@@ -526,7 +526,11 @@ class FITSTable(Table):
 			self.header['efficiency'] |= Efficiency.N_PHOTON
 		
 	def save(self, fname, overwrite=False):
-		import pyfits, os
+		try:
+			import pyfits
+		except ImportError:
+			import astropy.io.fits as pyfits
+		import os
 		
 		if os.path.exists(fname):
 			if overwrite:
@@ -535,12 +539,12 @@ class FITSTable(Table):
 				raise IOError("File '%s' exists!" % fname)
 		
 		data = pyfits.PrimaryHDU(self.values)
-		data.header.update('TYPE', 'Photon detection probability table')
+		data.header.set('TYPE', 'Photon detection probability table')
 		
 		for k, v in self.header.items():
 			# work around 8-char limit in FITS keywords
 			tag = 'hierarch _i3_' + k
-			data.header.update(tag, v)
+			data.header.set(tag, v)
 		
 		hdulist = pyfits.HDUList([data])
 		
@@ -556,7 +560,10 @@ class FITSTable(Table):
 		
 	@classmethod
 	def load(cls, fname):
-		import pyfits
+		try:
+			import pyfits
+		except ImportError:
+			import astropy.io.fits as pyfits
 		
 		hdulist = pyfits.open(fname)
 		data = hdulist[0]
