@@ -452,10 +452,12 @@ class FITSTable(Table):
 		'geometry':          Geometry.SPHERICAL,
 		'parity':            Parity.EVEN,
 		'zenith':            0.,
+		'azimuth':           0.,
 		'z':                 0.,
 		'energy':            0.,
 		'type':              0,
 		'level':             1,
+		'lightscale':        1.,
 		'n_group':           numpy.nan,
 		'n_phase':           numpy.nan,
 	}
@@ -523,6 +525,9 @@ class FITSTable(Table):
 	def normalize(self):
 		if not self.header['efficiency'] & Efficiency.N_PHOTON:
 			self /= self.header['n_photons']
+			# normalize with respect to the photonics expectation of Cherenkov photons in 300...600nm range
+			if 'lightscale' in self.header:
+				self *= self.header['lightscale']
 			self.header['efficiency'] |= Efficiency.N_PHOTON
 		
 	def save(self, fname, overwrite=False):
