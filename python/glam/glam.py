@@ -306,6 +306,7 @@ def grideval(table, coords, bases=None):
 	               for each dimension in the spline table.
 	:returns: an array of values, one for point in the tensor
 	          product of the supplied axes 
+    
 	>>> spline.coefficients.ndim
 	2
 	>>> grideval(spline, [[0, 0.5, 1.0], [0.5, 1.0]])

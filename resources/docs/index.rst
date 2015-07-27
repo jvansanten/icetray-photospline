@@ -5,6 +5,14 @@
 Photospline
 ===========
 
+.. toctree::
+   :maxdepth: 1
+   
+   release_notes
+
+About
+^^^^^
+
 Detector response to a high-energy physics process is often estimated by
 Monte Carlo simulation. For purposes of data analysis, the results of this
 simulation are typically stored in large multi-dimensional histograms,
@@ -310,7 +318,7 @@ Spline table I/O and manipulation
 
 .. c:function:: void splinetable_free(struct splinetable *table)
 	
-	Free memory allocated by :c:function:`readsplinefitstable`.
+	Free memory allocated by :c:func:`readsplinefitstable`.
 
 Spline evaluation
 -----------------
