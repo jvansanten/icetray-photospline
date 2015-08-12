@@ -1,3 +1,4 @@
+#include <cerrno>
 #include <stdexcept>
 #include <sstream>
 #include <photospline/I3SplineTable.h>
