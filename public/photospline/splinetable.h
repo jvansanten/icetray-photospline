@@ -1,6 +1,8 @@
 #ifndef _SPLINE_TABLE_H
 #define _SPLINE_TABLE_H
 
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
