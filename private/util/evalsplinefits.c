@@ -57,6 +57,9 @@ int main(int argc, char **argv) {
 		for (i = 0; i < table.ndim; i++)
 			printf("%lf, ", x[i]);
 		printf("\b\b]\n");
+		free(x);
+		free(centers);
+		splinetable_free(&table);
 		return (-1);
 	}
 	value = ndsplineeval(&table, x, centers, 0);
