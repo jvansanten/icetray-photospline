@@ -56,6 +56,18 @@ splinetableeval_deriv2(I3SplineTable &self, bp::object coordinates, int derivati
 	return retvalue;
 }
 
+static bp::list
+GetExtents(const I3SplineTable &self)
+{
+	bp::list extents;
+	for (unsigned i=0; i < self.GetNDim(); i++) {
+		std::pair<double, double> ext = self.GetExtents(i);
+		extents.append(bp::make_tuple(ext.first, ext.second));
+	}
+	
+	return extents;
+}
+
 void register_I3SplineTable() {
 	bp::class_<I3SplineTable, boost::shared_ptr<I3SplineTable>, boost::noncopyable>
 	    ("I3SplineTable", bp::init<const std::string&>(bp::arg("path")))
@@ -70,6 +82,8 @@ void register_I3SplineTable() {
 	                          "will be the gradient of the surface in that "
 	                          "dimension.")
 	    .def("eval_deriv2", splinetableeval_deriv2, (bp::args("coordinates"), bp::arg("derivatives")=0))
+	    .add_property("ndim", &I3SplineTable::GetNDim)
+	    .add_property("extents", &GetExtents)
 	;
 }
 
