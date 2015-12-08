@@ -85,7 +85,13 @@ smooth = opts.smooth
 # Real code
 from icecube.photospline import spglam as glam
 
-table = Table(args[0], mmap=False)
+# Load original table. If it fails, try another format.
+try:
+	table = Table(args[0], mmap=False)
+	geo = table.ph_header.geo
+except:
+	table = FITSTable.load(args[0])
+	geo = table.header['geometry']
 
 table.convert_to_level1()
 table.normalize()
@@ -238,7 +244,7 @@ if opts.abs:
 if opts.prob:
 	z = table.values / norm.reshape(norm.shape + (1,))
 	# XXX HACK: ignore weights for normalized timing
-	w = 1000*numpy.ones(table.weights.shape)
+	w = 1000*numpy.ones(table.values.shape)
 
 	# XXX HACK: don't believe anything that happens outside the
 	#           tracking volume of the table

@@ -42,8 +42,7 @@ try:
 	table = Table(args[0], mmap=False)
 	geo = table.ph_header.geo
 except:
-	from icecube.clsim.tablemaker.tabulator import PhotoTable
-	table = PhotoTable.load(args[0])
+	table = FITSTable.load(args[0])
 	geo = table.header['geometry']
 	
 table.remove_nans_and_infinites()
