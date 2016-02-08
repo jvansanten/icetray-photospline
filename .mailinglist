@@ -3,8 +3,6 @@ jvansanten@icecube.wisc.edu
 # Maintainer
 mwallraff@physik.rwth-aachen.de
 # Maintainer
-boersma@icecube.wisc.edu
-# Maintainer
 mdunkman@psu.edu
 # Maintainer
 jfeintzeig@icecube.wisc.edu
@@ -12,3 +10,5 @@ jfeintzeig@icecube.wisc.edu
 emanuel.jacobi@desy.de
 # Maintainer
 sybenzvi@icecube.wisc.edu
+# Observer
+boersma@icecube.wisc.edu
