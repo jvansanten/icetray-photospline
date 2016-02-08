@@ -223,12 +223,14 @@ ndsplineeval_gradient(const struct splinetable *table, const double *x,
 	v4sf acc[NVECS];
 	float valbasis[maxdegree];
 	float gradbasis[maxdegree];
+	assert(table->ndim>0);
 	v4sf localbasis[table->ndim][maxdegree][NVECS];
 	float *acc_ptr;
 	const v4sf *localbasis_rowptr[table->ndim][maxdegree];
 	const v4sf **localbasis_ptr[table->ndim];
 
 	assert(table->ndim > 0);
+
 	if (table->ndim+1 > MAXDIM) {
 		fprintf(stderr, "Error: ndsplineeval_gradient() can only "
 		    "process up to %d-dimensional tables. Adjust MAXDIM in "
@@ -245,7 +247,8 @@ ndsplineeval_gradient(const struct splinetable *table, const double *x,
 		 */
 		bspline_nonzero(table->knots[n], table->nknots[n],
 		    x[n], centers[n], table->order[n], valbasis, gradbasis);
-	
+
+		assert(table->order[n]>0);		
 		for (i = 0; i <= table->order[n]; i++) {
 			
 			((float*)(localbasis[n][i]))[0] = valbasis[i];

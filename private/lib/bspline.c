@@ -459,6 +459,8 @@ double
 ndsplineeval_deriv2(const struct splinetable *table, const double *x,
     const int *centers, int derivatives)
 {
+
+        assert(table->ndim>0);
 	int i, n;
 	int maxdegree = maxorder(table->order, table->ndim) + 1; 
 	float localbasis[table->ndim][maxdegree];
