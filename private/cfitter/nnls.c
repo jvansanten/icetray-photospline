@@ -1070,7 +1070,6 @@ nnls_normal_block3(cholmod_sparse *AtA, cholmod_dense *Atb, int verbose,
 
 				/* AtA is symmetric, but stored in full form */
 				AtA->stype = 0;
-				/* FIXME: re-use AtA_F from modify call? */
 				AtA_F = cholmod_l_submatrix(AtA, F, nF, F, nF,
 				    1, 1, c);
 				AtA->stype = 1;

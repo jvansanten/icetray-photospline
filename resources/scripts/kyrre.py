@@ -209,7 +209,7 @@ def twiddle(spline, dim = -1, approx_order = 0, sigma = 100):
 	else:
 		axis = dim
 	
-	# XXX: FIXME: need to multiply in normalization factors for each tensor-product spline
+	# NB: need to multiply in normalization factors for each tensor-product spline
 	def convert(coefficients, slice_):
 		out = n.dot(matrix, coefficients[slice_])
 		# print out.shape, newspline.coefficients[slice_].shape
