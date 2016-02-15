@@ -92,7 +92,7 @@ i3_test_executable(test
 execute_process(COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/resources/test/find_pyfits.py" RESULT_VARIABLE PYFITS_FOUND ERROR_QUIET)
 # we need a NOT here because PYFITS_FOUND is 0 if the process succeeded
 if (NOT PYFITS_FOUND)
-	list(append _test_scripts resources/test/deriv2.py)
+	list(APPEND _test_scripts resources/test/deriv2.py)
 endif (NOT PYFITS_FOUND)
 
 include(CheckIncludeFile)
@@ -122,7 +122,7 @@ if(NUMPY_FOUND AND BLAS_FOUND AND LAPACK_FOUND AND SUITESPARSE_FOUND)
 		PRE_LINK
 		COMMAND mkdir -p ${CMAKE_BINARY_DIR}/lib/icecube/photospline
 	)
-	list(append _test_scripts resources/test/test_cfitter)
+	list(APPEND _test_scripts resources/test/test_cfitter)
 endif(NUMPY_FOUND AND BLAS_FOUND AND LAPACK_FOUND AND SUITESPARSE_FOUND)
 
 i3_test_scripts(${_test_scripts})
