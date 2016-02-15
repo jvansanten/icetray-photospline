@@ -10,6 +10,8 @@ Photospline
    
    release_notes
 
+Maintainer: Jakob van Santen <jvansanten@icecube.wisc.edu>
+
 About
 ^^^^^
 
@@ -423,3 +425,5 @@ also provides a C++ wrapper interface for simple use cases.
 		                  will be the gradient of the surface in that
 		                  dimension.
 		:returns: 0 on success, non-zero otherwise
+
+There are also `doxygen <../../doxygen/photospline/index.html>`_ docs of dubious utility.

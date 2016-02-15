@@ -5,6 +5,27 @@
 Release Notes
 =============
 
+--------------------------------------------------------------------
+
+Trunk
+
+* Make ndsplineeval_deriv2() actually work, and add test for same
+* Add a regression test for cfitter
+* Update FITS detection to prefer astropy.io.fits
+* Update fitting scripts to deal with clsim FITS tables
+* Expose I3SplineTable extents and ndim to Python
+
+  -- Jakob van Santen
+  
+* Skip wavelength-range factor when normalizing tables in memory (clsim does
+  it correctly internally now)
+  
+  -- Marcel Usner
+
+* Various fixes to follow build system churn and keep static analysis happy
+
+  -- Kevin Meagher, Don La Dieu
+
 April 18, 2015 Meike de With (meike.de.with@desy.de)
 --------------------------------------------------------------------
 
