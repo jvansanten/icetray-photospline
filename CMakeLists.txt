@@ -122,7 +122,7 @@ if(NUMPY_FOUND AND BLAS_FOUND AND LAPACK_FOUND AND SUITESPARSE_FOUND)
 		PRE_LINK
 		COMMAND mkdir -p ${CMAKE_BINARY_DIR}/lib/icecube/photospline
 	)
-	list(APPEND _test_scripts resources/test/test_cfitter)
+	list(APPEND _test_scripts resources/test/test_cfitter.py)
 endif(NUMPY_FOUND AND BLAS_FOUND AND LAPACK_FOUND AND SUITESPARSE_FOUND)
 
 i3_test_scripts(${_test_scripts})
