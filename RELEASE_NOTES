@@ -5,8 +5,6 @@
 Release Notes
 =============
 
---------------------------------------------------------------------
-
 Trunk
 
 * Make ndsplineeval_deriv2() actually work, and add test for same
