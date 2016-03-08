@@ -1,6 +1,6 @@
-
 .. index:: Photospline
-.. _Photospline:
+
+.. _photospline:
 
 Photospline
 ===========
