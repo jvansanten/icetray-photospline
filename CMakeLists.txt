@@ -19,26 +19,26 @@ i3_add_library(photospline
 	private/lib/fitstable.c
 	private/lib/splinepdf.c
 	private/lib/I3SplineTable.cxx
-	USE_TOOLS cfitsio gsl python ${PHOTOSPLINE_EXTRA_TOOLS} scipy
+	USE_TOOLS cfitsio gsl python ${PHOTOSPLINE_EXTRA_TOOLS}
 )
 
 if(NUMPY_FOUND)
 i3_add_pybindings(photospline
 	private/pybindings/I3SplineTable.cxx
 	private/pybindings/module.cxx
-	USE_TOOLS boost python numpy scipy
+	USE_TOOLS boost python numpy
 	USE_PROJECTS icetray photospline
 )
 endif(NUMPY_FOUND)
 
 i3_executable(evalsplinefits
 	private/util/evalsplinefits.c
-	USE_TOOLS cfitsio scipy
+	USE_TOOLS cfitsio
 	USE_PROJECTS photospline)
 
 i3_executable(dumpsplinefits
 	private/util/dumpsplinefits.c
-	USE_TOOLS cfitsio scipy
+	USE_TOOLS cfitsio
 	USE_PROJECTS photospline)
 
 SET_TARGET_PROPERTIES(photospline-evalsplinefits
@@ -85,7 +85,7 @@ SET_SOURCE_FILES_PROPERTIES(
 
 i3_test_executable(test 
 	private/test/*.cxx
-	USE_TOOLS boost  scipy
+	USE_TOOLS boost
 	USE_PROJECTS photospline icetray
 )
 
@@ -102,7 +102,7 @@ if(NUMPY_FOUND AND BLAS_FOUND AND LAPACK_FOUND AND SUITESPARSE_FOUND)
 		private/cfitter/cholesky_solve.c private/cfitter/glam.c
 		private/cfitter/nnls.c private/cfitter/pyglam.c
 		private/cfitter/splineutil.c
-		USE_TOOLS blas lapack python numpy suitesparse scipy
+		USE_TOOLS blas lapack python numpy suitesparse
 		USE_PROJECTS photospline
 		INSTALL_DESTINATION lib/icecube/photospline
 		NOT_INSPECTABLE
