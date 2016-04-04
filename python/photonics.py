@@ -93,6 +93,7 @@ class Efficiency(object):
 	EMISSION     = 0x40
 	USER_DEFINED = 0x80
 	DIFFERENTIAL = 0x100
+	N_EVENT      = 0x200
 
 class Geometry(object):
 	SPHERICAL   = 1
@@ -521,10 +522,26 @@ class FITSTable(Table):
 			if other.header[k] != v:
 				raise ValueError("Can't combine tables with %s=%s and %s" % (k, v, other.header[k]))
 		
-	def normalize(self):
-		if not self.header['efficiency'] & Efficiency.N_PHOTON:
-			self /= self.header['n_photons']
-			self.header['efficiency'] |= Efficiency.N_PHOTON
+	def normalize(self, kind='photon'):
+		"""
+		Normalize the table. If *kind* is 'photon', normalize such that the
+		entries in the table are number of PE detected per Cherenkov photon
+		emitted between 300 and 600 nm, as in Photonics. If *kind* is 'event',
+		normalize such that the entries in the table are the number of PE
+		detected per event (e.g. per minimum-ionizing muon).
+		"""
+		if kind == 'photon':
+			assert not self.header['efficiency'] & Efficiency.N_EVENT
+			if not self.header['efficiency'] & Efficiency.N_PHOTON:
+				self /= self.header['n_photons']
+				self.header['efficiency'] |= Efficiency.N_PHOTON
+		elif kind == 'event':
+			assert not self.header['efficiency'] & Efficiency.N_PHOTON
+			if not self.header['efficiency'] & Efficiency.N_EVENT:
+				self /= self.header['n_events']
+				self.header['efficiency'] |= Efficiency.N_EVENT
+		else:
+			raise ValueError("Unknown normalization type '%s'" % kind)
 		
 	def save(self, fname, overwrite=False):
 		try:
