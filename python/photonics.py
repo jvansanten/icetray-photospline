@@ -464,11 +464,34 @@ class FITSTable(Table):
 	
 	def __init__(self, binedges, values, weights, header=empty_header):
 		self.bin_edges = binedges
-		self.values = values
-		self.weights = weights
+		self._visible_range = [slice(1,-1)]*len(binedges)
+		shape = tuple((len(edges)+1 for edges in binedges))
+		# add under and overflow bins if not present
+		if values.shape == tuple((len(edges)-1 for edges in binedges)):
+			full_values = numpy.zeros(shape)
+			full_values[self._visible_range] = values
+			values = full_values
+			if weights is not None:
+				full_weights = numpy.zeros(shape)
+				full_weights[self._visible_range] = weights
+				weights = full_weights
+		assert values.shape == shape, "Data array has the correct shape"
+		self._values = values
+		self._weights = weights
 		self.bin_centers = [(edges[1:]+edges[:-1])/2. for edges in self.bin_edges]
 		self.bin_widths = [numpy.diff(edges) for edges in self.bin_edges]
 		self.header = header
+	
+	@property
+	def values(self):
+		return self._values[self._visible_range]
+	
+	@property
+	def weights(self):
+		if self._weights is None:
+			return None
+		else:
+			return self._weights[self._visible_range]
 	
 	def __getitem__(self, slice_):
 		for i in slice_:
@@ -485,10 +508,12 @@ class FITSTable(Table):
 	
 	def __iadd__(self, other):
 		self.raise_if_incompatible(other)
-		self.values += other.values
-		if self.weights is not None:
-			self.weights += other.weights
+		self._values += other._values
+		if self._weights is not None:
+			self._weights += _other.weights
 		self.header['n_photons'] += other.header['n_photons']
+		if 'n_events' in self.header:
+			self.header['n_events'] + other.header['n_events']
 		
 		return self
 
@@ -496,9 +521,9 @@ class FITSTable(Table):
 		return self.__imul__(1./num)
 		
 	def __imul__(self, num):
-		self.values *= num
+		self._values *= num
 		if self.weights is not None:
-			self.weights *= num*num
+			self._weights *= num*num
 		
 		return self
 		
@@ -508,16 +533,16 @@ class FITSTable(Table):
 		"""
 		if not isinstance(other, self.__class__):
 			raise TypeError("Can't combine a %s with this %s" % (other.__class__.__name__, self.__class__.__name__))
-		if self.values.shape != other.values.shape:
+		if self._values.shape != other._values.shape:
 			raise ValueError("Shape mismatch in data arrays!")
-		nans = self.values.size - numpy.isfinite(self.values).sum()
+		nans = self._values.size - numpy.isfinite(self._values).sum()
 		if nans != 0:
 			raise ValueError("This table has %d NaN values. You might want to see to that.")
-		nans = other.values.size - numpy.isfinite(other.values).sum()
+		nans = other._values.size - numpy.isfinite(other._values).sum()
 		if nans != 0:
 			raise ValueError("Other table has %d NaN values. You might want to see to that.")
 		for k, v in self.header.items():
-			if k == 'n_photons':
+			if k in ('n_photons', 'n_events'):
 				continue
 			if other.header[k] != v:
 				raise ValueError("Can't combine tables with %s=%s and %s" % (k, v, other.header[k]))
@@ -556,7 +581,7 @@ class FITSTable(Table):
 			else:
 				raise IOError("File '%s' exists!" % fname)
 		
-		data = pyfits.PrimaryHDU(self.values)
+		data = pyfits.PrimaryHDU(self._values)
 		data.header.set('TYPE', 'Photon detection probability table')
 		
 		for k, v in self.header.items():
@@ -566,11 +591,11 @@ class FITSTable(Table):
 		
 		hdulist = pyfits.HDUList([data])
 		
-		if self.weights is not None:
-			errors = pyfits.ImageHDU(self.weights, name='ERRORS')
+		if self._weights is not None:
+			errors = pyfits.ImageHDU(self._weights, name='ERRORS')
 			hdulist.append(errors)
 		
-		for i in range(self.values.ndim):
+		for i in range(self._values.ndim):
 			edgehdu = pyfits.ImageHDU(self.bin_edges[i],name='EDGES%d' % i)
 			hdulist.append(edgehdu)
 			
