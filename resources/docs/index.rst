@@ -151,6 +151,7 @@ files that can be loaded and evaluated using the bundled C library.
 .. _SuiteSparse: http://www.cise.ufl.edu/research/sparse/
 
 .. autofunction:: icecube.photospline.glam.glam.fit
+   :noindex:
 
 .. function:: icecube.photospline.spglam.fit(z, w, coords, knots, order, smooth=1, periods=None, penalties=None, monodim=None)
 	
@@ -158,12 +159,16 @@ files that can be loaded and evaluated using the bundled C library.
 	:py:func:`icecube.photospline.glam.glam.fit`.
 
 .. autofunction:: icecube.photospline.splinefitstable.write
+   :noindex:
 
 .. autofunction:: icecube.photospline.splinefitstable.read
+   :noindex:
 
 .. autofunction:: icecube.photospline.glam.glam.grideval
+   :noindex:
 
 .. function:: icecube.photospline.spglam.grideval(table, coords)
+   :noindex:
 	
 	A drop-in replacement for 
 	:py:func:`icecube.photospline.glam.glam.grideval`.
@@ -171,6 +176,7 @@ files that can be loaded and evaluated using the bundled C library.
 	.. note:: The ``bases`` argument is not supported in this version.
 
 .. autofunction:: icecube.photospline.glam.glam.bspline
+   :noindex:
 
 C library reference
 ^^^^^^^^^^^^^^^^^^^
