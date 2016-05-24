@@ -15,8 +15,8 @@ def meshgrid_nd(*arrays,**kwargs):
 	by the first argument varies most quickly, followed by the second, etc.
 	This matches the behavior of numpy.meshgrid. To get an array with
 	dimensions in lexographical order, pass lex_order=True: ::
-	
-      >>> x,y,z=numpy.arange(0,3),numpy.arange(4,6),numpy.arange(7,10)
+
+	  >>> x,y,z=numpy.arange(0,3),numpy.arange(4,6),numpy.arange(7,10)
 	  >>> X,Y,Z=numpy.meshgrid_nd(x,y,z,lex_order=False)
 	  >>> X
 	  array([[[0, 1, 2],
@@ -25,7 +25,7 @@ def meshgrid_nd(*arrays,**kwargs):
 	          [0, 1, 2]],
 	         [[0, 1, 2],
 	          [0, 1, 2]]])
-  	  >>> Y
+	  >>> Y
 	  array([[[4, 4, 4],
 	          [5, 5, 5]],
 	         [[4, 4, 4],
@@ -37,9 +37,9 @@ def meshgrid_nd(*arrays,**kwargs):
 	          [7, 7, 7]],
 	         [[8, 8, 8],
 	          [8, 8, 8]],
-             [[9, 9, 9],
+	         [[9, 9, 9],
 	          [9, 9, 9]]])
-      >>> X,Y,Z=numpy.meshgrid_nd(x,y,z,lex_order=True)
+	  >>> X,Y,Z=numpy.meshgrid_nd(x,y,z,lex_order=True)
 	  >>> X
 	  array([[[0, 0, 0],
 	          [0, 0, 0]],
@@ -56,7 +56,7 @@ def meshgrid_nd(*arrays,**kwargs):
 	          [5, 5, 5]]])
 	  >>> Z
 	  array([[[7, 8, 9],
-   	          [7, 8, 9]],
+	          [7, 8, 9]],
 	         [[7, 8, 9],
 	          [7, 8, 9]],
 	         [[7, 8, 9],
