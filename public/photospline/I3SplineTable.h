@@ -24,10 +24,11 @@ public:
 	                          the usual B-spline basis, and result
 	                          will be the gradient of the surface in that
 	                          dimension.
+	 * @param[int] derivatives2 A bitmask indicating dimensions that should be
+	                            differentiated twice.
 	 * @returns 0 on success, non-zero otherwise
 	 */
-	int Eval(double *x, double *result, int derivatives=0) const;
-	int EvalDeriv2(double *x, double *result, int derivatives=0) const;
+	int Eval(double *x, double *result, int derivatives=0, int derivatives2=0) const;
 
 	/** Get the number of dimensions */
 	unsigned GetNDim() const { return table_.ndim; };

@@ -70,8 +70,13 @@ double ndsplineeval(const struct splinetable *table, const double *x,
 double ndsplineeval_linalg(const struct splinetable *table, const double *x, 
     const int *centers, int derivatives);
 
+/*
+* Evaluates the spline surface, optionally differentiated to first or second
+* order in any dimension.
+*/
+
 double ndsplineeval_deriv2(const struct splinetable *table, const double *x, 
-    const int *centers, int derivatives);
+    const int *centers, int derivatives, int derivatives2);
 
 /* Evaluate a spline surface and all its derivatives at x */
 

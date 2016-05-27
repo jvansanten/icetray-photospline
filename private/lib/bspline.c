@@ -457,7 +457,7 @@ ndsplineeval(const struct splinetable *table, const double *x, const int *center
 
 double
 ndsplineeval_deriv2(const struct splinetable *table, const double *x,
-    const int *centers, int derivatives)
+    const int *centers, int derivatives, int derivatives2)
 {
 
         assert(table->ndim>0);
@@ -466,12 +466,16 @@ ndsplineeval_deriv2(const struct splinetable *table, const double *x,
 	float localbasis[table->ndim][maxdegree];
 	
 	for (n = 0; n < table->ndim; n++) {
-		if (derivatives & (1 << n)) {
+		if (derivatives2 & (1 << n)) {
 			for (i = 0; i <= table->order[n]; i++)
 				localbasis[n][i] = bspline_deriv_2(
 				    table->knots[n], x[n],
 				    centers[n] - table->order[n] + i,
 				    table->order[n]);
+		} else if (derivatives & (1 << n)) {
+			bspline_deriv_nonzero(table->knots[n], 
+			    table->nknots[n], x[n], centers[n],
+			    table->order[n], localbasis[n]);
 		} else {
 			bsplvb_simple(table->knots[n], table->nknots[n],
 			    x[n], centers[n], table->order[n] + 1,
