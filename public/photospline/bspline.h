@@ -13,8 +13,7 @@ extern "C" {
  */
 
 double bspline(const double *knots, double x, int i, int n);
-double bspline_deriv(const double *knots, double x, int i, int n);
-double bspline_deriv_2(const double *knots, double x, int i, int n);
+double bspline_deriv(const double *knots, double x, int i, int n, unsigned order);
 
 /*
  * A brain-dead reimplementation of de Boor's BSPLVB, which generates
@@ -71,12 +70,12 @@ double ndsplineeval_linalg(const struct splinetable *table, const double *x,
     const int *centers, int derivatives);
 
 /*
-* Evaluates the spline surface, optionally differentiated to first or second
-* order in any dimension.
+* Evaluates the spline surface, optionally differentiated to the given order
+* in any dimension.
 */
 
-double ndsplineeval_deriv2(const struct splinetable *table, const double *x, 
-    const int *centers, int derivatives, int derivatives2);
+double ndsplineeval_deriv(const struct splinetable *table, const double *x, 
+    const int *centers, const unsigned *derivatives);
 
 /* Evaluate a spline surface and all its derivatives at x */
 

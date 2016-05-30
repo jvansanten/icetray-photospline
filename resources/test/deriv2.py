@@ -23,10 +23,12 @@ x = [0.5]*spline.ndim
 
 spline = I3SplineTable(fname)
 
-assert spline.eval_deriv2(x, 0) == 1.
+assert spline.eval(x) == spline.eval(x, [0,0]) == 1.
 
 # all second derivatives must be zero
 for i in range(len(x)):
-	assert spline.eval_deriv2(x, 1 << i) == 0.
+	derivs = [0]*2
+	derivs[i] = 2
+	assert spline.eval(x, derivs) == 0.
 
 os.unlink(fname)

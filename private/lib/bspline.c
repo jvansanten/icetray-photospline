@@ -221,7 +221,7 @@ bspline_deriv_nonzero(const double *knots, const unsigned nknots,
 }
 
 double
-bspline_deriv(const double *knots, double x, int i, int n)
+bspline_deriv(const double *knots, double x, int i, int n, unsigned order)
 {
 	double result;
 
@@ -233,10 +233,14 @@ bspline_deriv(const double *knots, double x, int i, int n)
 
 		return 0.0;
 	}
-
-	result = n * bspline(knots, x, i, n-1) / (knots[i+n] - knots[i]);
-	result -= n * bspline(knots, x, i+1, n-1) / (knots[i+n+1] - knots[i+1]);
 	
+	if (order <= 1) {
+		result = n * bspline(knots, x, i, n-1) / (knots[i+n] - knots[i]);
+		result -= n * bspline(knots, x, i+1, n-1) / (knots[i+n+1] - knots[i+1]);
+	} else {
+		result = n * bspline_deriv(knots, x, i, n-1, order-1) / (knots[i+n] - knots[i]);
+		result -= n * bspline_deriv(knots, x, i+1, n-1, order-1) / (knots[i+n+1] - knots[i+1]);
+	}
 	return result;
 }
 
@@ -456,8 +460,8 @@ ndsplineeval(const struct splinetable *table, const double *x, const int *center
 }
 
 double
-ndsplineeval_deriv2(const struct splinetable *table, const double *x,
-    const int *centers, int derivatives, int derivatives2)
+ndsplineeval_deriv(const struct splinetable *table, const double *x,
+    const int *centers, const unsigned *derivatives)
 {
 
         assert(table->ndim>0);
@@ -466,20 +470,20 @@ ndsplineeval_deriv2(const struct splinetable *table, const double *x,
 	float localbasis[table->ndim][maxdegree];
 	
 	for (n = 0; n < table->ndim; n++) {
-		if (derivatives2 & (1 << n)) {
-			for (i = 0; i <= table->order[n]; i++)
-				localbasis[n][i] = bspline_deriv_2(
-				    table->knots[n], x[n],
-				    centers[n] - table->order[n] + i,
-				    table->order[n]);
-		} else if (derivatives & (1 << n)) {
+		if (derivatives == NULL || derivatives[n] == 0) {
+			bsplvb_simple(table->knots[n], table->nknots[n],
+			    x[n], centers[n], table->order[n] + 1,
+			    localbasis[n]);
+		} else if (derivatives[n] == 1) {
 			bspline_deriv_nonzero(table->knots[n], 
 			    table->nknots[n], x[n], centers[n],
 			    table->order[n], localbasis[n]);
 		} else {
-			bsplvb_simple(table->knots[n], table->nknots[n],
-			    x[n], centers[n], table->order[n] + 1,
-			    localbasis[n]);
+			for (i = 0; i <= table->order[n]; i++)
+				localbasis[n][i] = bspline_deriv(
+				    table->knots[n], x[n],
+				    centers[n] - table->order[n] + i,
+				    table->order[n], derivatives[n]);
 		}
 	}
 

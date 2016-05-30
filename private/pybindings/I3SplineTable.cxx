@@ -15,10 +15,11 @@ namespace bp = boost::python;
 	pyobj.ptr()->ob_type->tp_name
 
 static double
-splinetableeval(I3SplineTable &self, bp::object coordinates, int derivatives, int derivatives2)
+splinetableeval(I3SplineTable &self, bp::object coordinates, bp::object derivatives)
 {
 	double retvalue(NAN);
 	double *coord_ptr;
+	unsigned *deriv_ptr=NULL;
 
 	PyObject *coords;	
 	coords = PyArray_ContiguousFromObject(coordinates.ptr(), NPY_DOUBLE, 0, 0);
@@ -29,8 +30,25 @@ splinetableeval(I3SplineTable &self, bp::object coordinates, int derivatives, in
 	}
 	coord_ptr = (double*)PyArray_DATA((PyArrayObject *)coords);
 	
-	self.Eval(coord_ptr, &retvalue, derivatives, derivatives2);
+	PyObject *derivs=NULL;
+	if (derivatives.ptr() != Py_None) {
+		// This conversion will wrap around if the contents of derivatives are
+		// negative, resulting in large numbers of differentiations. As long
+		// as the splines are of reasonably small order, though, the result of
+		// the spline evaluation will end up being zero.
+		derivs = PyArray_ContiguousFromObject(derivatives.ptr(), NPY_UINT, 0, 0);
+		if (!derivs) {
+			PyErr_Format(PyExc_ValueError, "Can't convert object of type"
+			    "'%s' to an array of integers!", PY_TYPESTRING(derivatives));
+			bp::throw_error_already_set();
+		}
+		deriv_ptr = (unsigned*)PyArray_DATA((PyArrayObject *)derivs);
+	}
+	
+	self.Eval(coord_ptr, &retvalue, deriv_ptr);
 	Py_XDECREF(coords);
+	if (derivs != NULL)
+		Py_XDECREF(derivs);
 
 	return retvalue;
 }
@@ -50,18 +68,16 @@ GetExtents(const I3SplineTable &self)
 void register_I3SplineTable() {
 	bp::class_<I3SplineTable, boost::shared_ptr<I3SplineTable>, boost::noncopyable>
 	    ("I3SplineTable", bp::init<const std::string&>(bp::arg("path")))
-	    .def("eval", splinetableeval, (bp::args("coordinates"), bp::arg("derivatives")=0, bp::arg("derivatives2")=0),
+	    .def("eval", splinetableeval, (bp::args("coordinates"), bp::arg("derivatives")=bp::object()),
 	        "Evaluate the spline surface at the given coordinates.\n\n"
 	        ":param coordinates: N-dimensonal coordinates at which to evaluate\n"
-	        ":param derivatives: A bitmask indicating the type of basis to use "
-	                          "in each dimension. If the bit corresponding to "
-	                          "a dimension is set, the basis in that "
-	                          "dimension will consist of the derivatives of "
-	                          "the usual B-spline basis, and result "
-	                          "will be the gradient of the surface in that "
-	                          "dimension.\n"
-	        ":param derivatives2: A bitmask indicating which dimensions should"
-	                             "be differentiated twice.")
+	        ":param derivatives: An array indicating the type of basis to use"
+	                          "in each dimension. If an entry corresponding to"
+	                          "a dimension is N>0, the basis in that"
+	                          "dimension will consist of the Nth derivatives of"
+	                          "the usual B-spline basis, and result"
+	                          "will be the Nth-order gradient of the surface in"
+	                          "that dimension. If NULL, 0 will be assumed.")
 	    .add_property("ndim", &I3SplineTable::GetNDim)
 	    .add_property("extents", &GetExtents)
 	;

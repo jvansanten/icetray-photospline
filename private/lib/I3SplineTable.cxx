@@ -18,17 +18,26 @@ I3SplineTable::~I3SplineTable()
 }
 
 int
-I3SplineTable::Eval(double *coordinates, double *result, int derivatives, int derivatives2) const
+I3SplineTable::Eval(double *coordinates, double *result, const unsigned *derivatives) const
 {
 	int centers[table_.ndim];
 	
 	if (tablesearchcenters(&table_, coordinates, centers) == 0)
-		*result = ndsplineeval_deriv2(&table_, coordinates, centers, derivatives, derivatives2);
+		*result = ndsplineeval_deriv(&table_, coordinates, centers, derivatives);
 	else
 		return EINVAL;
 	
 	// Subtract a constant bias if only if there is no differentiation involved
-	if (!(derivatives || derivatives2))
+	bool subtract_bias = true;
+	if (derivatives != NULL) {
+		for (int i=0; i < table_.ndim; i++) {
+			if (derivatives[i] > 0) {
+				subtract_bias = true;
+				break;
+			}
+		}
+	}
+	if (subtract_bias)
 		*result -= bias_;
 	
 	return 0;

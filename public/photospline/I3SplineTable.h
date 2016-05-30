@@ -17,18 +17,16 @@ public:
 	 * 
 	 * @param[in]       x N-dimensonal coordinates at which to evaluate
 	 * @param[out] result Value of spline surface at coordinates
-	 * @param[in] derivatives A bitmask indicating the type of basis to use
-	                          in each dimension. If the bit corresponding to
-	                          a dimension is set, the basis in that
-	                          dimension will consist of the derivatives of
+	 * @param[in] derivatives An array indicating the type of basis to use
+	                          in each dimension. If an entry corresponding to
+	                          a dimension is N>0, the basis in that
+	                          dimension will consist of the Nth derivatives of
 	                          the usual B-spline basis, and result
-	                          will be the gradient of the surface in that
-	                          dimension.
-	 * @param[int] derivatives2 A bitmask indicating dimensions that should be
-	                            differentiated twice.
+	                          will be the Nth-order gradient of the surface in
+	                          that dimension. If NULL, 0 will be assumed.
 	 * @returns 0 on success, non-zero otherwise
 	 */
-	int Eval(double *x, double *result, int derivatives=0, int derivatives2=0) const;
+	int Eval(double *x, double *result, const unsigned *derivatives=NULL) const;
 
 	/** Get the number of dimensions */
 	unsigned GetNDim() const { return table_.ndim; };
