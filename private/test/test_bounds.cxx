@@ -461,7 +461,7 @@ TEST(bspline_deriv_nonzero_vs_bspline_deriv)
 		for (offset = -order; offset <= 0; offset++) {
 			ENSURE(offset+order >= 0);
 			localbasis_bspline[offset+order] =
-			    bspline_deriv(knots, x, center + offset, order);
+			    bspline_deriv(knots, x, center + offset, order, 1);
 		}
 	
 		for (offset = 0; offset < order+1; offset++) {
@@ -480,7 +480,7 @@ TEST(bspline_deriv_nonzero_vs_bspline_deriv)
 		for (offset = -order; offset <= 0; offset++) {
 			ENSURE(offset+order >= 0);
 			localbasis_bspline[offset+order] =
-			    bspline_deriv(knots, x, center + offset, order);
+			    bspline_deriv(knots, x, center + offset, order, 1);
 		}
 	
 		for (offset = 0; offset < order+1; offset++) {
@@ -501,7 +501,7 @@ TEST(bspline_deriv_nonzero_vs_bspline_deriv)
 		for (offset = -order; offset <= 0; offset++) {
 			ENSURE(offset+order >= 0);
 			localbasis_bspline[offset+order] =
-			    bspline_deriv(knots, x, center + offset, order);
+			    bspline_deriv(knots, x, center + offset, order, 1);
 		}
 	
 		for (offset = 0; offset < order+1; offset++) {
@@ -553,7 +553,7 @@ TEST(bspline_nonzero_vs_bspline)
 			localbasis_bspline[offset+order] =
 			    bspline(knots, x, center + offset, order);
 			localbasis_bspline_deriv[offset+order] =
-			    bspline_deriv(knots, x, center + offset, order);
+			    bspline_deriv(knots, x, center + offset, order, 1);
 		}
 	
 		for (offset = 0; offset < order+1; offset++) {
@@ -576,7 +576,7 @@ TEST(bspline_nonzero_vs_bspline)
 			localbasis_bspline[offset+order] =
 			    bspline(knots, x, center + offset, order);
 			localbasis_bspline_deriv[offset+order] =
-			    bspline_deriv(knots, x, center + offset, order);
+			    bspline_deriv(knots, x, center + offset, order, 1);
 		}
 	
 		for (offset = 0; offset < order+1; offset++) {
@@ -601,7 +601,7 @@ TEST(bspline_nonzero_vs_bspline)
 			localbasis_bspline[offset+order] =
 			    bspline(knots, x, center + offset, order);
 			localbasis_bspline_deriv[offset+order] =
-			    bspline_deriv(knots, x, center + offset, order);
+			    bspline_deriv(knots, x, center + offset, order, 1);
 		}
 	
 		for (offset = 0; offset < order+1; offset++) {
