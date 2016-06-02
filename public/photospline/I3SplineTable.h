@@ -13,6 +13,9 @@ public:
 	I3SplineTable(const std::string &path);
 	virtual ~I3SplineTable();
 
+	/** Convolve with a B-spline along the given dimension */
+	void Convolve(int dim, const double *knots, size_t n_knots);
+
 	/** Evaluate the spline surface
 	 * 
 	 * @param[in]       x N-dimensonal coordinates at which to evaluate

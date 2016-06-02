@@ -43,6 +43,15 @@ I3SplineTable::Eval(double *coordinates, double *result, const unsigned *derivat
 	return 0;
 }
 
+void
+I3SplineTable::Convolve(int dim, const double *knots, size_t n_knots)
+{
+	if (dim < 0 || dim >= table_.ndim)
+		throw std::out_of_range("Dimension index out of range");
+	
+	splinetable_convolve(&table_, dim, knots, n_knots);
+}
+
 std::pair<double, double>
 I3SplineTable::GetExtents(int dim) const
 {

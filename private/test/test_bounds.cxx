@@ -178,7 +178,7 @@ TEST(Convolution)
 			break;
 		ENSURE_EQUAL(tablesearchcenters(table.get(), tablecoords, centers), 0);
 		nudge = ndsplineeval(table.get(), tablecoords, centers, 0);
-		ENSURE(nudge - base > -1e-3,
+		ENSURE(nudge - base >= 0,
 		    "Arrival-time CDF remains monotonic.");
 		base = nudge;
 	}

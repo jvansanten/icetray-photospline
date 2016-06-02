@@ -53,6 +53,28 @@ splinetableeval(I3SplineTable &self, bp::object coordinates, bp::object derivati
 	return retvalue;
 }
 
+static void
+splinetableconvolve(I3SplineTable &self, int dim, bp::object knots)
+{
+	double *knot_ptr;
+	double retvalue(NAN);
+	double *coord_ptr;
+	unsigned *deriv_ptr=NULL;
+
+	PyObject *knot_array = PyArray_ContiguousFromObject(knots.ptr(), NPY_DOUBLE, 0, 0);
+	if (!knot_array) {
+		PyErr_Format(PyExc_ValueError, "Can't convert object of type"
+		    "'%s' to an array of doubles!", PY_TYPESTRING(knots));
+		bp::throw_error_already_set();
+	}
+	knot_ptr = (double*)PyArray_DATA((PyArrayObject *)knot_array);
+	
+	self.Convolve(dim, knot_ptr, PyArray_SIZE((PyArrayObject *)knot_array));
+	
+	Py_XDECREF(knot_array);
+}
+
+
 static bp::list
 GetExtents(const I3SplineTable &self)
 {
@@ -68,6 +90,7 @@ GetExtents(const I3SplineTable &self)
 void register_I3SplineTable() {
 	bp::class_<I3SplineTable, boost::shared_ptr<I3SplineTable>, boost::noncopyable>
 	    ("I3SplineTable", bp::init<const std::string&>(bp::arg("path")))
+	    .def("convolve", splinetableconvolve, (bp::args("dimension"), "knots"))
 	    .def("eval", splinetableeval, (bp::args("coordinates"), bp::arg("derivatives")=bp::object()),
 	        "Evaluate the spline surface at the given coordinates.\n\n"
 	        ":param coordinates: N-dimensonal coordinates at which to evaluate\n"
