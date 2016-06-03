@@ -113,7 +113,7 @@ def nnls_normal(AtA,Atb,verbose=True):
 	G = list(indices[mask])
 	x[mask] = 0
 	y = n.zeros(x.size)
-	y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[:,G]
+	y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[...,G]
 	log(F)
 	log(G)
 	log(x)
@@ -147,7 +147,7 @@ def nnls_normal(AtA,Atb,verbose=True):
 			# x_F = n.linalg.lstsq(A[:,F],b)[0]
 			# select only the bits of A^T*A that apply to coefficients F
 			AtA_F = AtA[:,F][F,:]
-			Atb_F = Atb[:,F]
+			Atb_F = Atb[...,F]
 			log("Unconstrained solve: %s, %s" % (AtA_F.shape,Atb_F.shape))
 			x_F = lusolve(AtA_F,Atb_F)
 			lstsqs += 1
@@ -168,7 +168,7 @@ def nnls_normal(AtA,Atb,verbose=True):
 				G.append(r); G.sort()
 		# step 3
 		y[:] = 0
-		y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[:,G]
+		y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[...,G]
 	return x
 
 def nnls_normal_block(AtA,Atb,verbose=True):
@@ -235,12 +235,13 @@ def nnls_normal_block(AtA,Atb,verbose=True):
 			G.remove(r); F.append(r)
 		F.sort(); G.sort()
 		AtA_F = AtA[:,F][F,:]
-		Atb_F = Atb[:,F]
+		Atb_F = Atb[...,F]
+		Atb_G = Atb[...,G]
 		log("Unconstrained solve for %d of %d coefficients" % (len(F),nvar))
 		x[F] = cholsolve(AtA_F,Atb_F)
 		x[G] = 0
 		y[F] = 0
-		y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[:,G]
+		y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb_G
 	if iterations == maxiter:
 		print('Hooo boy, this turned out badly')
 	return x
@@ -282,7 +283,7 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 	
 	x[G] = 0
 	y = n.zeros(nvar)
-	y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[:,G]
+	y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[...,G]
 	
 	iterations = 0
 	lstsqs = 0
@@ -342,7 +343,7 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 			print('H2',H2)
 			modify_factor(F, G, H1, H2)
 			AtA_F = AtA[:,F][F,:]
-			Atb_F = Atb[:,F]
+			Atb_F = Atb[...,F]
 			x_F = cholsolve(AtA_F,Atb_F)
 			lstsqs += 1
 			infeasible = x_F < 0
@@ -435,7 +436,7 @@ def nnls_normal_block3(AtA,Atb,verbose=True):
 		#print 'G_',G_
 		y[:] = 0
 		x[G_] = 0
-		y[G_] = n.dot(AtA[:,F_][G_,:],x[F_]) - Atb[:,G_]
+		y[G_] = n.dot(AtA[:,F_][G_,:],x[F_]) - Atb[...,G_]
 		#print "x_full: " + " ".join(["%- .1e"%f for f in x])
 		#print "y_full: " + " ".join(["%- .1e"%f for f in y])
 	if iterations == maxiter:
@@ -474,7 +475,7 @@ def nnls_normal_block4(AtA,Atb,verbose=True):
 	
 	x[G] = 0
 	y = n.zeros(nvar)
-	y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[:,G]
+	y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[...,G]
 	
 	iterations = 0
 	lstsqs = 0
@@ -503,7 +504,7 @@ def nnls_normal_block4(AtA,Atb,verbose=True):
 		modify_factor(F, G, H1, H2)
 
 		AtA_F = AtA[:,F][F,:]
-		Atb_F = Atb[:,F]
+		Atb_F = Atb[...,F]
 		log("Unconstrained solve for %d of %d coefficients" % (len(F),nvar))
 		x_F = cholsolve(AtA_F,Atb_F)
 		lstsqs += 1
@@ -568,7 +569,7 @@ def nnls_normal_block4(AtA,Atb,verbose=True):
 		# now that we've made x[F] feasible, update constrained part
 		y[:] = 0
 		x[G] = 0
-		y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[:,G]
+		y[G] = n.dot(AtA[:,F][G,:],x[F]) - Atb[...,G]
 	if iterations == maxiter:
 		print('Hooo boy, this turned out badly')
 	return x
