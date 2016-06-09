@@ -108,6 +108,9 @@ if(NUMPY_FOUND AND BLAS_FOUND AND LAPACK_FOUND AND SUITESPARSE_FOUND)
 		NOT_INSPECTABLE
 		MODULE
 	)
+	if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+		target_link_libraries(spglam rt)
+	endif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 	add_custom_command(TARGET spglam
 		PRE_LINK
 		COMMAND mkdir -p ${CMAKE_BINARY_DIR}/lib/icecube/photospline
