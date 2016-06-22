@@ -93,7 +93,6 @@ except:
 	table = FITSTable.load(args[0])
 	geo = table.header['geometry']
 
-table.convert_to_level1()
 table.normalize()
 
 # check for a sane normalization
@@ -189,7 +188,7 @@ def spline_spec(ndim):
 
 # Take cumulative sum to get the CDF, and adjust fit points to be
 # the right edges of the time bins, where the CDF is measured.
-table.values = numpy.cumsum(table.values, axis=3)
+table.values[:] = numpy.cumsum(table.values, axis=3)
 table.bin_centers[3] += table.bin_widths[3]/2.
 
 print("Loaded histogram with dimensions ", table.shape)
