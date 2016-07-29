@@ -23,7 +23,7 @@
  */
 
 double
-bspline(const double *knots, double x, int i, int n)
+bspline(const double *knots, double x, int i, unsigned n)
 {
 	double result;
 
@@ -66,7 +66,7 @@ bspline(const double *knots, double x, int i, int n)
 
 void
 bsplvb_simple(const double *knots, const unsigned nknots,
-    double x, int left, int degree, float *restrict biatx)
+    double x, int left, unsigned degree, float *restrict biatx)
 {
 	int i, j;
 	double saved, term;
@@ -78,6 +78,7 @@ bsplvb_simple(const double *knots, const unsigned nknots,
 	 * Handle the (rare) cases where x is outside the full
 	 * support of the spline surface.
 	 */
+	assert(degree >= 1 && nknots >= degree+1 && left <= nknots-degree-1);
 	if (left == degree-1)
 		while (left >= 0 && x < knots[left])
 			left--;
@@ -127,8 +128,8 @@ bsplvb_simple(const double *knots, const unsigned nknots,
 }
 
 void
-bsplvb(const double *knots, const double x, const int left, const int jlow,
-    const int jhigh, float *restrict biatx,
+bsplvb(const double *knots, const double x, const int left, const unsigned jlow,
+    const unsigned jhigh, float *restrict biatx,
     double *restrict delta_l, double *restrict delta_r)
 {
 	int i, j;
@@ -156,7 +157,7 @@ bsplvb(const double *knots, const double x, const int left, const int jlow,
 
 void
 bspline_deriv_nonzero(const double *knots, const unsigned nknots,
-    const double x, int left, const int n, float *restrict biatx)
+    const double x, int left, const unsigned n, float *restrict biatx)
 {
 	int i, j;
 	double temp, a;
@@ -221,7 +222,7 @@ bspline_deriv_nonzero(const double *knots, const unsigned nknots,
 }
 
 double
-bspline_deriv(const double *knots, double x, int i, int n, unsigned order)
+bspline_deriv(const double *knots, double x, int i, unsigned n, unsigned order)
 {
 	double result;
 
@@ -359,10 +360,10 @@ tablesearchcenters(const struct splinetable *table, const double *x, int *center
 	return (0);
 }
 
-static int
-maxorder(int *order, int ndim)
+static unsigned
+maxorder(int *order, unsigned ndim)
 {
-	int i, max = 0;
+	unsigned i, max = 0;
 	
 	for (i = 0; i < ndim; i++)
 		if (order[i] > max)
@@ -382,9 +383,10 @@ maxorder(int *order, int ndim)
  */
 
 static double
-ndsplineeval_core(const struct splinetable *table, const int *centers, int maxdegree,
+ndsplineeval_core(const struct splinetable *table, const int *centers, unsigned maxdegree,
     float localbasis[table->ndim][maxdegree])
 {
+	assert(table->ndim > 0);
 	int i, j, n, tablepos;
 	float result;
 	float basis_tree[table->ndim+1];
@@ -440,8 +442,9 @@ double
 ndsplineeval(const struct splinetable *table, const double *x, const int *centers,
     int derivatives)
 {
+	assert(table->ndim > 0);
 	int n;
-	int maxdegree = maxorder(table->order, table->ndim) + 1; 
+	unsigned maxdegree = maxorder(table->order, table->ndim) + 1; 
 	float localbasis[table->ndim][maxdegree];
 	
 	for (n = 0; n < table->ndim; n++) {
@@ -464,9 +467,9 @@ ndsplineeval_deriv(const struct splinetable *table, const double *x,
     const int *centers, const unsigned *derivatives)
 {
 
-        assert(table->ndim>0);
+	assert(table->ndim > 0);
 	int i, n;
-	int maxdegree = maxorder(table->order, table->ndim) + 1; 
+	unsigned maxdegree = maxorder(table->order, table->ndim) + 1; 
 	float localbasis[table->ndim][maxdegree];
 	
 	for (n = 0; n < table->ndim; n++) {

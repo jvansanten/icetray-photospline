@@ -12,8 +12,8 @@ extern "C" {
  * defined by knots at the point x.
  */
 
-double bspline(const double *knots, double x, int i, int n);
-double bspline_deriv(const double *knots, double x, int i, int n, unsigned order);
+double bspline(const double *knots, double x, int i, unsigned n);
+double bspline_deriv(const double *knots, double x, int i, unsigned n, unsigned order);
 
 /*
  * A brain-dead reimplementation of de Boor's BSPLVB, which generates
@@ -33,14 +33,14 @@ double bspline_deriv(const double *knots, double x, int i, int n, unsigned order
  */
 
 void bsplvb_simple(const double *knots, const unsigned nknots,
-    double x, int left, int jhigh, float *biatx);
-void bsplvb(const double *knots, const double x, const int left, const int jlow,
-    const int jhigh, float *biatx,
+    double x, int left, unsigned jhigh, float *biatx);
+void bsplvb(const double *knots, const double x, const int left, const unsigned jlow,
+    const unsigned jhigh, float *biatx,
     double *delta_l, double *delta_r);
 void bspline_nonzero(const double *knots, const unsigned nknots,
-    const double x, int left, const int n, float *values, float *derivs);
+    const double x, int left, const unsigned n, float *values, float *derivs);
 void bspline_deriv_nonzero(const double *knots, const unsigned nknots,
-    const double x, const int left, const int n, float *biatx);
+    const double x, const int left, const unsigned n, float *biatx);
 
 /*
  * Evaluates the results of a full spline basis given a set of knots,
