@@ -134,7 +134,7 @@ ndsplineeval_multibasis_core(const struct splinetable *table, const int *centers
 
 void
 bspline_nonzero(const double *knots, const unsigned nknots,
-    const double x, int left, const unsigned n,
+    const double x, int left, const int n,
     float *restrict values, float *restrict derivs)
 {
 	int i, j;
