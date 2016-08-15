@@ -509,8 +509,8 @@ parsefitstable(fitsfile *fits, struct splinetable *table)
 		 * Allow spline evaluations to run off the ends of the
 		 * knot field without segfaulting.
 		 */
-		knot_scratch = malloc(sizeof(double)*(table->nknots[i]
-		    +2*table->order[i]));
+		knot_scratch = calloc(table->nknots[i]
+		    +2*table->order[i], sizeof(double));
 		table->knots[i] = knot_scratch + table->order[i];
 		fits_read_pix(fits, TDOUBLE, &fpix, table->nknots[i], NULL,
 		    table->knots[i], NULL, &error);

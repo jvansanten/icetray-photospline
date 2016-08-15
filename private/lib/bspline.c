@@ -68,6 +68,7 @@ void
 bsplvb_simple(const double *knots, const unsigned nknots,
     double x, int left, int degree, float *restrict biatx)
 {
+	assert(degree>0);
 	int i, j;
 	double saved, term;
 	double delta_l[degree], delta_r[degree];
@@ -158,6 +159,10 @@ void
 bspline_deriv_nonzero(const double *knots, const unsigned nknots,
     const double x, int left, const int n, float *restrict biatx)
 {
+	/* NB: it might be tempting to use unsigned integers *left* and *n* here,
+	   but indices into the knot vector may be negative (up to -order) before
+	   the first fully-supported knot. */
+	assert(n>0);
 	int i, j;
 	double temp, a;
 	double delta_l[n], delta_r[n];
@@ -385,6 +390,7 @@ static double
 ndsplineeval_core(const struct splinetable *table, const int *centers, int maxdegree,
     float localbasis[table->ndim][maxdegree])
 {
+	assert(table->ndim>0);
 	int i, j, n, tablepos;
 	float result;
 	float basis_tree[table->ndim+1];
@@ -440,6 +446,7 @@ double
 ndsplineeval(const struct splinetable *table, const double *x, const int *centers,
     int derivatives)
 {
+	assert(table->ndim>0);
 	int n;
 	int maxdegree = maxorder(table->order, table->ndim) + 1; 
 	float localbasis[table->ndim][maxdegree];
@@ -464,7 +471,7 @@ ndsplineeval_deriv(const struct splinetable *table, const double *x,
     const int *centers, const unsigned *derivatives)
 {
 
-        assert(table->ndim>0);
+	assert(table->ndim>0);
 	int i, n;
 	int maxdegree = maxorder(table->order, table->ndim) + 1; 
 	float localbasis[table->ndim][maxdegree];
@@ -494,6 +501,7 @@ double
 ndsplineeval_linalg(const struct splinetable *table, const double *x,
     const int *centers, int derivatives)
 {
+	assert(table->ndim>0);
 	int totalcoeff, n;
 	int coeffstrides[table->ndim];
 	gsl_matrix_float *basis1, *basis2, *basis_elem;
