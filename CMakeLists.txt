@@ -111,6 +111,11 @@ if(NUMPY_FOUND AND BLAS_FOUND AND LAPACK_FOUND AND SUITESPARSE_FOUND)
 	if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 		target_link_libraries(spglam rt)
 	endif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+	# SPQR pulls in libc++ dependencies to an otherwise pure-C target.
+	# Explicitly link it on El Capitan and greater
+	if(APPLE AND CMAKE_SYSTEM_VERSION VERSION_GREATER 14)
+		target_link_libraries(spglam c++)
+	endif(APPLE AND CMAKE_SYSTEM_VERSION VERSION_GREATER 14)
 	add_custom_command(TARGET spglam
 		PRE_LINK
 		COMMAND mkdir -p ${CMAKE_BINARY_DIR}/lib/icecube/photospline
