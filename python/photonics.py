@@ -510,10 +510,10 @@ class FITSTable(Table):
 		self.raise_if_incompatible(other)
 		self._values += other._values
 		if self._weights is not None:
-			self._weights += _other.weights
+			self._weights += other._weights
 		self.header['n_photons'] += other.header['n_photons']
 		if 'n_events' in self.header:
-			self.header['n_events'] + other.header['n_events']
+			self.header['n_events'] += other.header['n_events']
 		
 		return self
 
