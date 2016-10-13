@@ -473,9 +473,12 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 	out.nknots = calloc(out.ndim,sizeof(long));
 	for (i = 0; i < PySequence_Length(knots); i++) {
 		PyArrayObject *knot_vec;
+		PyObject *item;
+		item = PySequence_GetItem(knots, i);
 		knot_vec = (PyArrayObject *)PyArray_ContiguousFromObject(
-		    PySequence_GetItem(knots, i),
+		    item,
 		    NPY_DOUBLE, 1, 1);
+		Py_DECREF(item);
 
 		if (knot_vec == NULL) {
 			PyErr_SetString(PyExc_TypeError,
@@ -497,9 +500,11 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 	{
 
 		if (PySequence_Check(order)) {
-			for (i = 0; i < out.ndim; i++)
-				out.order[i] = PyLong_AsLong(PySequence_GetItem(
-				    order,i));
+			for (i = 0; i < out.ndim; i++) {
+				PyObject *item = PySequence_GetItem(order, i);
+				out.order[i] = PyLong_AsLong(item);
+				Py_DECREF(item);
+			}
 		} else {
 			out.order[0] = PyLong_AsLong(order);
 			for (i = 1; i < out.ndim; i++)
@@ -512,9 +517,11 @@ static PyObject *pyfit(PyObject *self, PyObject *args, PyObject *kw)
 		c_coords[i] = NULL;
 	for (i = 0; i < PySequence_Length(coords); i++) {
 		PyArrayObject *coord_vec;
+		PyObject *item = PySequence_GetItem(coords, i);
 		coord_vec = (PyArrayObject *)PyArray_ContiguousFromObject(
-		    PySequence_GetItem(coords, i),
+		    item,
 		    NPY_DOUBLE, 1, 1);
+		Py_DECREF(item);
 
 		if (coord_vec == NULL) {
 			PyErr_SetString(PyExc_TypeError,
@@ -704,6 +711,7 @@ pygrideval(PyObject *self, PyObject *args)
 
 	knots = PyObject_GetAttrString(table, "knots");
 	if (!PySequence_Check(knots) || !PySequence_Check(coords)) {
+		Py_DECREF(knots);
 		PyErr_SetString(PyExc_TypeError,
 			"Knots or coords not a sequence");
 		return NULL;
@@ -719,17 +727,24 @@ pygrideval(PyObject *self, PyObject *args)
 
 	for (i = 0; i < PySequence_Length(knots); i++) {
 		PyArrayObject *coord_vec, *knots_vec;
+		PyObject *item;
 		cholmod_sparse *basis, *basist;
 
+		item = PySequence_GetItem(coords, i);
 		coord_vec = (PyArrayObject *)PyArray_ContiguousFromObject(
-		    PySequence_GetItem(coords, i),
+		    item,
 		    NPY_DOUBLE, 1, 1);
+		Py_DECREF(item);
+		item = PySequence_GetItem(knots, i);
 		knots_vec = (PyArrayObject *)PyArray_ContiguousFromObject(
-		    PySequence_GetItem(knots, i),
+		    item,
 		    NPY_DOUBLE, 1, 1);
-		if (PySequence_Check(order_obj))
-			order = PyLong_AsLong(PySequence_GetItem(order_obj,i));
-		else
+		Py_DECREF(item);
+		if (PySequence_Check(order_obj)) {
+			item = PySequence_GetItem(order_obj,i);
+			order = PyLong_AsLong(item);
+			Py_DECREF(item);
+		} else
 			order = PyLong_AsLong(order_obj);
 		
 		basis = bsplinebasis((double *)PyArray_DATA(knots_vec),
