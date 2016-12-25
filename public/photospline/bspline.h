@@ -69,6 +69,8 @@ double ndsplineeval(const struct splinetable *table, const double *x,
 double ndsplineeval_linalg(const struct splinetable *table, const double *x, 
     const int *centers, int derivatives);
 
+void
+ndsplineeval_slice_coeffs(const struct splinetable *table, const double *x, const int *centers, double *results,int slice_dimension);
 /*
 * Evaluates the spline surface, optionally differentiated to the given order
 * in any dimension.
