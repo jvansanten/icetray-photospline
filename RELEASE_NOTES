@@ -7,6 +7,7 @@ Release Notes
 
 Trunk
 
+* Fix memory leaks in spglam with properly placed Py_DECREFs (hat tip to sflis)
 * Fix a bug in splinetable_convolve that filled parts of the transfer matrix
   that should have been zero with (occasionally negative) garbage. Convolution
   now preserves monotonicity, as advertised.
@@ -15,9 +16,21 @@ Trunk
 * Update FITS detection to prefer astropy.io.fits
 * Update fitting scripts to deal with clsim FITS tables
 * Expose I3SplineTable extents and ndim to Python
-
-  -- Jakob van Santen
   
+  -- Jakob van Santen
+
+* Add a function to extract 1D slices from spline surfaces
+  
+  -- Thorsten Gluesenkamp
+
+* Make 1D monotonic fitting work in the Python implementation.
+  
+  -- John Kelley
+
+* Make FITSTable.stack() handle tables where statistical errors were stored
+  
+  -- Thomas Kittler
+
 * Skip wavelength-range factor when normalizing tables in memory (clsim does
   it correctly internally now)
   
