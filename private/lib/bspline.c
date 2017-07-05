@@ -443,12 +443,11 @@ ndsplineeval_core(const struct splinetable *table, const int *centers, int maxde
 	return result;
 }
 
-
 /* This function returns bspline coefficients along a given dimension, fixing the values+coefficients for the
 other dimensions. Used to obtain a 1-d spline representation that can be easily further convolved. */
 
 void
-ndsplineeval_slice_coeffs(const struct splinetable *table, const double *x, const int *centers, double *results,int slice_dimension)
+ndsplineeval_slice_coeffs(const struct splinetable *table, const double *x, const int *centers, double *results,int slice_dimension, int derivative, int area_norm )
 {
 	assert(table->ndim>0);
 	int n;
@@ -457,40 +456,43 @@ ndsplineeval_slice_coeffs(const struct splinetable *table, const double *x, cons
 
 	if(slice_dimension==table->ndim-1)
 	{
-		printf("ERROR!!! slice dimension cannot be ndim-1 in this cheap approximation");
+		printf("ERROR!!! slice dimension cannot be ndim-1 in this implementation!");
 	}
 	
+	
 	for (n = 0; n < table->ndim; n++) {
-		/*
-		if (derivatives & (1 << n)) {
-			bspline_deriv_nonzero(table->knots[n], 
-			    table->nknots[n], x[n], centers[n],
-			    table->order[n], localbasis[n]);
-		} else {
-			*/
-			//printf("xval: %.5f, corresp center: %.d\n", x[n], centers[n]);
-			//printf("naxes %d\n", table->naxes[n]);
+		
+			
 			bsplvb_simple(table->knots[n], table->nknots[n],
 			    x[n], centers[n], table->order[n] + 1,
 			    localbasis[n]);
-		
 	}
 
 	
 
 
-	int i, j, tablepos;
-	float result;
+	int i, j, tablepos, slice_dimension_stride, num_coeffs;
+	//double result;
+	num_coeffs=table->nknots[slice_dimension]-table->order[slice_dimension]-1;
+
+	memset(results, 0, sizeof(double)*num_coeffs);
+	// temp_result is stored to teomporarily store coefficients for derivative calculation
+	double temp_result[num_coeffs];
+
 	float basis_tree[table->ndim+1]; // the last basis_tree dimension is unused .. 
 	int nchunks;
 	int decomposedposition[table->ndim];
 
+	//int derivative_correction[table->ndim];
+
+
+	
+
 	nchunks = 1;
 	for (n = 0; n < table->ndim - 1; n++)
 	{	
-		//printf("table order dim %d: %d\n", n, table->order[n]);
-		//printf("table numknots dim %d: %d\n", n, table->naxes[n]);
-		//printf("table strides... dim %d: %d\n", n, table->strides[n]);
+		//derivative_correction[n]=0;
+		
 		if(n==slice_dimension)
 		{
 			continue;
@@ -498,129 +500,161 @@ ndsplineeval_slice_coeffs(const struct splinetable *table, const double *x, cons
 		nchunks *= (table->order[n] + 1);
 		
 	}
-	//printf("NUMCHUNKS ... %d\n", nchunks);
+
+
+
+	// initialize overall table position
+	tablepos = 0;
+	for (n = 0; n < table->ndim; n++) {
+		decomposedposition[n]=0;
+		if(n!=slice_dimension)
+		{
+			
+			tablepos += (centers[n] - table->order[n])*table->strides[n];
+		}
+		else
+		{
+			slice_dimension_stride=table->strides[n];
+		}
+	}
 	
 	
-	for(int num_time_coeffs=0; num_time_coeffs<table->nknots[slice_dimension]-table->order[slice_dimension]-1;num_time_coeffs++)
-	{
-		result = 0;
-		n = 0;
 		
-		tablepos = 0;
-		for (n = 0; n < table->ndim; n++) {
-			decomposedposition[n]=0;
-			if(n==slice_dimension)
+	// initialize local basis
+	basis_tree[0] = 1;
+	for (n = 0; n < table->ndim; n++)
+	{	
+		if(n==slice_dimension)
+		{
+			basis_tree[n+1] = basis_tree[n];
+			continue;
+
+		}
+		basis_tree[n+1] = basis_tree[n]*localbasis[n][0];
+	}
+
+		
+	double temp_base_eval=0.0;
+	n=0;
+	while (1) {
+		
+		for (i = 0; __builtin_expect(i < table->order[table->ndim-1] +
+		    1, 1); i++) {
+
+			// in contrast to ndsplineeval_core, save a value for each coefficient, separated by the slice dimension stride
+			temp_base_eval=basis_tree[table->ndim-1]*localbasis[table->ndim-1][i];
+			for(int nc=0; __builtin_expect(nc<num_coeffs,1) ;nc++)
 			{
-				
-				tablepos += (num_time_coeffs)*table->strides[n];
+				results[nc] += temp_base_eval*table->coefficients[tablepos + i + nc*slice_dimension_stride];
+			}
+
+		}
+
+		if (__builtin_expect(++n == nchunks, 0))
+			break;
+
+		tablepos += table->strides[table->ndim-2];
+		//printf("strides+ %d\n",table->strides[table->ndim-2]);
+		decomposedposition[table->ndim-2]++;
+		
+		// Carry to higher dimensions
+		for (i = table->ndim-2;
+		    decomposedposition[i] > table->order[i]; i--) {
+		
+			
+			if(i==slice_dimension+1)
+			{
+				//printf("i=slicedimsino +1 .. \n");
+				decomposedposition[i-2]++;
+				tablepos += (table->strides[i-2]
+			    - decomposedposition[i]*table->strides[i]);
+				decomposedposition[i] = 0;
+				// add one extra -1, since we want to skip the slicing dimension
+				i=i-1;
 			}
 			else
 			{
-				tablepos += (centers[n] - table->order[n])*table->strides[n];
+				decomposedposition[i-1]++;
+				tablepos += (table->strides[i-1]
+			    - decomposedposition[i]*table->strides[i]);
+				decomposedposition[i] = 0;
 			}
 			
-			
 		}
+
+		// stacks the tree basis up .. never include the dimension of interest, ie.e the slice dimension
+		for (j = i; __builtin_expect(j < table->ndim-1, 1); j++)
+		 {
+			//printf("last loop index .. %d\n", j);
+			if(j==slice_dimension)
+			{
+				basis_tree[j+1] = basis_tree[j];
+			}
+			else
+			{
+				basis_tree[j+1] = basis_tree[j]*
+			    localbasis[j][decomposedposition[j]];
+			}
+		}
+
+	}
+
 		
 
+	for(int nc=0; __builtin_expect(nc<num_coeffs,1) ;nc++)
+	{
 
-
-		basis_tree[0] = 1;
-		for (n = 0; n < table->ndim; n++)
+		if(derivative>0)
 		{	
-			if(n==slice_dimension)
+			double y_diff;
+			double x_diff;
+			int deriv_order=table->order[slice_dimension];
+
+			if(nc==0)
 			{
-				basis_tree[n+1] = basis_tree[n];
-				continue;
+				// first one is special
+				y_diff=deriv_order*results[0];
+			}
+			else
+			{	
+				// first form derivatives
+				// requires two coefficient results usually ... so only start once we know >=2 coefficients
+				// since table->order is really the degree, the new derivative order is just the degree of the original spline
+				
+				y_diff=deriv_order*(results[nc]-results[nc-1]);
 
 			}
-			basis_tree[n+1] = basis_tree[n]*localbasis[n][0];
+			x_diff=table->knots[slice_dimension][deriv_order+nc]-table->knots[slice_dimension][nc];
+
+			temp_result[nc]=y_diff/((double)x_diff);
+
+			
+			if(area_norm)
+			{	
+				double norm_factor= ((double)deriv_order)/(   table->knots[slice_dimension][deriv_order+nc] - table->knots[slice_dimension][nc]);
+				temp_result[nc]/=norm_factor;
+			}
+
+			// check again for area normalization
+		}
+		else
+		{
+			if(area_norm)
+			{	
+				int real_order=table->order[slice_dimension]+1;
+				double norm_factor= ((double)(real_order))/ (   table->knots[slice_dimension][real_order+nc] - table->knots[slice_dimension][nc]);
+				results[nc]/=norm_factor;
+			}
+
+			//printf("SLICE: abs res: %d %.10f\n", nc, results[nc]);
 		}
 
+	}
 
-		while (1) {
-			//printf("numwhile loops ... %d\n" , num_while_loops);
-
-			// sum over the last dimension ... slice dimension cannot be ndim-1!!!=!
-			for (i = 0; __builtin_expect(i < table->order[table->ndim-1] +
-			    1, 1); i++) {
-				//printf("i .. basis %d - coeff index: %d\n", i, tablepos+i);
-				result += basis_tree[table->ndim-1]*
-				    localbasis[table->ndim-1][i]*
-				    table->coefficients[tablepos + i];
-
-			}
-
-			/*
-			printf(" ... cur result %.6f\n", result);
-			printf(".... basis tree ndim-1 : %.5f\n", basis_tree[table->ndim-1]);
-	 		for (int u =0; u <table->ndim;u++)
-	 		{
-	 			printf("...... dec position %d\n", decomposedposition[u]);
-	 		}
-	 		*/
-	 		
-	 		
-			if (__builtin_expect(++n == nchunks, 0))
-				break;
-
-			tablepos += table->strides[table->ndim-2];
-			//printf("strides+ %d\n",table->strides[table->ndim-2]);
-			decomposedposition[table->ndim-2]++;
-
-			/* Carry to higher dimensions */
-			for (i = table->ndim-2;
-			    decomposedposition[i] > table->order[i]; i--) {
-				//skip the counting for the dimension of interest .. i.e. time usually
-				//printf("inner high-d loop ... dim %d dec compostion: %d \n",i,decomposedposition[i]);
-				//if(i==slice_dimension)
-				//{
-				//	printf("slice dimension skipping .. %d\n",i);
-				//	continue;
-				//}
-				
-				if(i==slice_dimension+1)
-				{
-					//printf("i=slicedimsino +1 .. \n");
-					decomposedposition[i-2]++;
-					tablepos += (table->strides[i-2]
-				    - decomposedposition[i]*table->strides[i]);
-					decomposedposition[i] = 0;
-					// add one extra -1, since we want to skip the slicing dimension
-					i=i-1;
-				}
-				else
-				{
-					decomposedposition[i-1]++;
-					tablepos += (table->strides[i-1]
-				    - decomposedposition[i]*table->strides[i]);
-					decomposedposition[i] = 0;
-				}
-				
-			}
-
-			// stacks the tree basis up .. never include the dimension of interest, ie.e the slice dimension
-			for (j = i; __builtin_expect(j < table->ndim-1, 1); j++)
-			 {
-				//printf("last loop index .. %d\n", j);
-				if(j==slice_dimension)
-				{
-					basis_tree[j+1] = basis_tree[j];
-				}
-				else
-				{
-					basis_tree[j+1] = basis_tree[j]*
-				    localbasis[j][decomposedposition[j]];
-				}
-			}
-			
-			
-		}
-
-		//printf("RESULT: %.6f", result);
-
-		results[num_time_coeffs]=result;
-	
+	// calculated the derivate .. copy temp_result into result
+	if(derivative>0)
+	{
+		memcpy(results, temp_result, sizeof(temp_result));
 	}
 	
 
