@@ -554,9 +554,18 @@ ndsplineeval_slice_coeffs(const struct splinetable *table, const double *x, cons
 		if (__builtin_expect(++n == nchunks, 0))
 			break;
 
-		tablepos += table->strides[table->ndim-2];
-		//printf("strides+ %d\n",table->strides[table->ndim-2]);
-		decomposedposition[table->ndim-2]++;
+		// special case when the slicing dimension is ndim-2 .. skip over this dimension immediately by pushing tablepos forward by (order+1)*strides
+		if(slice_dimension==table->ndim-2)
+		{
+			tablepos += table->strides[table->ndim-2]*(table->order[table->ndim-2]+1);
+			decomposedposition[table->ndim-2]+=(table->order[table->ndim-2]+1);
+		}
+		else
+		{
+			// otherwise just add one stride
+			tablepos += table->strides[table->ndim-2];
+			decomposedposition[table->ndim-2]++;
+		}
 		
 		// Carry to higher dimensions
 		for (i = table->ndim-2;
