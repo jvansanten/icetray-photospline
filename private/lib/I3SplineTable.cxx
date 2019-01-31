@@ -27,12 +27,12 @@ I3SplineTable::Eval(double *coordinates, double *result, const unsigned *derivat
 	else
 		return EINVAL;
 	
-	// Subtract a constant bias if only if there is no differentiation involved
+	// Subtract a constant bias if and only if there is no differentiation involved
 	bool subtract_bias = true;
 	if (derivatives != NULL) {
 		for (int i=0; i < table_.ndim; i++) {
-			if (derivatives[i] > 0) {
-				subtract_bias = true;
+			if (derivatives[i] > 0 || derivatives[i] < 0) {
+				subtract_bias = false;
 				break;
 			}
 		}
